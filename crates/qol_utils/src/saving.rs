@@ -1,4 +1,5 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
+use log::info;
 use serde::Serialize;
 use std::{
     fmt::LowerExp,
@@ -8,16 +9,18 @@ use std::{
 };
 
 pub fn save_data(filename: &str, header: &str, data: &[Vec<impl LowerExp>]) -> Result<()> {
-    let n = data.first().unwrap().len();
+    let n = data.first().expect("0 sized data is not allowed").len();
     for values in data {
         assert!(values.len() == n, "Same length data allowed only")
     }
 
-    let mut path = std::env::current_dir().unwrap();
+    let mut path = std::env::current_dir()?;
     path.push("data");
     path.push(filename);
-    path.set_extension("dat");
-    let filepath = path.parent().unwrap();
+    if let None = path.extension() {
+        path.set_extension("dat");
+    }
+    let filepath = path.parent().ok_or(anyhow!("Could not get filepath parent"))?;
 
     let mut buf = header.to_string();
     for i in 0..n {
@@ -28,34 +31,34 @@ pub fn save_data(filename: &str, header: &str, data: &[Vec<impl LowerExp>]) -> R
 
     if !Path::new(filepath).exists() {
         create_dir_all(filepath)?;
-        println!("created path {}", filepath.display());
+        info!("created path {}", filepath.display());
     }
 
     let mut file = File::create(&path)?;
     file.write_all(buf.as_bytes())?;
 
-    println!("saved data on {}", path.display());
+    info!("saved data on {}", path.display());
     Ok(())
 }
 
 pub fn save_serialize(filename: &str, data: &impl Serialize) -> Result<()> {
-    let mut path = std::env::current_dir().unwrap();
+    let mut path = std::env::current_dir()?;
     path.push("data");
     path.push(filename);
     path.set_extension("json");
-    let filepath = path.parent().unwrap();
+    let filepath = path.parent().ok_or(anyhow!("Could not get filepath parent"))?;
 
-    let buf = serde_json::to_string(data).unwrap();
+    let buf = serde_json::to_string(data)?;
 
     if !Path::new(filepath).exists() {
         create_dir_all(filepath)?;
-        println!("created path {}", filepath.display());
+        info!("created path {}", filepath.display());
     }
 
     let mut file = File::create(&path)?;
     file.write_all(buf.as_bytes())?;
 
-    println!("saved data on {}", path.display());
+    info!("saved data on {}", path.display());
     Ok(())
 }
 
@@ -71,11 +74,13 @@ pub fn save_spectrum(
         "parameters and energies have to have the same length"
     );
 
-    let mut path = std::env::current_dir().unwrap();
+    let mut path = std::env::current_dir()?;
     path.push("data");
     path.push(filename);
-    path.set_extension("dat");
-    let filepath = path.parent().unwrap();
+    if let None = path.extension() {
+        path.set_extension("dat");
+    }
+    let filepath = path.parent().ok_or(anyhow!("Could not get filepath parent"))?;
 
     let mut buf = header.to_string();
 
@@ -87,12 +92,12 @@ pub fn save_spectrum(
 
     if !Path::new(filepath).exists() {
         create_dir_all(filepath)?;
-        println!("created path {}", filepath.display());
+        info!("created path {}", filepath.display());
     }
 
     let mut file = File::create(&path)?;
     file.write_all(buf.as_bytes())?;
 
-    println!("saved data on {}", path.display());
+    info!("saved data on {}", path.display());
     Ok(())
 }
