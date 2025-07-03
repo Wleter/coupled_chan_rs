@@ -1,0 +1,11 @@
+[package]
+name = "qol_utils"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow = {workspace = true}
+log = {workspace = true}
+simple_logger = {workspace = true}
+dyn-clone = "1.0"
+downcast-rs = "2.0"

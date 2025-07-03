@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/utils"]
+members = [ "crates/math_utils", "crates/qol_utils", "crates/constants"]
 resolver = "3"
 
 [workspace.package]
@@ -8,6 +8,13 @@ edition = "2024"
 
 [workspace.dependencies]
 faer = "0.22.6"
+
+num-complex = "0.4.6"
+num-traits = "0.2.19"
+
+anyhow = "1.0.98"
+log = "0.4.27"
+simple_logger = {version = "5.0.0", default-features = false, features = ["colors"]}
 
 [profile.dev.package.faer]
 opt-level = 3
