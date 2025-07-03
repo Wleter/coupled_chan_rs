@@ -84,7 +84,7 @@ impl<T: Real + From<f64> + SubAssign, U: Unit<T>> SubAssign for Quantity<T, U> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::units::Unit;
 
     #[test]

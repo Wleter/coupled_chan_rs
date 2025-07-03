@@ -47,8 +47,15 @@ impl Params {
     }
 }
 
+impl std::fmt::Debug for Params {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let size = self.params.len();
+        write!(f, "Params[{size}]")
+    }
+}
+
 #[cfg(test)]
-mod test {
+mod tests {
     use super::Params;
 
     #[derive(Clone)]
