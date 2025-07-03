@@ -1,5 +1,6 @@
 pub mod params;
 pub mod problem_selector;
+pub mod saving;
 
 /// Macro for crating cache with given name `$cache_name:ident` around the expression
 /// It is used together with `cached_mel!` macro to cache subsequent calculations.

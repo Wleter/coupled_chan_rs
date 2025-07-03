@@ -43,8 +43,8 @@ pub fn logspace(start: f64, end: f64, n: usize) -> Vec<f64> {
 /// - `assert_approx_eq!(mat => x, y, err)` for all elements in matrices
 macro_rules! assert_approx_eq {
     ($x:expr, $y:expr, $err:expr $(, $message:expr)?) => {
-        if $x == $y { }
-        else if ($x - $y).abs() >= $x.abs() * $err {
+        if $x == $y {
+        } else if ($x - $y).abs() >= $x.abs() * $err {
             panic!("assertion failed\nleft side: {:e}\nright side: {:e}", $x, $y)
         }
     };
