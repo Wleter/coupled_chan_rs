@@ -244,7 +244,7 @@ mod tests {
         assert_eq!(basis.size(), 4 * 2 * 2);
 
         let basis_elements = basis.get_basis();
-        
+
         assert_eq!(basis_elements.len(), 4 * 2 * 2);
 
         assert_eq!(
