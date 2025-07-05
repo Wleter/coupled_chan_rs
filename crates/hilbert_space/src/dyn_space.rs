@@ -12,6 +12,7 @@ dyn_clone::clone_trait_object!(DynSubspaceElement);
 
 impl<T: Clone + Debug + Send + Sync + 'static> DynSubspaceElement for T {}
 
+#[derive(Clone, Copy, Debug)]
 pub struct BasisId(u64);
 
 impl Deref for BasisId {
@@ -25,7 +26,7 @@ impl Deref for BasisId {
 #[derive(Clone, Debug)]
 pub struct SubspaceBasis {
     basis: Vec<Box<dyn DynSubspaceElement>>,
-    id: u64,
+    id: BasisId,
 }
 
 impl SubspaceBasis {
@@ -37,7 +38,7 @@ impl SubspaceBasis {
             .map(|x| Box::new(x) as Box<dyn DynSubspaceElement>)
             .collect();
 
-        Self { basis, id: 0 }
+        Self { basis, id: BasisId(0) }
     }
 
     pub fn elements(&self) -> &[Box<dyn DynSubspaceElement>] {
@@ -62,7 +63,7 @@ impl SpaceBasis {
     }
 
     pub fn push_subspace(&mut self, mut state: SubspaceBasis) -> &mut Self {
-        state.id = self.0.len() as u64;
+        state.id = BasisId(self.0.len() as u64);
 
         self.0.push(state);
         self
@@ -242,11 +243,8 @@ mod tests {
         basis.push_subspace(vib);
 
         assert_eq!(basis.size(), 4 * 2 * 2);
-
         let basis_elements = basis.get_basis();
-
         assert_eq!(basis_elements.len(), 4 * 2 * 2);
-        println!("{basis_elements:?}");
 
         assert_eq!(
             basis_elements[0][0].downcast_ref::<ElectronSpin>().unwrap(),
