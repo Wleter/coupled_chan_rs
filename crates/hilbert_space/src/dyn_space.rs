@@ -2,7 +2,7 @@ use downcast_rs::{DowncastSync, impl_downcast};
 use dyn_clone::DynClone;
 use std::{
     fmt::{Debug, Display},
-    ops::{Deref, DerefMut},
+    ops::{Deref, DerefMut, Index},
     slice::Iter,
 };
 
@@ -114,6 +114,15 @@ impl Display for BasisElement<'_> {
         Ok(())
     }
 }
+
+impl<'a> Index<BasisId> for BasisElement<'a> {
+    type Output = &'a Box<dyn DynSubspaceElement>;
+
+    fn index(&self, index: BasisId) -> &Self::Output {
+        &self.0[index.0 as usize]
+    }
+}
+
 
 pub struct SpaceBasisIter<'a> {
     basis: &'a SpaceBasis,
@@ -235,66 +244,66 @@ mod tests {
             ElectronSpin(2, 2),
             ElectronSpin(0, 0),
         ]);
-        basis.push_subspace(e_basis);
+        let e_id = basis.push_subspace(e_basis);
 
         let nuclear = SubspaceBasis::new(vec![NuclearSpin(1, -1), NuclearSpin(1, 1)]);
-        basis.push_subspace(nuclear);
+        let n_id = basis.push_subspace(nuclear);
 
         let vib = SubspaceBasis::new(vec![Vibrational(-1), Vibrational(-2)]);
-        basis.push_subspace(vib);
+        let vib_id = basis.push_subspace(vib);
 
         assert_eq!(basis.size(), 4 * 2 * 2);
         let basis_elements = basis.get_basis();
         assert_eq!(basis_elements.len(), 4 * 2 * 2);
 
         assert_eq!(
-            basis_elements[0][0].downcast_ref::<ElectronSpin>().unwrap(),
+            basis_elements[0][e_id].downcast_ref::<ElectronSpin>().unwrap(),
             &ElectronSpin(2, -2)
         );
         assert_eq!(
-            basis_elements[0][1].downcast_ref::<NuclearSpin>().unwrap(),
+            basis_elements[0][n_id].downcast_ref::<NuclearSpin>().unwrap(),
             &NuclearSpin(1, -1)
         );
-        assert_eq!(basis_elements[0][2].downcast_ref::<Vibrational>().unwrap(), &Vibrational(-1));
+        assert_eq!(basis_elements[0][vib_id].downcast_ref::<Vibrational>().unwrap(), &Vibrational(-1));
 
         assert_eq!(
-            basis_elements[1][0].downcast_ref::<ElectronSpin>().unwrap(),
+            basis_elements[1][e_id].downcast_ref::<ElectronSpin>().unwrap(),
             &ElectronSpin(2, 0)
         );
         assert_eq!(
-            basis_elements[1][1].downcast_ref::<NuclearSpin>().unwrap(),
+            basis_elements[1][n_id].downcast_ref::<NuclearSpin>().unwrap(),
             &NuclearSpin(1, -1)
         );
-        assert_eq!(basis_elements[1][2].downcast_ref::<Vibrational>().unwrap(), &Vibrational(-1));
+        assert_eq!(basis_elements[1][vib_id].downcast_ref::<Vibrational>().unwrap(), &Vibrational(-1));
 
         assert_eq!(
-            basis_elements[4][0].downcast_ref::<ElectronSpin>().unwrap(),
+            basis_elements[4][e_id].downcast_ref::<ElectronSpin>().unwrap(),
             &ElectronSpin(2, -2)
         );
         assert_eq!(
-            basis_elements[4][1].downcast_ref::<NuclearSpin>().unwrap(),
+            basis_elements[4][n_id].downcast_ref::<NuclearSpin>().unwrap(),
             &NuclearSpin(1, 1)
         );
-        assert_eq!(basis_elements[4][2].downcast_ref::<Vibrational>().unwrap(), &Vibrational(-1));
+        assert_eq!(basis_elements[4][vib_id].downcast_ref::<Vibrational>().unwrap(), &Vibrational(-1));
 
         assert_eq!(
-            basis_elements[5][0].downcast_ref::<ElectronSpin>().unwrap(),
+            basis_elements[5][e_id].downcast_ref::<ElectronSpin>().unwrap(),
             &ElectronSpin(2, 0)
         );
         assert_eq!(
-            basis_elements[5][1].downcast_ref::<NuclearSpin>().unwrap(),
+            basis_elements[5][n_id].downcast_ref::<NuclearSpin>().unwrap(),
             &NuclearSpin(1, 1)
         );
-        assert_eq!(basis_elements[5][2].downcast_ref::<Vibrational>().unwrap(), &Vibrational(-1));
+        assert_eq!(basis_elements[5][vib_id].downcast_ref::<Vibrational>().unwrap(), &Vibrational(-1));
 
         assert_eq!(
-            basis_elements[8][0].downcast_ref::<ElectronSpin>().unwrap(),
+            basis_elements[8][e_id].downcast_ref::<ElectronSpin>().unwrap(),
             &ElectronSpin(2, -2)
         );
         assert_eq!(
-            basis_elements[8][1].downcast_ref::<NuclearSpin>().unwrap(),
+            basis_elements[8][n_id].downcast_ref::<NuclearSpin>().unwrap(),
             &NuclearSpin(1, -1)
         );
-        assert_eq!(basis_elements[8][2].downcast_ref::<Vibrational>().unwrap(), &Vibrational(-2));
+        assert_eq!(basis_elements[8][vib_id].downcast_ref::<Vibrational>().unwrap(), &Vibrational(-2));
     }
 }
