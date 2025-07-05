@@ -62,11 +62,12 @@ impl SpaceBasis {
         self.0.iter().fold(1, |acc, s| acc * s.size())
     }
 
-    pub fn push_subspace(&mut self, mut state: SubspaceBasis) -> &mut Self {
-        state.id = BasisId(self.0.len() as u64);
+    pub fn push_subspace(&mut self, mut state: SubspaceBasis) -> BasisId {
+        let id = BasisId(self.0.len() as u64);
+        state.id = id;
 
         self.0.push(state);
-        self
+        id
     }
 }
 
