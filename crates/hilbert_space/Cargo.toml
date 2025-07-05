@@ -1,0 +1,6 @@
+[package]
+name = "hilbert_space"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]

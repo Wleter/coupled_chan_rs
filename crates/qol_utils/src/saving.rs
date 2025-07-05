@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use log::info;
 use serde::Serialize;
 use std::{
@@ -7,6 +7,8 @@ use std::{
     io::Write,
     path::Path,
 };
+
+// todo! clean it up
 
 pub fn save_data(filename: &str, header: &str, data: &[Vec<impl LowerExp>]) -> Result<()> {
     let n = data.first().expect("0 sized data is not allowed").len();
@@ -17,7 +19,7 @@ pub fn save_data(filename: &str, header: &str, data: &[Vec<impl LowerExp>]) -> R
     let mut path = std::env::current_dir()?;
     path.push("data");
     path.push(filename);
-    if let None = path.extension() {
+    if path.extension().is_none() {
         path.set_extension("dat");
     }
     let filepath = path.parent().ok_or(anyhow!("Could not get filepath parent"))?;
@@ -77,7 +79,7 @@ pub fn save_spectrum(
     let mut path = std::env::current_dir()?;
     path.push("data");
     path.push(filename);
-    if let None = path.extension() {
+    if path.extension().is_none() {
         path.set_extension("dat");
     }
     let filepath = path.parent().ok_or(anyhow!("Could not get filepath parent"))?;
@@ -85,7 +87,7 @@ pub fn save_spectrum(
     let mut buf = header.to_string();
 
     for (p, e) in parameter.iter().zip(spectra.iter()) {
-        let line = e.iter().fold(format!("{:e}", p), |s, val| s + &format!("\t{:e}", val));
+        let line = e.iter().fold(format!("{p:e}"), |s, val| s + &format!("\t{val:e}"));
 
         buf.push_str(&format!("\n{line}"))
     }
