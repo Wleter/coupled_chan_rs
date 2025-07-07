@@ -106,6 +106,23 @@ impl<E: Scalar + Zero> Operator<Array2<E>> {
     }
 }
 
+#[macro_export]
+macro_rules! operator_mel {
+    ($backed:ty, dyn $basis:expr, $elements:expr, |[$($args:ident: $subspaces:ty),*]| $body:expr) => {
+        $crate::operator::Operator::<$backed>::from_mel(
+            $basis,
+            $elements,
+            |[$($args),*]| {
+                $(
+                    let $args = $crate::cast_braket!(dyn $args, $subspaces);
+                )*
+
+                $body
+            }
+        )
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use crate::dyn_space::{BasisElements, BasisId, SpaceBasis, SubspaceBasis};
@@ -169,6 +186,21 @@ mod tests {
         ];
 
         assert_eq!(expected, operator.backed);
+
+        let operator_short = operator_mel!(Mat<f64>,
+            dyn &basis,
+            [e_id, vib_id],
+            |[e_braket: ElectronSpin, vib_braket: Vibrational]| {
+                if vib_braket.ket != vib_braket.bra {
+                    ((e_braket.ket.0 * 1000 + e_braket.bra.0 * 100) as i32 + e_braket.ket.1 * 10 + e_braket.bra.1)
+                        as f64
+                } else {
+                    0.1
+                }
+            }
+        );
+
+        assert_eq!(operator_short.backed, operator.backed);
     }
 
     #[test]
@@ -209,6 +241,21 @@ mod tests {
             ]).transpose();
 
         assert_eq!(expected, operator.backed);
+
+        let operator_short = operator_mel!(DMatrix<f64>,
+            dyn &basis,
+            [e_id, vib_id],
+            |[e_braket: ElectronSpin, vib_braket: Vibrational]| {
+                if vib_braket.ket != vib_braket.bra {
+                    ((e_braket.ket.0 * 1000 + e_braket.bra.0 * 100) as i32 + e_braket.ket.1 * 10 + e_braket.bra.1)
+                        as f64
+                } else {
+                    0.1
+                }
+            }
+        );
+
+        assert_eq!(operator_short.backed, operator.backed);
     }
 
     #[test]
@@ -250,5 +297,20 @@ mod tests {
         ).unwrap();
 
         assert_eq!(expected, operator.backed);
+
+        let operator_short = operator_mel!(Array2<f64>,
+            dyn &basis,
+            [e_id, vib_id],
+            |[e_braket: ElectronSpin, vib_braket: Vibrational]| {
+                if vib_braket.ket != vib_braket.bra {
+                    ((e_braket.ket.0 * 1000 + e_braket.bra.0 * 100) as i32 + e_braket.ket.1 * 10 + e_braket.bra.1)
+                        as f64
+                } else {
+                    0.1
+                }
+            }
+        );
+
+        assert_eq!(operator_short.backed, operator.backed);
     }
 }
