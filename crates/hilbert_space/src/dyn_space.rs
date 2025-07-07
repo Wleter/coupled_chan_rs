@@ -3,7 +3,6 @@ use dyn_clone::DynClone;
 use std::{
     fmt::{Debug, Display},
     ops::{Deref, DerefMut, Index},
-    slice::Iter,
 };
 
 pub trait DynSubspaceElement: DynClone + Debug + DowncastSync {}
@@ -72,151 +71,132 @@ impl SpaceBasis {
 }
 
 impl SpaceBasis {
-    pub fn iter_elements(&self) -> SpaceBasisIter<'_> {
-        SpaceBasisIter {
-            basis: self,
-            subspace_basis_iter: self.0.iter().map(|s| s.elements().iter()).collect(),
-            current: BasisElement(Vec::with_capacity(self.0.len())),
-            current_index: 0,
+    pub fn get_filtered_basis(self, f: impl Fn(&[&Box<dyn DynSubspaceElement>]) -> bool) -> BasisElements {
+        let iter = BasisElementIter {
             size: self.size(),
+            basis_sizes: self.0.iter().map(|x| x.size()).collect(),
+            current: BasisElementIndices(vec![0; self.0.len()]),
+            current_index: 0,
+        };
+        let mut subspaces_elements = Vec::with_capacity(self.0.len());
+
+        let filtered = iter
+            .filter(|indices| {
+                subspaces_elements
+                    .iter_mut()
+                    .zip(indices.iter().zip(self.0.iter()))
+                    .for_each(|(s, (i, b))| *s = &b.basis[*i]);
+
+                f(&subspaces_elements)
+            })
+            .collect();
+
+        BasisElements {
+            basis: self,
+            elements_indices: filtered,
         }
     }
 
-    pub fn get_basis(&self) -> BasisElements<'_> {
-        self.iter_elements().collect()
+    pub fn get_basis(self) -> BasisElements {
+        let iter = BasisElementIter {
+            size: self.size(),
+            basis_sizes: self.0.iter().map(|x| x.size()).collect(),
+            current: BasisElementIndices(vec![0; self.0.len()]),
+            current_index: 0,
+        };
+
+        BasisElements {
+            basis: self,
+            elements_indices: iter.collect(),
+        }
     }
 }
 
 #[derive(Clone, Debug)]
-#[allow(clippy::borrowed_box)]
-pub struct BasisElement<'a>(Vec<&'a Box<dyn DynSubspaceElement>>);
+pub struct BasisElementIndices(Vec<usize>);
 
-impl<'a> Deref for BasisElement<'a> {
-    type Target = [&'a Box<dyn DynSubspaceElement>];
+impl Deref for BasisElementIndices {
+    type Target = [usize];
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<'a> DerefMut for BasisElement<'a> {
+impl DerefMut for BasisElementIndices {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl Display for BasisElement<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for s in self.iter() {
-            write!(f, "|{s:?} ⟩ ")?
-        }
-
-        Ok(())
-    }
-}
-
-impl<'a> Index<BasisId> for BasisElement<'a> {
-    type Output = &'a Box<dyn DynSubspaceElement>;
+impl Index<BasisId> for BasisElementIndices {
+    type Output = usize;
 
     fn index(&self, index: BasisId) -> &Self::Output {
         &self.0[index.0 as usize]
     }
 }
 
-
-pub struct SpaceBasisIter<'a> {
-    basis: &'a SpaceBasis,
-    subspace_basis_iter: Vec<Iter<'a, Box<dyn DynSubspaceElement>>>,
-    current: BasisElement<'a>,
+struct BasisElementIter {
+    basis_sizes: Vec<usize>,
     current_index: usize,
+    current: BasisElementIndices,
     size: usize,
 }
 
-// todo! consider if copy is necessary, could be clone
-impl<'a> Iterator for SpaceBasisIter<'a> {
-    type Item = BasisElement<'a>;
+impl Iterator for BasisElementIter {
+    type Item = BasisElementIndices;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_index >= self.size {
             return None;
         }
-        if self.current_index == 0 {
-            for s in self.subspace_basis_iter.iter_mut() {
-                let s_curr = s.next().unwrap(); // at least 1 element exists
 
-                self.current.0.push(s_curr);
-            }
-            self.current_index += 1;
-
-            return Some(self.current.clone());
+        let mut current_index = self.current_index;
+        for (curr, size) in self.current.iter_mut().zip(self.basis_sizes.iter()) {
+            *curr = current_index % size;
+            current_index /= size
         }
 
-        for ((s_spec, s), s_type) in self
-            .current
-            .iter_mut()
-            .zip(self.subspace_basis_iter.iter_mut())
-            .zip(self.basis.0.iter())
-        {
-            match s.next() {
-                Some(s_spec_new) => {
-                    *s_spec = s_spec_new;
-                    break;
-                }
-                None => {
-                    *s = s_type.elements().iter();
-                    let s_curr = s.next().unwrap(); // at least 1 element exists
-                    *s_spec = s_curr;
-                }
-            }
-        }
         self.current_index += 1;
-
         Some(self.current.clone())
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct BasisElements<'a>(Vec<BasisElement<'a>>);
+pub struct BasisElements {
+    pub basis: SpaceBasis,
+    elements_indices: Vec<BasisElementIndices>,
+}
 
-impl<'a> FromIterator<BasisElement<'a>> for BasisElements<'a> {
-    fn from_iter<I: IntoIterator<Item = BasisElement<'a>>>(iter: I) -> Self {
-        let mut elements = BasisElements(vec![]);
+impl BasisElements {
+    pub fn is_empty(&self) -> bool {
+        self.elements_indices.is_empty()
+    }
 
-        for val in iter {
-            elements.0.push(val);
-        }
-
-        elements
+    pub fn len(&self) -> usize {
+        self.elements_indices.len()
     }
 }
 
-impl<'a> IntoIterator for BasisElements<'a> {
-    type Item = BasisElement<'a>;
-    type IntoIter = std::vec::IntoIter<Self::Item>;
+impl Index<(usize, BasisId)> for BasisElements {
+    type Output = Box<dyn DynSubspaceElement>;
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
+    fn index(&self, index: (usize, BasisId)) -> &Self::Output {
+        let basis_subspace = &self.basis.0[index.1.0 as usize];
+        let subspace_index = self.elements_indices[index.0][index.1];
+
+        &basis_subspace.basis[subspace_index]
     }
 }
 
-impl<'a> Deref for BasisElements<'a> {
-    type Target = Vec<BasisElement<'a>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for BasisElements<'_> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl Display for BasisElements<'_> {
+impl Display for BasisElements {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for state in &self.0 {
-            writeln!(f, "{state}")?
+        for indices in &self.elements_indices {
+            for (index, b) in indices.iter().zip(self.basis.0.iter()) {
+                write!(f, "|{:?} ⟩ ", b.basis[*index])?
+            }
+            writeln!(f)?
         }
 
         Ok(())
@@ -257,53 +237,68 @@ mod tests {
         assert_eq!(basis_elements.len(), 4 * 2 * 2);
 
         assert_eq!(
-            basis_elements[0][e_id].downcast_ref::<ElectronSpin>().unwrap(),
+            basis_elements[(0, e_id)].downcast_ref::<ElectronSpin>().unwrap(),
             &ElectronSpin(2, -2)
         );
         assert_eq!(
-            basis_elements[0][n_id].downcast_ref::<NuclearSpin>().unwrap(),
+            basis_elements[(0, n_id)].downcast_ref::<NuclearSpin>().unwrap(),
             &NuclearSpin(1, -1)
         );
-        assert_eq!(basis_elements[0][vib_id].downcast_ref::<Vibrational>().unwrap(), &Vibrational(-1));
+        assert_eq!(
+            basis_elements[(0, vib_id)].downcast_ref::<Vibrational>().unwrap(),
+            &Vibrational(-1)
+        );
 
         assert_eq!(
-            basis_elements[1][e_id].downcast_ref::<ElectronSpin>().unwrap(),
+            basis_elements[(1, e_id)].downcast_ref::<ElectronSpin>().unwrap(),
             &ElectronSpin(2, 0)
         );
         assert_eq!(
-            basis_elements[1][n_id].downcast_ref::<NuclearSpin>().unwrap(),
+            basis_elements[(1, n_id)].downcast_ref::<NuclearSpin>().unwrap(),
             &NuclearSpin(1, -1)
         );
-        assert_eq!(basis_elements[1][vib_id].downcast_ref::<Vibrational>().unwrap(), &Vibrational(-1));
+        assert_eq!(
+            basis_elements[(1, vib_id)].downcast_ref::<Vibrational>().unwrap(),
+            &Vibrational(-1)
+        );
 
         assert_eq!(
-            basis_elements[4][e_id].downcast_ref::<ElectronSpin>().unwrap(),
+            basis_elements[(4, e_id)].downcast_ref::<ElectronSpin>().unwrap(),
             &ElectronSpin(2, -2)
         );
         assert_eq!(
-            basis_elements[4][n_id].downcast_ref::<NuclearSpin>().unwrap(),
+            basis_elements[(4, n_id)].downcast_ref::<NuclearSpin>().unwrap(),
             &NuclearSpin(1, 1)
         );
-        assert_eq!(basis_elements[4][vib_id].downcast_ref::<Vibrational>().unwrap(), &Vibrational(-1));
+        assert_eq!(
+            basis_elements[(4, vib_id)].downcast_ref::<Vibrational>().unwrap(),
+            &Vibrational(-1)
+        );
 
         assert_eq!(
-            basis_elements[5][e_id].downcast_ref::<ElectronSpin>().unwrap(),
+            basis_elements[(5, e_id)].downcast_ref::<ElectronSpin>().unwrap(),
             &ElectronSpin(2, 0)
         );
         assert_eq!(
-            basis_elements[5][n_id].downcast_ref::<NuclearSpin>().unwrap(),
+            basis_elements[(5, n_id)].downcast_ref::<NuclearSpin>().unwrap(),
             &NuclearSpin(1, 1)
         );
-        assert_eq!(basis_elements[5][vib_id].downcast_ref::<Vibrational>().unwrap(), &Vibrational(-1));
+        assert_eq!(
+            basis_elements[(5, vib_id)].downcast_ref::<Vibrational>().unwrap(),
+            &Vibrational(-1)
+        );
 
         assert_eq!(
-            basis_elements[8][e_id].downcast_ref::<ElectronSpin>().unwrap(),
+            basis_elements[(8, e_id)].downcast_ref::<ElectronSpin>().unwrap(),
             &ElectronSpin(2, -2)
         );
         assert_eq!(
-            basis_elements[8][n_id].downcast_ref::<NuclearSpin>().unwrap(),
+            basis_elements[(8, n_id)].downcast_ref::<NuclearSpin>().unwrap(),
             &NuclearSpin(1, -1)
         );
-        assert_eq!(basis_elements[8][vib_id].downcast_ref::<Vibrational>().unwrap(), &Vibrational(-2));
+        assert_eq!(
+            basis_elements[(8, vib_id)].downcast_ref::<Vibrational>().unwrap(),
+            &Vibrational(-2)
+        );
     }
 }
