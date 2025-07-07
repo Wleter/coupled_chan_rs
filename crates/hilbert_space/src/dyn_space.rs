@@ -11,8 +11,8 @@ dyn_clone::clone_trait_object!(DynSubspaceElement);
 
 impl<T: Clone + Debug + Send + Sync + 'static> DynSubspaceElement for T {}
 
-#[derive(Clone, Copy, Debug)]
-pub struct BasisId(u64);
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BasisId(pub u64);
 
 impl Deref for BasisId {
     type Target = u64;
@@ -92,7 +92,7 @@ impl SpaceBasis {
             .collect();
 
         BasisElements {
-            basis: self,
+            basis: self.0,
             elements_indices: filtered,
         }
     }
@@ -106,7 +106,7 @@ impl SpaceBasis {
         };
 
         BasisElements {
-            basis: self,
+            basis: self.0,
             elements_indices: iter.collect(),
         }
     }
@@ -165,8 +165,8 @@ impl Iterator for BasisElementIter {
 
 #[derive(Clone, Debug)]
 pub struct BasisElements {
-    pub basis: SpaceBasis,
-    elements_indices: Vec<BasisElementIndices>,
+    pub basis: Vec<SubspaceBasis>,
+    pub(crate) elements_indices: Vec<BasisElementIndices>,
 }
 
 impl BasisElements {
@@ -183,7 +183,7 @@ impl Index<(usize, BasisId)> for BasisElements {
     type Output = Box<dyn DynSubspaceElement>;
 
     fn index(&self, index: (usize, BasisId)) -> &Self::Output {
-        let basis_subspace = &self.basis.0[index.1.0 as usize];
+        let basis_subspace = &self.basis[index.1.0 as usize];
         let subspace_index = self.elements_indices[index.0][index.1];
 
         &basis_subspace.basis[subspace_index]
@@ -193,7 +193,7 @@ impl Index<(usize, BasisId)> for BasisElements {
 impl Display for BasisElements {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for indices in &self.elements_indices {
-            for (index, b) in indices.iter().zip(self.basis.0.iter()) {
+            for (index, b) in indices.iter().zip(self.basis.iter()) {
                 write!(f, "|{:?} ⟩ ", b.basis[*index])?
             }
             writeln!(f)?

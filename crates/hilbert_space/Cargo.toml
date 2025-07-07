@@ -6,11 +6,12 @@ edition.workspace = true
 [dependencies]
 dyn-clone = "1.0"
 downcast-rs = "2.0"
-# faer = {version = "0.22.6", optional = true}
-# nalgebra = {version = "0.33.2", optional = true}
-# ndarray = {version = "0.16.1", optional = true}
+num-traits = {workspace = true}
+faer = {version = "0.22.6", optional = true}
+nalgebra = {version = "0.33.2", optional = true}
+ndarray = {version = "0.16.1", optional = true}
 
-# [features]
-# faer = ["dep:faer"]
-# nalgebra = ["dep:nalgebra"]
-# ndarray = ["dep:ndarray"]
+[features]
+faer = ["dep:faer"]
+nalgebra = ["dep:nalgebra"]
+ndarray = ["dep:ndarray"]
