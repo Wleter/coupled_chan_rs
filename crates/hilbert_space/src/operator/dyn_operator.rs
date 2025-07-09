@@ -1,5 +1,5 @@
-#[cfg(any(feature = "faer", feature = "nalgebra", feature = "ndarray"))]
 use crate::operator::Operator;
+use matrix_utils::MatrixCreation;
 use num_traits::Zero;
 
 use crate::{
@@ -46,61 +46,62 @@ where
     }
 }
 
-#[cfg(feature = "faer")]
-use faer::Mat;
+pub fn get_diagonal_mel<'a, const N: usize, F, E>(
+    elements: &'a BasisElements,
+    action_subspaces: [BasisId; N],
+    mut mat_element: F,
+) -> impl FnMut(usize, usize) -> E + 'a
+where
+    F: FnMut([&'a Box<dyn DynSubspaceElement>; N]) -> E + 'a,
+    E: Zero,
+{
+    let action_indices = action_subspaces.map(|x| x.0 as usize);
 
-#[cfg(feature = "faer")]
-impl<E: Zero> Operator<Mat<E>> {
-    pub fn from_mel<'a, const N: usize, F>(
-        elements: &'a BasisElements,
-        action_subspaces: [BasisId; N],
-        mat_element: F,
-    ) -> Self
-    where
-        F: FnMut([Braket<&'a Box<dyn DynSubspaceElement>>; N]) -> E + 'a,
-    {
-        let mel = get_mel(elements, action_subspaces, mat_element);
-        let mat = Mat::from_fn(elements.len(), elements.len(), mel);
+    let subspaces_len = elements.basis.len();
+    for subspace_id in action_indices {
+        assert!(subspace_id < subspaces_len, "Action subspace ID is larger than subspace size")
+    }
 
-        Self { backed: mat }
+    move |i, j| {
+        if i != j {
+            return E::zero()
+        }
+
+        let kets = action_subspaces.map(|index| &elements[(i, index)]);
+
+        mat_element(kets)
     }
 }
 
-#[cfg(feature = "nalgebra")]
-use nalgebra::{DMatrix, Scalar};
-
-#[cfg(feature = "nalgebra")]
-impl<E: Scalar + Zero> Operator<DMatrix<E>> {
-    pub fn from_mel<'a, const N: usize, F>(
+impl<M> Operator<M> {
+    pub fn from_mel<'a, E, const N: usize, F>(
         elements: &'a BasisElements,
         action_subspaces: [BasisId; N],
         mat_element: F,
     ) -> Self
     where
+        E: Zero,
+        M: MatrixCreation<E>,
         F: FnMut([Braket<&'a Box<dyn DynSubspaceElement>>; N]) -> E + 'a,
     {
         let mel = get_mel(elements, action_subspaces, mat_element);
-        let mat = DMatrix::from_fn(elements.len(), elements.len(), mel);
+        let mat = M::from_fn(elements.len(), elements.len(), mel);
 
         Self { backed: mat }
     }
-}
 
-#[cfg(feature = "ndarray")]
-use ndarray::Array2;
-
-#[cfg(feature = "ndarray")]
-impl<E: Scalar + Zero> Operator<Array2<E>> {
-    pub fn from_mel<'a, const N: usize, F>(
+    pub fn from_diag_mel<'a, E, const N: usize, F>(
         elements: &'a BasisElements,
         action_subspaces: [BasisId; N],
         mat_element: F,
     ) -> Self
     where
-        F: FnMut([Braket<&'a Box<dyn DynSubspaceElement>>; N]) -> E + 'a,
+        E: Zero,
+        M: MatrixCreation<E>,
+        F: FnMut([&'a Box<dyn DynSubspaceElement>; N]) -> E + 'a,
     {
-        let mut mel = get_mel(elements, action_subspaces, mat_element);
-        let mat = Array2::from_shape_fn((elements.len(), elements.len()), |(i, j)| mel(i, j));
+        let mel = get_diagonal_mel(elements, action_subspaces, mat_element);
+        let mat = M::from_fn(elements.len(), elements.len(), mel);
 
         Self { backed: mat }
     }
@@ -108,13 +109,30 @@ impl<E: Scalar + Zero> Operator<Array2<E>> {
 
 #[macro_export]
 macro_rules! operator_mel {
-    ($backed:ty, dyn $basis:expr, $elements:expr, |[$($args:ident: $subspaces:ty),*]| $body:expr) => {
-        $crate::operator::Operator::<$backed>::from_mel(
+    (dyn $basis:expr, $elements:expr, |[$($args:ident: $subspaces:ty),*]| $body:expr) => {
+        $crate::operator::Operator::from_mel(
             $basis,
             $elements,
             |[$($args),*]| {
                 $(
                     let $args = $crate::cast_braket!(dyn $args, $subspaces);
+                )*
+
+                $body
+            }
+        )
+    };
+}
+
+#[macro_export]
+macro_rules! operator_diag_mel {
+    (dyn $basis:expr, $elements:expr, |[$($args:ident: $subspaces:ty),*]| $body:expr) => {
+        $crate::operator::Operator::from_diag_mel(
+            $basis,
+            $elements,
+            |[$($args),*]| {
+                $(
+                    let $args = $crate::cast_variant!(dyn $args, $subspaces);
                 )*
 
                 $body
@@ -173,7 +191,6 @@ mod tests {
                 }
             },
         );
-
         let expected = mat![
             [0.1, 0.1, 0.0, 0.0, 1089.0, 1109.0, 0.0, 0.0],
             [0.1, 0.1, 0.0, 0.0, 1091.0, 1111.0, 0.0, 0.0],
@@ -184,11 +201,9 @@ mod tests {
             [0.0, 0.0, 1089.0, 1109.0, 0.0, 0.0, 0.1, 0.1],
             [0.0, 0.0, 1091.0, 1111.0, 0.0, 0.0, 0.1, 0.1],
         ];
-
         assert_eq!(expected, operator.backed);
 
-        let operator_short = operator_mel!(Mat<f64>,
-            dyn &basis,
+        let operator_short: Operator<Mat<f64>> = operator_mel!(dyn &basis,
             [e_id, vib_id],
             |[e_braket: ElectronSpin, vib_braket: Vibrational]| {
                 if vib_braket.ket != vib_braket.bra {
@@ -199,8 +214,25 @@ mod tests {
                 }
             }
         );
-
         assert_eq!(operator_short.backed, operator.backed);
+
+        let operator_diag: Operator<Mat<f64>> = operator_diag_mel!(dyn &basis,
+            [e_id, vib_id],
+            |[e: ElectronSpin, vib: Vibrational]| {
+                10. * e.0 as f64 + e.1 as f64 + 0.1 * vib.0 as f64
+            }
+        );
+        let expected = mat![
+            [8.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 10.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 8.9, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 10.9, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 8.8, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 10.8, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 8.8, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 10.8],
+        ];
+        assert_eq!(expected, operator_diag.backed);
     }
 
     #[test]
@@ -242,8 +274,7 @@ mod tests {
 
         assert_eq!(expected, operator.backed);
 
-        let operator_short = operator_mel!(DMatrix<f64>,
-            dyn &basis,
+        let operator_short: Operator<DMatrix<f64>> = operator_mel!(dyn &basis,
             [e_id, vib_id],
             |[e_braket: ElectronSpin, vib_braket: Vibrational]| {
                 if vib_braket.ket != vib_braket.bra {
@@ -256,6 +287,24 @@ mod tests {
         );
 
         assert_eq!(operator_short.backed, operator.backed);
+
+        let operator_diag: Operator<DMatrix<f64>> = operator_diag_mel!(dyn &basis,
+            [e_id, vib_id],
+            |[e: ElectronSpin, vib: Vibrational]| {
+                10. * e.0 as f64 + e.1 as f64 + 0.1 * vib.0 as f64
+            }
+        );
+        let expected = DMatrix::from_vec(8, 8, vec![
+            8.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+            0.0, 10.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+            0.0, 0.0, 8.9, 0.0, 0.0, 0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0, 10.9, 0.0, 0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0, 0.0, 8.8, 0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0, 0.0, 0.0, 10.8, 0.0, 0.0,
+            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 8.8, 0.0,
+            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 10.8,
+        ]);
+        assert_eq!(expected, operator_diag.backed);
     }
 
     #[test]
@@ -298,8 +347,7 @@ mod tests {
 
         assert_eq!(expected, operator.backed);
 
-        let operator_short = operator_mel!(Array2<f64>,
-            dyn &basis,
+        let operator_short: Operator<Array2<f64>> = operator_mel!(dyn &basis,
             [e_id, vib_id],
             |[e_braket: ElectronSpin, vib_braket: Vibrational]| {
                 if vib_braket.ket != vib_braket.bra {
@@ -312,5 +360,23 @@ mod tests {
         );
 
         assert_eq!(operator_short.backed, operator.backed);
+
+        let operator_diag: Operator<Array2<f64>> = operator_diag_mel!(dyn &basis,
+            [e_id, vib_id],
+            |[e: ElectronSpin, vib: Vibrational]| {
+                10. * e.0 as f64 + e.1 as f64 + 0.1 * vib.0 as f64
+            }
+        );
+        let expected = Array2::from_shape_vec((8, 8), vec![
+            8.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+            0.0, 10.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+            0.0, 0.0, 8.9, 0.0, 0.0, 0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0, 10.9, 0.0, 0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0, 0.0, 8.8, 0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0, 0.0, 0.0, 10.8, 0.0, 0.0,
+            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 8.8, 0.0,
+            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 10.8,
+        ]).unwrap();
+        assert_eq!(expected, operator_diag.backed);
     }
 }

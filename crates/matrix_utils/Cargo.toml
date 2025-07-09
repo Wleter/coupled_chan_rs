@@ -1,5 +1,5 @@
 [package]
-name = "math_utils"
+name = "matrix_utils"
 version.workspace = true
 edition.workspace = true
 

@@ -4,14 +4,17 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+matrix_utils = {path = "../matrix_utils"}
+
 dyn-clone = "1.0"
 downcast-rs = "2.0"
 num-traits = {workspace = true}
-faer = {version = "0.22.6", optional = true}
-nalgebra = {version = "0.33.2", optional = true}
-ndarray = {version = "0.16.1", optional = true}
+
+faer = { workspace = true, optional = true}
+nalgebra = { workspace = true, optional = true}
+ndarray = { workspace = true, optional = true}
 
 [features]
-faer = ["dep:faer"]
-nalgebra = ["dep:nalgebra"]
-ndarray = ["dep:ndarray"]
+faer = ["dep:faer", "matrix_utils/faer"]
+nalgebra = ["dep:nalgebra", "matrix_utils/nalgebra"]
+ndarray = ["dep:ndarray", "matrix_utils/ndarray"]

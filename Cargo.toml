@@ -1,5 +1,5 @@
 [workspace]
-members = [ "crates/math_utils", "crates/qol_utils", "crates/constants", "crates/hilbert_space"]
+members = [ "crates/math_utils", "crates/qol_utils", "crates/constants", "crates/hilbert_space", "crates/matrix_utils"]
 resolver = "3"
 
 [workspace.package]
@@ -7,7 +7,6 @@ version = "0.1.0"
 edition = "2024"
 
 [workspace.dependencies]
-faer = "0.22.6"
 rayon = "1.6.0"
 
 num-complex = "0.4.6"
@@ -19,6 +18,10 @@ simple_logger = {version = "5.0.0", default-features = false, features = ["color
 
 serde = { version = "1.0.219", features = ["derive"]}
 serde_json = "1.0.140"
+
+faer = "0.22.6"
+nalgebra = "0.33.2"
+ndarray = "0.16.1"
 
 [profile.dev.package.faer]
 opt-level = 3

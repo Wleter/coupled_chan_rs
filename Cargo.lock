@@ -537,6 +537,7 @@ dependencies = [
  "downcast-rs",
  "dyn-clone",
  "faer",
+ "matrix_utils",
  "nalgebra",
  "ndarray",
  "num-traits",
@@ -608,6 +609,20 @@ dependencies = [
 [[package]]
 name = "math_utils"
 version = "0.1.0"
+dependencies = [
+ "faer",
+ "nalgebra",
+ "ndarray",
+]
+
+[[package]]
+name = "matrix_utils"
+version = "0.1.0"
+dependencies = [
+ "faer",
+ "nalgebra",
+ "ndarray",
+]
 
 [[package]]
 name = "matrixmultiply"
