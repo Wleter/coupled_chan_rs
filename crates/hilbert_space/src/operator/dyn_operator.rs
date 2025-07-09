@@ -64,7 +64,7 @@ where
 
     move |i, j| {
         if i != j {
-            return E::zero()
+            return E::zero();
         }
 
         let states = action_subspaces.map(|index| &elements[(i, index)]);
@@ -93,9 +93,16 @@ where
     }
 
     let subspaces_transform_len = elements_transform.basis.len();
-    assert_eq!(subspaces_transform_len, elements_transform.basis.len(), "Transformed subspaces do not cover whole transformed basis");
+    assert_eq!(
+        subspaces_transform_len,
+        elements_transform.basis.len(),
+        "Transformed subspaces do not cover whole transformed basis"
+    );
     for subspace_id in indices_transform {
-        assert!(subspace_id < subspaces_transform_len, "Subspace ID is larger than subspace size")
+        assert!(
+            subspace_id < subspaces_transform_len,
+            "Subspace ID is larger than subspace size"
+        )
     }
 
     move |i, j| {
@@ -145,7 +152,7 @@ impl<M> Operator<M> {
         elements_transform: &'a BasisElements,
         subspaces_transform: [BasisId; K],
         mat_element: F,
-    ) -> Self 
+    ) -> Self
     where
         E: Zero,
         M: MatrixCreation<E>,
@@ -195,9 +202,9 @@ macro_rules! operator_diag_mel {
 #[macro_export]
 macro_rules! operator_transform_mel {
     (
-        dyn $basis:expr, $elements:expr, 
+        dyn $basis:expr, $elements:expr,
         dyn $basis_transf:expr, $elements_transf:expr,
-        |[$($args:ident: $subspaces:ty),*], [$($args_transf:ident: $subspaces_transf:ty),*]| 
+        |[$($args:ident: $subspaces:ty),*], [$($args_transf:ident: $subspaces_transf:ty),*]|
         $body:expr
     ) => {
         $crate::operator::Operator::from_transform_mel(
@@ -463,14 +470,19 @@ mod tests {
 
     #[test]
     fn test_dyn_transform_faer() {
-        use faer::{mat, Mat};
         use crate::operator::Operator;
+        use faer::{Mat, mat};
 
         let (basis, [e_id, n_id, vib_id]) = dyn_basis();
 
         let mut basis_transform = SpaceBasis::default();
 
-        let s_basis = SubspaceBasis::new(vec![CombinedSpin(2, -2), CombinedSpin(2, 0), CombinedSpin(2, 2), CombinedSpin(0, 0)]);
+        let s_basis = SubspaceBasis::new(vec![
+            CombinedSpin(2, -2),
+            CombinedSpin(2, 0),
+            CombinedSpin(2, 2),
+            CombinedSpin(0, 0),
+        ]);
         let s_transf_id = basis_transform.push_subspace(s_basis);
 
         let vib = SubspaceBasis::new(vec![Vibrational(-1), Vibrational(-2)]);
