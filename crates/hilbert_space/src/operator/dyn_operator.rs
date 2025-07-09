@@ -67,9 +67,42 @@ where
             return E::zero()
         }
 
-        let kets = action_subspaces.map(|index| &elements[(i, index)]);
+        let states = action_subspaces.map(|index| &elements[(i, index)]);
+        mat_element(states)
+    }
+}
 
-        mat_element(kets)
+pub fn get_transform_mel<'a, const N: usize, const M: usize, F, E>(
+    elements: &'a BasisElements,
+    elements_transform: &'a BasisElements,
+    subspaces: [BasisId; N],
+    subspaces_transform: [BasisId; M],
+    mut mat_element: F,
+) -> impl FnMut(usize, usize) -> E + 'a
+where
+    F: FnMut([&'a Box<dyn DynSubspaceElement>; N], [&'a Box<dyn DynSubspaceElement>; M]) -> E + 'a,
+    E: Zero,
+{
+    let indices = subspaces.map(|x| x.0 as usize);
+    let indices_transform = subspaces_transform.map(|x| x.0 as usize);
+
+    let subspaces_len = elements.basis.len();
+    assert_eq!(subspaces_len, elements.basis.len(), "Subspaces do not cover whole basis");
+    for subspace_id in indices {
+        assert!(subspace_id < subspaces_len, "Subspace ID is larger than subspace size")
+    }
+
+    let subspaces_transform_len = elements_transform.basis.len();
+    assert_eq!(subspaces_transform_len, elements_transform.basis.len(), "Transformed subspaces do not cover whole transformed basis");
+    for subspace_id in indices_transform {
+        assert!(subspace_id < subspaces_transform_len, "Subspace ID is larger than subspace size")
+    }
+
+    move |i, j| {
+        let states = subspaces.map(|index| &elements[(i, index)]);
+        let states_transform = subspaces_transform.map(|index| &elements_transform[(j, index)]);
+
+        mat_element(states, states_transform)
     }
 }
 
@@ -105,6 +138,24 @@ impl<M> Operator<M> {
 
         Self { backed: mat }
     }
+
+    pub fn from_transform_mel<'a, E, const N: usize, const K: usize, F>(
+        elements: &'a BasisElements,
+        subspaces: [BasisId; N],
+        elements_transform: &'a BasisElements,
+        subspaces_transform: [BasisId; K],
+        mat_element: F,
+    ) -> Self 
+    where
+        E: Zero,
+        M: MatrixCreation<E>,
+        F: FnMut([&'a Box<dyn DynSubspaceElement>; N], [&'a Box<dyn DynSubspaceElement>; K]) -> E + 'a,
+    {
+        let mel = get_transform_mel(elements, elements_transform, subspaces, subspaces_transform, mat_element);
+        let mat = M::from_fn(elements.len(), elements.len(), mel);
+
+        Self { backed: mat }
+    }
 }
 
 #[macro_export]
@@ -133,6 +184,33 @@ macro_rules! operator_diag_mel {
             |[$($args),*]| {
                 $(
                     let $args = $crate::cast_variant!(dyn $args, $subspaces);
+                )*
+
+                $body
+            }
+        )
+    };
+}
+
+#[macro_export]
+macro_rules! operator_transform_mel {
+    (
+        dyn $basis:expr, $elements:expr, 
+        dyn $basis_transf:expr, $elements_transf:expr,
+        |[$($args:ident: $subspaces:ty),*], [$($args_transf:ident: $subspaces_transf:ty),*]| 
+        $body:expr
+    ) => {
+        $crate::operator::Operator::from_transform_mel(
+            $basis,
+            $elements,
+            $basis_transf,
+            $elements_transf,
+            |[$($args),*], [$($args_transf),*]| {
+                $(
+                    let $args = $crate::cast_variant!(dyn $args, $subspaces);
+                )*
+                $(
+                    let $args_transf = $crate::cast_variant!(dyn $args_transf, $subspaces_transf);
                 )*
 
                 $body
@@ -378,5 +456,50 @@ mod tests {
             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 10.8,
         ]).unwrap();
         assert_eq!(expected, operator_diag.backed);
+    }
+
+    #[derive(Clone, Copy, Debug, PartialEq)]
+    pub struct CombinedSpin(u32, i32);
+
+    #[test]
+    fn test_dyn_transform_faer() {
+        use faer::{mat, Mat};
+        use crate::operator::Operator;
+
+        let (basis, [e_id, n_id, vib_id]) = dyn_basis();
+
+        let mut basis_transform = SpaceBasis::default();
+
+        let s_basis = SubspaceBasis::new(vec![CombinedSpin(2, -2), CombinedSpin(2, 0), CombinedSpin(2, 2), CombinedSpin(0, 0)]);
+        let s_transf_id = basis_transform.push_subspace(s_basis);
+
+        let vib = SubspaceBasis::new(vec![Vibrational(-1), Vibrational(-2)]);
+        let vib_transf_id = basis_transform.push_subspace(vib);
+        let basis_transform = basis_transform.get_basis();
+        println!("{basis_transform}");
+
+        let transform: Operator<Mat<f64>> = operator_transform_mel!(
+            dyn &basis, [e_id, n_id, vib_id],
+            dyn &basis_transform, [s_transf_id, vib_transf_id],
+            |[e: ElectronSpin, n: NuclearSpin, _vib: Vibrational], [s: CombinedSpin, _vib_t: Vibrational]| {
+                if e.1 + n.1 != s.1 {
+                    return 0.
+                }
+
+                s.0 as f64 + 0.1 * s.1 as f64 + e.0 as f64
+            }
+        );
+
+        let expected = mat![
+            [2.8, 0.0, 0.0, 0.0, 2.8, 0.0, 0.0, 0.0],
+            [0.0, 3.0, 0.0, 1.0, 0.0, 3.0, 0.0, 1.0],
+            [0.0, 3.0, 0.0, 1.0, 0.0, 3.0, 0.0, 1.0],
+            [0.0, 0.0, 3.2, 0.0, 0.0, 0.0, 3.2, 0.0],
+            [2.8, 0.0, 0.0, 0.0, 2.8, 0.0, 0.0, 0.0],
+            [0.0, 3.0, 0.0, 1.0, 0.0, 3.0, 0.0, 1.0],
+            [0.0, 3.0, 0.0, 1.0, 0.0, 3.0, 0.0, 1.0],
+            [0.0, 0.0, 3.2, 0.0, 0.0, 0.0, 3.2, 0.0],
+        ];
+        assert_eq!(expected, transform.backed);
     }
 }
