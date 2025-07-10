@@ -32,7 +32,7 @@ impl<M> Operator<M> {
     }
 }
 
-/// Cast the expression `value` to the variant `pat` or panic if it is mismatched.
+/// Macro for casting given value into known variant
 /// # Syntax
 /// - `cast_variant!($value, $pat)`
 /// - `cast_variant!(dyn $value, $type)`
@@ -48,9 +48,10 @@ macro_rules! cast_variant {
     (dyn $value:expr, $type:ty) => {{ $value.downcast_ref::<$type>().expect("Could not downcast value") }};
 }
 
-/// Cast the expression `value` to the variant `pat` or panic if it is mismatched.
+/// Macro for casting multiple values into know variants
 /// # Syntax
-/// - `cast_variant!($value, $pat)`
+/// - `cast_variants!(($value, $pat),*)`
+/// - `cast_variants!(dyn ($value, $type),*)`
 #[macro_export]
 macro_rules! cast_variants {
     ($($args:ident: $states:path),* $(,)?) => {
@@ -65,9 +66,10 @@ macro_rules! cast_variants {
     };
 }
 
-/// Cast the expression `value` braket to the variant `pat` or panic if it is mismatched.
+/// Macro for casting braket into known variants
 /// # Syntax
 /// - `cast_braket!($value, $pat)`
+/// - `cast_braket!(dyn $value, $type)`
 #[macro_export]
 macro_rules! cast_braket {
     ($value:expr, $pat:path) => {{
@@ -84,6 +86,10 @@ macro_rules! cast_braket {
     }};
 }
 
+/// Create operator from matrix elements in given basis
+/// # Syntax
+/// - `operator_mel!(dyn $basis, $action_elements, |[($arg_braket: $subspace),*]| $body)`
+/// - `operator_mel!($basis, |[($arg_braket: $subspace),*]| $body)`
 #[macro_export]
 macro_rules! operator_mel {
     (dyn $basis:expr, $elements:expr, |[$($args:ident: $subspaces:ty),*]| $body:expr) => {
@@ -114,6 +120,10 @@ macro_rules! operator_mel {
     };
 }
 
+/// Create diagonal operator from matrix elements in given basis
+/// # Syntax
+/// - `operator_mel!(dyn $basis, $action_elements, |[($arg: $subspace),*]| $body)`
+/// - `operator_mel!($basis, |[($arg: $subspace),*]| $body)`
 #[macro_export]
 macro_rules! operator_diag_mel {
     (dyn $basis:expr, $elements:expr, |[$($args:ident: $subspaces:ty),*]| $body:expr) => {
@@ -144,6 +154,13 @@ macro_rules! operator_diag_mel {
     };
 }
 
+/// Create transformation operator from matrix elements in given basis
+/// # Syntax
+/// - `operator_transform_mel!(dyn $basis, $elements,
+///     dyn $basis_transform, $elements_transform, 
+///     |[($arg: $subspace),*], [($arg_transf: $subspace),*]| $body)`
+/// - `operator_transform_mel!($basis, $basis_transform, 
+///     |[($arg: $subspace),*], [($arg_transf: $subspace),*]| $body)`
 #[macro_export]
 macro_rules! operator_transform_mel {
     (

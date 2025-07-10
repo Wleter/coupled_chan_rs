@@ -77,13 +77,18 @@ fn select(arg: &str, args: &mut VecDeque<String>, method_list: &[(&'static str, 
 }
 
 #[macro_export]
+/// Implement ProblemSelector trait
+///
+/// # Syntax
+///
+/// - `problems_impl!(selector, name, (problem_name => method),*)`
 macro_rules! problems_impl {
-    ($selector:ty, $name:expr, $($problem_type:expr => $method:expr),* $(,)?) => {
+    ($selector:ty, $name:expr, $($problem_name:expr => $method:expr),* $(,)?) => {
         impl $crate::problem_selector::ProblemSelector for $selector {
             const NAME: &'static str = $name;
 
             fn list() -> Vec<(&'static str, $crate::problem_selector::ProblemMethod)> {
-                vec![$(($problem_type, Box::new($method))),*]
+                vec![$(($problem_name, Box::new($method))),*]
             }
         }
     };

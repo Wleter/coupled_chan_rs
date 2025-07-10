@@ -118,7 +118,7 @@ pub struct SpaceBasisIter<'a, T> {
     size: usize,
 }
 
-// todo! consider if copy is necessary, could be clone
+// todo! consider if copy is necessary, could be just clone
 impl<T: Copy> Iterator for SpaceBasisIter<'_, T> {
     type Item = BasisElement<T>;
 
