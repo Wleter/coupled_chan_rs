@@ -488,7 +488,6 @@ mod tests {
         let vib = SubspaceBasis::new(vec![Vibrational(-1), Vibrational(-2)]);
         let vib_transf_id = basis_transform.push_subspace(vib);
         let basis_transform = basis_transform.get_basis();
-        println!("{basis_transform}");
 
         let transform: Operator<Mat<f64>> = operator_transform_mel!(
             dyn &basis, [e_id, n_id, vib_id],
@@ -497,20 +496,25 @@ mod tests {
                 if e.1 + n.1 != s.1 {
                     return 0.
                 }
+                let factor = if _vib.0 * _vib_t.0 == 2 {
+                    -1.
+                } else {
+                    1.
+                };
 
-                s.0 as f64 + 0.1 * s.1 as f64 + e.0 as f64
+                factor * (s.0 as f64 + 0.1 * s.1 as f64 + e.0 as f64)
             }
         );
 
         let expected = mat![
-            [2.8, 0.0, 0.0, 0.0, 2.8, 0.0, 0.0, 0.0],
-            [0.0, 3.0, 0.0, 1.0, 0.0, 3.0, 0.0, 1.0],
-            [0.0, 3.0, 0.0, 1.0, 0.0, 3.0, 0.0, 1.0],
-            [0.0, 0.0, 3.2, 0.0, 0.0, 0.0, 3.2, 0.0],
-            [2.8, 0.0, 0.0, 0.0, 2.8, 0.0, 0.0, 0.0],
-            [0.0, 3.0, 0.0, 1.0, 0.0, 3.0, 0.0, 1.0],
-            [0.0, 3.0, 0.0, 1.0, 0.0, 3.0, 0.0, 1.0],
-            [0.0, 0.0, 3.2, 0.0, 0.0, 0.0, 3.2, 0.0],
+            [2.8, 0.0, 0.0, 0.0, -2.8, 0.0, 0.0, 0.0],
+            [0.0, 3.0, 0.0, 1.0, 0.0, -3.0, 0.0, -1.0],
+            [0.0, 3.0, 0.0, 1.0, 0.0, -3.0, 0.0, -1.0],
+            [0.0, 0.0, 3.2, 0.0, 0.0, 0.0, -3.2, 0.0],
+            [-2.8, 0.0, 0.0, 0.0, 2.8, 0.0, 0.0, 0.0],
+            [0.0, -3.0, 0.0, -1.0, 0.0, 3.0, 0.0, 1.0],
+            [0.0, -3.0, 0.0, -1.0, 0.0, 3.0, 0.0, 1.0],
+            [0.0, 0.0, -3.2, 0.0, 0.0, 0.0, 3.2, 0.0],
         ];
         assert_eq!(expected, transform.backed);
     }
