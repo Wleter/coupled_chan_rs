@@ -83,3 +83,117 @@ macro_rules! cast_braket {
         $crate::operator::Braket { bra, ket }
     }};
 }
+
+#[macro_export]
+macro_rules! operator_mel {
+    (dyn $basis:expr, $elements:expr, |[$($args:ident: $subspaces:ty),*]| $body:expr) => {
+        $crate::operator::Operator::from_mel_dyn(
+            $basis,
+            $elements,
+            |[$($args),*]| {
+                $(
+                    let $args = $crate::cast_braket!(dyn $args, $subspaces);
+                )*
+
+                $body
+            }
+        )
+    };
+    ($basis:expr, |[$($args:ident: $subspaces:path),*]| $body:expr) => {
+        $crate::operator::Operator::from_mel(
+            $basis,
+            [$($subspaces(Default::default())),*],
+            |[$($args),*]| {
+                $(
+                    let $args = $crate::cast_braket!($args, $subspaces);
+                )*
+
+                $body
+            }
+        )
+    };
+}
+
+#[macro_export]
+macro_rules! operator_diag_mel {
+    (dyn $basis:expr, $elements:expr, |[$($args:ident: $subspaces:ty),*]| $body:expr) => {
+        $crate::operator::Operator::from_diag_mel_dyn(
+            $basis,
+            $elements,
+            |[$($args),*]| {
+                $(
+                    let $args = $crate::cast_variant!(dyn $args, $subspaces);
+                )*
+
+                $body
+            }
+        )
+    };
+    ($basis:expr, |[$($args:ident: $subspaces:path),*]| $body:expr) => {
+        $crate::operator::Operator::from_diag_mel(
+            $basis,
+            [$($subspaces(Default::default())),*],
+            |[$($args),*]| {
+                $(
+                    let $args = $crate::cast_variant!($args, $subspaces);
+                )*
+
+                $body
+            }
+        )
+    };
+}
+
+#[macro_export]
+macro_rules! operator_transform_mel {
+    (
+        dyn $basis:expr, $elements:expr,
+        dyn $basis_transf:expr, $elements_transf:expr,
+        |[$($args:ident: $subspaces:ty),*], [$($args_transf:ident: $subspaces_transf:ty),*]|
+        $body:expr
+    ) => {
+        $crate::operator::Operator::from_transform_mel_dyn(
+            $basis,
+            $elements,
+            $basis_transf,
+            $elements_transf,
+            |[$($args),*], [$($args_transf),*]| {
+                $(
+                    let $args = $crate::cast_variant!(dyn $args, $subspaces);
+                )*
+                $(
+                    let $args_transf = $crate::cast_variant!(dyn $args_transf, $subspaces_transf);
+                )*
+
+                $body
+            }
+        )
+    };
+    (
+        $basis:expr, $basis_transf:expr,
+        |[$($args:ident: $subspaces:path),*], [$($args_transf:ident: $subspaces_transf:path),*]|
+        $body:expr
+    ) => {
+        $crate::operator::Operator::from_transform_mel(
+            $basis,
+            $basis_transf,
+            |elements, elements_transf| {
+                let mut i: usize = 0;
+                $(
+                    let $args = $crate::cast_variant!(elements[i], $subspaces);
+                    i += 1;
+                )*
+                assert_eq!(i, elements.len(), "Not whole space for transformation is defined");
+                
+                let mut i: usize = 0;
+                $(
+                    let $args_transf = $crate::cast_variant!(elements_transf[i], $subspaces_transf);
+                    i += 1;
+                )*
+                assert_eq!(i, elements_transf.len(), "Not whole space for transformation is defined");
+
+                $body
+            }
+        )
+    };
+}

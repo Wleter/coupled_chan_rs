@@ -106,15 +106,15 @@ where
     }
 
     move |i, j| {
-        let states = subspaces.map(|index| &elements[(i, index)]);
-        let states_transform = subspaces_transform.map(|index| &elements_transform[(j, index)]);
+        let elements_i = subspaces_transform.map(|index| &elements_transform[(i, index)]);
+        let elements_j = subspaces.map(|index| &elements[(j, index)]);
 
-        mat_element(states, states_transform)
+        mat_element(elements_j, elements_i)
     }
 }
 
 impl<M> Operator<M> {
-    pub fn from_mel<'a, E, const N: usize, F>(
+    pub fn from_mel_dyn<'a, E, const N: usize, F>(
         elements: &'a BasisElements,
         action_subspaces: [BasisId; N],
         mat_element: F,
@@ -130,7 +130,7 @@ impl<M> Operator<M> {
         Self { backed: mat }
     }
 
-    pub fn from_diag_mel<'a, E, const N: usize, F>(
+    pub fn from_diag_mel_dyn<'a, E, const N: usize, F>(
         elements: &'a BasisElements,
         action_subspaces: [BasisId; N],
         mat_element: F,
@@ -146,7 +146,7 @@ impl<M> Operator<M> {
         Self { backed: mat }
     }
 
-    pub fn from_transform_mel<'a, E, const N: usize, const K: usize, F>(
+    pub fn from_transform_mel_dyn<'a, E, const N: usize, const K: usize, F>(
         elements: &'a BasisElements,
         subspaces: [BasisId; N],
         elements_transform: &'a BasisElements,
@@ -165,70 +165,9 @@ impl<M> Operator<M> {
     }
 }
 
-#[macro_export]
-macro_rules! operator_mel {
-    (dyn $basis:expr, $elements:expr, |[$($args:ident: $subspaces:ty),*]| $body:expr) => {
-        $crate::operator::Operator::from_mel(
-            $basis,
-            $elements,
-            |[$($args),*]| {
-                $(
-                    let $args = $crate::cast_braket!(dyn $args, $subspaces);
-                )*
-
-                $body
-            }
-        )
-    };
-}
-
-#[macro_export]
-macro_rules! operator_diag_mel {
-    (dyn $basis:expr, $elements:expr, |[$($args:ident: $subspaces:ty),*]| $body:expr) => {
-        $crate::operator::Operator::from_diag_mel(
-            $basis,
-            $elements,
-            |[$($args),*]| {
-                $(
-                    let $args = $crate::cast_variant!(dyn $args, $subspaces);
-                )*
-
-                $body
-            }
-        )
-    };
-}
-
-#[macro_export]
-macro_rules! operator_transform_mel {
-    (
-        dyn $basis:expr, $elements:expr,
-        dyn $basis_transf:expr, $elements_transf:expr,
-        |[$($args:ident: $subspaces:ty),*], [$($args_transf:ident: $subspaces_transf:ty),*]|
-        $body:expr
-    ) => {
-        $crate::operator::Operator::from_transform_mel(
-            $basis,
-            $elements,
-            $basis_transf,
-            $elements_transf,
-            |[$($args),*], [$($args_transf),*]| {
-                $(
-                    let $args = $crate::cast_variant!(dyn $args, $subspaces);
-                )*
-                $(
-                    let $args_transf = $crate::cast_variant!(dyn $args_transf, $subspaces_transf);
-                )*
-
-                $body
-            }
-        )
-    };
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::dyn_space::{BasisElements, BasisId, SpaceBasis, SubspaceBasis};
+    use crate::{dyn_space::{BasisElements, BasisId, SpaceBasis, SubspaceBasis}, operator_transform_mel};
 
     #[derive(Clone, Copy, Debug, PartialEq)]
     pub struct ElectronSpin(u32, i32);
@@ -257,11 +196,11 @@ mod tests {
     #[rustfmt::skip]
     fn test_dyn_operator_faer() {
         use faer::{mat, Mat};
-        use crate::{cast_braket, operator::Operator};
+        use crate::{cast_braket, operator::Operator, operator_diag_mel, operator_mel};
 
         let (basis, [e_id, _, vib_id]) = dyn_basis();
 
-        let operator = Operator::<Mat<f64>>::from_mel(
+        let operator = Operator::<Mat<f64>>::from_mel_dyn(
             &basis,
             [e_id, vib_id],
             |[e_braket, vib_braket]| {
@@ -325,11 +264,11 @@ mod tests {
     #[rustfmt::skip]
     fn test_dyn_operator_nalgebra() {
         use nalgebra::{DMatrix};
-        use crate::{cast_braket, operator::Operator};
+        use crate::{cast_braket, operator::Operator, operator_diag_mel, operator_mel};
 
         let (basis, [e_id, _, vib_id]) = dyn_basis();
 
-        let operator = Operator::<DMatrix<f64>>::from_mel(
+        let operator = Operator::<DMatrix<f64>>::from_mel_dyn(
             &basis,
             [e_id, vib_id],
             |[e_braket, vib_braket]| {
@@ -397,11 +336,11 @@ mod tests {
     #[rustfmt::skip]
     fn test_dyn_operator_ndarray() {
         use ndarray::{Array2};
-        use crate::{cast_braket, operator::Operator};
+        use crate::{cast_braket, operator::Operator, operator_diag_mel, operator_mel};
 
         let (basis, [e_id, _, vib_id]) = dyn_basis();
 
-        let operator = Operator::<Array2<f64>>::from_mel(
+        let operator = Operator::<Array2<f64>>::from_mel_dyn(
             &basis,
             [e_id, vib_id],
             |[e_braket, vib_braket]| {
@@ -508,13 +447,13 @@ mod tests {
 
         let expected = mat![
             [2.8, 0.0, 0.0, 0.0, -2.8, 0.0, 0.0, 0.0],
-            [0.0, 3.0, 0.0, 1.0, 0.0, -3.0, 0.0, -1.0],
-            [0.0, 3.0, 0.0, 1.0, 0.0, -3.0, 0.0, -1.0],
-            [0.0, 0.0, 3.2, 0.0, 0.0, 0.0, -3.2, 0.0],
+            [0.0, 3.0, 3.0, 0.0, 0.0, -3.0, -3.0, 0.0],
+            [0.0, 0.0, 0.0, 3.2, 0.0, 0.0, 0.0, -3.2],
+            [0.0, 1.0, 1.0, 0.0, 0.0, -1.0, -1.0, 0.0],
             [-2.8, 0.0, 0.0, 0.0, 2.8, 0.0, 0.0, 0.0],
-            [0.0, -3.0, 0.0, -1.0, 0.0, 3.0, 0.0, 1.0],
-            [0.0, -3.0, 0.0, -1.0, 0.0, 3.0, 0.0, 1.0],
-            [0.0, 0.0, -3.2, 0.0, 0.0, 0.0, 3.2, 0.0],
+            [0.0, -3.0, -3.0, 0.0, 0.0, 3.0, 3.0, 0.0],
+            [0.0, 0.0, 0.0, -3.2, 0.0, 0.0, 0.0, 3.2],
+            [0.0, -1.0, -1.0, 0.0, 0.0, 1.0, 1.0, 0.0],
         ];
         assert_eq!(expected, transform.backed);
     }
