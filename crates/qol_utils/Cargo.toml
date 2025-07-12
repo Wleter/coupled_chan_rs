@@ -6,9 +6,11 @@ edition.workspace = true
 [dependencies]
 anyhow = {workspace = true}
 log = {workspace = true}
-simple_logger = {workspace = true}
 dyn-clone = "1.0"
 downcast-rs = "2.0"
 
 serde = {workspace = true}
 serde_json = {workspace = true}
+
+[dev-dependencies]
+simple_logger = {workspace = true}
