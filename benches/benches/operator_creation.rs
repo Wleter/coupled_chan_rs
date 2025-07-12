@@ -1,26 +1,17 @@
 use diol::prelude::*;
 use hilbert_space::faer::Mat;
-use spin_algebra::{get_spin_basis, half_integer::{HalfI32, HalfU32}};
+use spin_algebra::{
+    get_spin_basis,
+    half_integer::{HalfI32, HalfU32},
+};
 
 fn main() -> eyre::Result<()> {
     let bench = Bench::new(Config::from_args()?);
 
-    bench.register(
-        "static operator",
-        static_way::operator_static,
-        [2, 4, 8, 16],
-    );
-    bench.register(
-        "dynamic operator",
-        dynamic_way::dynamic_operator,
-        [2, 4, 8, 16],
-    );
+    bench.register("static operator", static_way::operator_static, [2, 4, 8, 16]);
+    bench.register("dynamic operator", dynamic_way::dynamic_operator, [2, 4, 8, 16]);
 
-    bench.register(
-        "manual operator",
-        manual_operator,
-        [2, 4, 8, 16],
-    );
+    bench.register("manual operator", manual_operator, [2, 4, 8, 16]);
 
     bench.run()?;
     Ok(())
@@ -28,8 +19,14 @@ fn main() -> eyre::Result<()> {
 
 mod static_way {
     use diol::prelude::*;
-    use hilbert_space::{cast_variant, faer::Mat, operator::{into_variant, Operator}, operator_mel, static_space::{BasisElements, SpaceBasis, SubspaceBasis}};
-    use spin_algebra::{get_spin_basis, half_integer::HalfU32, Spin, SpinOps};
+    use hilbert_space::{
+        cast_variant,
+        faer::Mat,
+        operator::{Operator, into_variant},
+        operator_mel,
+        static_space::{BasisElements, SpaceBasis, SubspaceBasis},
+    };
+    use spin_algebra::{Spin, SpinOps, get_spin_basis, half_integer::HalfU32};
 
     #[derive(Clone, Copy, Debug, PartialEq)]
     enum StaticBasis {
@@ -44,18 +41,9 @@ mod static_way {
 
         let mut basis = SpaceBasis::default();
         basis
-            .push_subspace(SubspaceBasis::new(into_variant(
-                spins.clone(),
-                StaticBasis::Spin1,
-            )))
-            .push_subspace(SubspaceBasis::new(into_variant(
-                spins.clone(),
-                StaticBasis::Spin2,
-            )))
-            .push_subspace(SubspaceBasis::new(into_variant(
-                spins.clone(),
-                StaticBasis::Spin3,
-            )))
+            .push_subspace(SubspaceBasis::new(into_variant(spins.clone(), StaticBasis::Spin1)))
+            .push_subspace(SubspaceBasis::new(into_variant(spins.clone(), StaticBasis::Spin2)))
+            .push_subspace(SubspaceBasis::new(into_variant(spins.clone(), StaticBasis::Spin3)))
             .push_subspace(SubspaceBasis::new(into_variant(spins, StaticBasis::Spin4)));
 
         let basis: BasisElements<StaticBasis> = basis
@@ -82,8 +70,14 @@ mod static_way {
 
 mod dynamic_way {
     use diol::prelude::*;
-    use hilbert_space::{cast_variant, faer::Mat, operator::Operator, operator_mel, dyn_space::{BasisElements, SpaceBasis, SubspaceBasis}};
-    use spin_algebra::{get_spin_basis, half_integer::HalfU32, Spin, SpinOps};
+    use hilbert_space::{
+        cast_variant,
+        dyn_space::{BasisElements, SpaceBasis, SubspaceBasis},
+        faer::Mat,
+        operator::Operator,
+        operator_mel,
+    };
+    use spin_algebra::{Spin, SpinOps, get_spin_basis, half_integer::HalfU32};
 
     pub fn dynamic_operator(bencher: Bencher, size: u32) {
         let spins = get_spin_basis(HalfU32::from_doubled(size));
@@ -94,16 +88,14 @@ mod dynamic_way {
         _ = basis.push_subspace(SubspaceBasis::new(spins.clone()));
         let s4 = basis.push_subspace(SubspaceBasis::new(spins.clone()));
 
-        let basis: BasisElements = basis
-            .get_filtered_basis(|x| {
-                let state1 = cast_variant!(dyn x[0], Spin);
-                let state2 = cast_variant!(dyn x[1], Spin);
-                let state3 = cast_variant!(dyn x[2], Spin);
-                let state4 = cast_variant!(dyn x[3], Spin);
+        let basis: BasisElements = basis.get_filtered_basis(|x| {
+            let state1 = cast_variant!(dyn x[0], Spin);
+            let state2 = cast_variant!(dyn x[1], Spin);
+            let state3 = cast_variant!(dyn x[2], Spin);
+            let state4 = cast_variant!(dyn x[3], Spin);
 
-                (state1.m + state2.m + state3.m + state4.m).double_value() == 0
-
-            });
+            (state1.m + state2.m + state3.m + state4.m).double_value() == 0
+        });
 
         bencher.bench(|| {
             let mut operator: Operator<Mat<f64>> = operator_mel!(dyn &basis, [s2, s4], |[s2: Spin, s4: Spin]| {
@@ -117,10 +109,7 @@ mod dynamic_way {
 
 pub fn manual_operator(bencher: Bencher, size: u32) {
     let s = HalfU32::from_doubled(size);
-    let m = get_spin_basis(s)
-        .iter()
-        .map(|x| x.m)
-        .collect::<Vec<HalfI32>>();
+    let m = get_spin_basis(s).iter().map(|x| x.m).collect::<Vec<HalfI32>>();
 
     let mut states = vec![];
     for &m1 in &m {

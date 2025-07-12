@@ -69,11 +69,7 @@ pub struct SpinOps;
 impl SpinOps {
     #[inline]
     pub fn proj_z(spin: Braket<&Spin>) -> f64 {
-        if spin.bra == spin.ket {
-            spin.bra.m.value()
-        } else {
-            0.0
-        }
+        if spin.bra == spin.ket { spin.bra.m.value() } else { 0.0 }
     }
 
     #[inline]
@@ -117,12 +113,11 @@ mod tests {
 
     use crate::{Spin, SpinOps};
 
-
     #[test]
     fn test_spin_operators() {
-        let s1 = Spin::new(hu32!(7/2), hi32!(3/2));
-        let s2 = Spin::new(hu32!(7/2), hi32!(5/2));
-        let s3 = Spin::new(hu32!(5/2), hi32!(3/2));
+        let s1 = Spin::new(hu32!(7 / 2), hi32!(3 / 2));
+        let s2 = Spin::new(hu32!(7 / 2), hi32!(5 / 2));
+        let s3 = Spin::new(hu32!(5 / 2), hi32!(3 / 2));
         let s4 = Spin::new(hu32!(6), hi32!(4));
 
         let mel = SpinOps::proj_z(Braket::new(&s1, &s1));
@@ -136,7 +131,7 @@ mod tests {
 
         let mel = SpinOps::ladder_plus(Braket::new(&s2, &s1));
         assert_eq!(mel, f64::sqrt(48.) / 2.);
-        
+
         let mel = SpinOps::ladder_plus(Braket::new(&s1, &s2));
         assert_eq!(mel, 0.);
 
@@ -145,10 +140,10 @@ mod tests {
 
         let mel = SpinOps::ladder_minus(Braket::new(&s1, &s2));
         assert_eq!(mel, f64::sqrt(48.) / 2.);
-        
+
         let mel = SpinOps::ladder_minus(Braket::new(&s2, &s1));
         assert_eq!(mel, 0.);
-        
+
         let mel = SpinOps::ladder_minus(Braket::new(&s3, &s2));
         assert_eq!(mel, 0.);
 
@@ -156,6 +151,6 @@ mod tests {
         assert_eq!(mel, -f64::sqrt(7. / 11.) / 2.);
 
         let mel = SpinOps::clebsch_gordan(&s2, &s3, &s4);
-        assert_eq!(mel, f64::sqrt(35. /66.));
+        assert_eq!(mel, f64::sqrt(35. / 66.));
     }
 }

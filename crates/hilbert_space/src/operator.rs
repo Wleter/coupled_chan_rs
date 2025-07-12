@@ -9,10 +9,7 @@ pub struct Braket<T> {
 
 impl<T> Braket<T> {
     pub fn new(bra: T, ket: T) -> Self {
-        Self {
-            bra,
-            ket,
-        }
+        Self { bra, ket }
     }
 }
 
@@ -170,9 +167,9 @@ macro_rules! operator_diag_mel {
 /// Create transformation operator from matrix elements in given basis
 /// # Syntax
 /// - `operator_transform_mel!(dyn $basis, $elements,
-///     dyn $basis_transform, $elements_transform, 
+///     dyn $basis_transform, $elements_transform,
 ///     |[($arg: $subspace),*], [($arg_transf: $subspace),*]| $body)`
-/// - `operator_transform_mel!($basis, $basis_transform, 
+/// - `operator_transform_mel!($basis, $basis_transform,
 ///     |[($arg: $subspace),*], [($arg_transf: $subspace),*]| $body)`
 #[macro_export]
 macro_rules! operator_transform_mel {
@@ -214,7 +211,7 @@ macro_rules! operator_transform_mel {
                     i += 1;
                 )*
                 assert_eq!(i, elements.len(), "Not whole space for transformation is defined");
-                
+
                 let mut i: usize = 0;
                 $(
                     let $args_transf = $crate::cast_variant!(elements_transf[i], $subspaces_transf);

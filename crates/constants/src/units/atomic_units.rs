@@ -72,7 +72,6 @@ impl Unit for AuMass {
     const TO_BASE: f64 = 1.;
 }
 
-
 #[derive(Clone, Copy, Default, Debug)]
 pub struct Dalton;
 

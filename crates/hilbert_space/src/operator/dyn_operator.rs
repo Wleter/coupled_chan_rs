@@ -167,7 +167,10 @@ impl<M> Operator<M> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{dyn_space::{BasisElements, BasisId, SpaceBasis, SubspaceBasis}, operator_transform_mel};
+    use crate::{
+        dyn_space::{BasisElements, BasisId, SpaceBasis, SubspaceBasis},
+        operator_transform_mel,
+    };
 
     #[derive(Clone, Copy, Debug, PartialEq)]
     pub struct ElectronSpin(u32, i32);

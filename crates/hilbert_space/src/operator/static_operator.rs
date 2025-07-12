@@ -1,14 +1,10 @@
-
 use std::mem::discriminant;
 
 use crate::{operator::Operator, static_space::BasisElement};
 use matrix_utils::MatrixCreation;
 use num_traits::Zero;
 
-use crate::{
-    static_space::BasisElements,
-    operator::Braket,
-};
+use crate::{operator::Braket, static_space::BasisElements};
 
 pub fn get_mel<'a, const N: usize, T, F, E>(
     elements: &'a BasisElements<T>,
@@ -20,9 +16,7 @@ where
     E: Zero,
     T: PartialEq,
 {
-    let first = elements
-        .first()
-        .expect("0 sized basis size is not allowed");
+    let first = elements.first().expect("0 sized basis size is not allowed");
 
     let action_indices = action_subspaces.map(|s| {
         first
@@ -64,9 +58,7 @@ where
     F: FnMut([&'a T; N]) -> E + 'a,
     E: Zero,
 {
-    let first = elements
-        .first()
-        .expect("0 sized basis size is not allowed");
+    let first = elements.first().expect("0 sized basis size is not allowed");
 
     let action_indices = action_subspaces.map(|s| {
         first
@@ -163,7 +155,10 @@ impl<M> Operator<M> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{operator_transform_mel, static_space::{BasisElements, SpaceBasis, SubspaceBasis}};
+    use crate::{
+        operator_transform_mel,
+        static_space::{BasisElements, SpaceBasis, SubspaceBasis},
+    };
 
     #[derive(Clone, Copy, Debug, PartialEq)]
     enum Basis {
@@ -405,8 +400,8 @@ mod tests {
     #[test]
     fn test_static_transform_faer() {
         use crate::operator::Operator;
-        use faer::{Mat, mat};
         use CoupledBasis::*;
+        use faer::{Mat, mat};
 
         let basis = static_basis();
 
