@@ -71,7 +71,7 @@ impl SpaceBasis {
 }
 
 impl SpaceBasis {
-    pub fn get_filtered_basis(self, f: impl Fn(&[&Box<dyn DynSubspaceElement>]) -> bool) -> BasisElements {
+    pub fn get_filtered_basis(&self, f: impl Fn(&[&Box<dyn DynSubspaceElement>]) -> bool) -> BasisElements {
         let iter = BasisElementIter {
             size: self.size(),
             basis_sizes: self.0.iter().map(|x| x.size()).collect(),
@@ -96,12 +96,12 @@ impl SpaceBasis {
             .collect();
 
         BasisElements {
-            basis: self.0,
+            basis: self.0.clone(),
             elements_indices: filtered,
         }
     }
 
-    pub fn get_basis(self) -> BasisElements {
+    pub fn get_basis(&self) -> BasisElements {
         let iter = BasisElementIter {
             size: self.size(),
             basis_sizes: self.0.iter().map(|x| x.size()).collect(),
@@ -110,7 +110,7 @@ impl SpaceBasis {
         };
 
         BasisElements {
-            basis: self.0,
+            basis: self.0.clone(),
             elements_indices: iter.collect(),
         }
     }

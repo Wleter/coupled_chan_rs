@@ -96,6 +96,38 @@ macro_rules! cast_braket {
     }};
 }
 
+/// Create basis elements from the space that are filtered by condition
+/// # Syntax
+/// - `filter_space!(dyn $basis, |[$($basis_id: $subspaces),*]| $body)`
+/// - `filter_space!($basis, |[$($args: $subspaces),*]| $body)`
+#[macro_export]
+macro_rules! filter_space {
+    (dyn $basis:expr, |[$($basis_id:ident: $subspaces:ty),*]| $body:expr) => {
+        $basis.get_filtered_basis(|x| {
+            let mut i: usize = 0;
+            $(
+                let $basis_id = $crate::cast_variant!(dyn x[$basis_id.0 as usize], $subspaces);
+                i += 1;
+            )*
+            assert_eq!(i, x.len(), "Not whole space for space filtering is defined");
+        
+            $body
+        })
+    };
+    ($basis:expr, |[$($args:ident: $subspaces:path),*]| $body:expr) => {
+        $basis.iter_elements().filter(|x| {
+            let mut i: usize = 0;
+            $(
+                let $args = $crate::cast_variant!(x[i], $subspaces);
+                i += 1;
+            )*
+            assert_eq!(i, x.len(), "Not whole space for space filtering is defined");
+        
+            $body
+        }).collect()
+    };
+}
+
 /// Create operator from matrix elements in given basis
 /// # Syntax
 /// - `operator_mel!(dyn $basis, $action_elements, |[($arg_braket: $subspace),*]| $body)`
