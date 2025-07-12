@@ -8,14 +8,10 @@ use std::{
 
 use num_traits::real::Real;
 
-pub trait Unit<T: Real + From<f64>>: Copy + Default {
+pub trait Unit: Copy + Default {
     type Base;
 
     const TO_BASE: f64;
-
-    fn to_base(&self, value: T) -> T {
-        value * Self::TO_BASE.into()
-    }
 }
 
 #[derive(Clone, Copy)]
@@ -35,7 +31,7 @@ impl<T: Display, U: Debug> Display for Quantity<T, U> {
     }
 }
 
-impl<T: Real + From<f64>, U: Unit<T>> Quantity<T, U> {
+impl<T: Real + From<f64>, U: Unit> Quantity<T, U> {
     pub fn value(&self) -> T {
         self.0
     }
@@ -44,12 +40,12 @@ impl<T: Real + From<f64>, U: Unit<T>> Quantity<T, U> {
         self.1
     }
 
-    pub fn to<V: Unit<T, Base = U::Base>>(&self, unit: V) -> Quantity<T, V> {
+    pub fn to<V: Unit<Base = U::Base>>(&self, unit: V) -> Quantity<T, V> {
         Quantity(self.0 * (U::TO_BASE / V::TO_BASE).into(), unit)
     }
 }
 
-impl<T: Real + From<f64>, U: Unit<T>> Add for Quantity<T, U> {
+impl<T: Real + From<f64>, U: Unit> Add for Quantity<T, U> {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
@@ -57,19 +53,19 @@ impl<T: Real + From<f64>, U: Unit<T>> Add for Quantity<T, U> {
     }
 }
 
-impl<T: Real + From<f64> + AddAssign, U: Unit<T>> AddAssign for Quantity<T, U> {
+impl<T: Real + From<f64> + AddAssign, U: Unit> AddAssign for Quantity<T, U> {
     fn add_assign(&mut self, rhs: Self) {
         self.0 += rhs.0;
     }
 }
 
-impl<T: Real + From<f64> + Sum, U: Unit<T>> Sum for Quantity<T, U> {
+impl<T: Real + From<f64> + Sum, U: Unit> Sum for Quantity<T, U> {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
         Quantity(iter.map(|x| x.0).sum(), U::default())
     }
 }
 
-impl<T: Real + From<f64>, U: Unit<T>> Sub for Quantity<T, U> {
+impl<T: Real + From<f64>, U: Unit> Sub for Quantity<T, U> {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
@@ -77,7 +73,7 @@ impl<T: Real + From<f64>, U: Unit<T>> Sub for Quantity<T, U> {
     }
 }
 
-impl<T: Real + From<f64> + SubAssign, U: Unit<T>> SubAssign for Quantity<T, U> {
+impl<T: Real + From<f64> + SubAssign, U: Unit> SubAssign for Quantity<T, U> {
     fn sub_assign(&mut self, rhs: Self) {
         self.0 -= rhs.0;
     }
@@ -103,6 +99,6 @@ mod tests {
         assert!(&format!("{one_kelvin}") == "1 Kelvin", "Wrong format");
 
         let result = one_kelvin.to(GHz);
-        assert_eq!(result.value(), <Kelvin as Unit<f64>>::TO_BASE / <GHz as Unit<f64>>::TO_BASE)
+        assert_eq!(result.value(), Kelvin::TO_BASE / GHz::TO_BASE)
     }
 }
