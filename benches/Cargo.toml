@@ -1,0 +1,13 @@
+[package]
+name = "benches"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+hilbert_space = {path = "../crates/hilbert_space", features = ["faer"]}
+spin_algebra = {path = "../crates/spin_algebra"}
+diol = "0.13.1"
+
+[[bench]]
+name = "operator_creation"
+harness = false

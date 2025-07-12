@@ -78,7 +78,11 @@ impl SpaceBasis {
             current: BasisElementIndices(vec![0; self.0.len()]),
             current_index: 0,
         };
+
         let mut subspaces_elements = Vec::with_capacity(self.0.len());
+        for (i, b) in iter.current.iter().zip(self.0.iter()) {
+            subspaces_elements.push(&b.basis[*i])
+        }
 
         let filtered = iter
             .filter(|indices| {

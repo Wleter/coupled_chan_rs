@@ -7,6 +7,15 @@ pub struct Braket<T> {
     pub ket: T,
 }
 
+impl<T> Braket<T> {
+    pub fn new(bra: T, ket: T) -> Self {
+        Self {
+            bra,
+            ket,
+        }
+    }
+}
+
 impl<T: PartialEq> Braket<T> {
     pub fn is_diagonal(&self) -> bool {
         self.ket == self.bra
@@ -15,6 +24,10 @@ impl<T: PartialEq> Braket<T> {
 
 pub fn kron_delta<T: PartialEq, const N: usize>(brakets: [Braket<T>; N]) -> f64 {
     if brakets.iter().all(|x| x.is_diagonal()) { 1.0 } else { 0.0 }
+}
+
+pub fn into_variant<V, T>(elements: Vec<V>, variant: fn(V) -> T) -> Vec<T> {
+    elements.into_iter().map(variant).collect()
 }
 
 #[derive(Debug, Clone)]

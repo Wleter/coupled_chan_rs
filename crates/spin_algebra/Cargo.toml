@@ -1,0 +1,8 @@
+[package]
+name = "spin_algebra"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+clebsch-gordan = {workspace = true}
+hilbert_space = {path = "../hilbert_space"}
