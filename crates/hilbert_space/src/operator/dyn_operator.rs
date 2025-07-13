@@ -86,13 +86,13 @@ where
     let indices = subspaces.map(|x| x.0 as usize);
     let indices_transform = subspaces_transform.map(|x| x.0 as usize);
 
-    let subspaces_len = elements.basis.len();
+    let subspaces_len = subspaces.len();
     assert_eq!(subspaces_len, elements.basis.len(), "Subspaces do not cover whole basis");
     for subspace_id in indices {
         assert!(subspace_id < subspaces_len, "Subspace ID is larger than subspace size")
     }
 
-    let subspaces_transform_len = elements_transform.basis.len();
+    let subspaces_transform_len = subspaces_transform.len();
     assert_eq!(
         subspaces_transform_len,
         elements_transform.basis.len(),
