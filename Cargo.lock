@@ -263,6 +263,13 @@ dependencies = [
 [[package]]
 name = "coupled_chan"
 version = "0.1.0"
+dependencies = [
+ "constants",
+ "faer",
+ "num-complex",
+ "propagator",
+ "single_chan",
+]
 
 [[package]]
 name = "cpufeatures"
@@ -1642,6 +1649,8 @@ name = "single_chan"
 version = "0.1.0"
 dependencies = [
  "constants",
+ "math_utils",
+ "num-complex",
  "propagator",
 ]
 

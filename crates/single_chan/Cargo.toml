@@ -6,3 +6,5 @@ edition.workspace = true
 [dependencies]
 constants = {path = "../constants"}
 propagator = {path = "../propagator"}
+num-complex = {workspace = true}
+math_utils = {path = "../math_utils"}

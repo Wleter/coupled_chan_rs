@@ -14,6 +14,9 @@ pub struct Dispersion {
 
 impl Dispersion {
     pub fn new(d0: f64, n: i32) -> Self {
+        assert!(n != -2, "For centrifugal term use `centrifugal_barier` function");
+        assert!(n < -2, "Only vanishing terms are permissible");
+
         Self { d0, n }
     }
 }
@@ -21,16 +24,6 @@ impl Dispersion {
 impl Interaction for Dispersion {
     fn value(&self, r: f64) -> f64 {
         self.d0 * r.powi(self.n)
-    }
-
-    fn asymptote(&self) -> f64 {
-        if self.n == 0 {
-            self.d0
-        } else if self.n > 0 {
-            f64::INFINITY
-        } else {
-            0.
-        }
     }
 }
 
@@ -43,10 +36,20 @@ pub fn lennard_jones(d6: Quantity64<AuEnergy>, r6: Quantity64<Bohr>) -> Composit
     Composite::new(vec![Dispersion::new(c12, -12), Dispersion::new(c6, -6)])
 }
 
-pub fn centrifugal_barrier(l: u32, red_mass: Quantity64<AuMass>) -> Option<Dispersion> {
-    if l == 0 {
-        return None;
+pub struct Centrifugal {
+    pub l: u32,
+    d0: f64,
+}
+
+impl Centrifugal {
+    pub fn new(l: u32, red_mass: Quantity64<AuMass>) -> Self {
+        Self {
+            l,
+            d0: (l * (l + 1)) as f64 / (2. * red_mass.value()),
+        }
     }
 
-    Some(Dispersion::new((l * (l + 1)) as f64 / (2. * red_mass.value()), -2))
+    pub fn value(&self, r: f64) -> f64 {
+        self.d0 / (r * r)
+    }
 }

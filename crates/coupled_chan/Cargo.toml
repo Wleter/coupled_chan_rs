@@ -4,3 +4,8 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+num-complex = {workspace = true}
+faer = {workspace = true}
+single_chan = {path = "../single_chan"}
+propagator = {path = "../propagator"}
+constants = {path = "../constants"}

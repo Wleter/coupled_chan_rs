@@ -27,6 +27,12 @@ impl CustomStep {
     }
 }
 
+impl From<CustomStep> for StepStrategy {
+    fn from(val: CustomStep) -> Self {
+        StepStrategy::Custom(val)
+    }
+}
+
 pub struct ShortLongRangeStep {
     pub r_switch: f64,
     pub dr_short: f64,
@@ -36,6 +42,12 @@ pub struct ShortLongRangeStep {
 impl ShortLongRangeStep {
     pub fn get_step(&self, r: f64) -> f64 {
         if r > self.r_switch { self.dr_long } else { self.dr_short }
+    }
+}
+
+impl From<ShortLongRangeStep> for StepStrategy {
+    fn from(val: ShortLongRangeStep) -> Self {
+        StepStrategy::ShortLongRange(val)
     }
 }
 
@@ -52,6 +64,12 @@ impl Default for LocalWavelengthStep {
             dr_max: f64::INFINITY,
             wave_fraction: 500.,
         }
+    }
+}
+
+impl From<LocalWavelengthStep> for StepStrategy {
+    fn from(val: LocalWavelengthStep) -> Self {
+        StepStrategy::LocalWaveLength(val)
     }
 }
 

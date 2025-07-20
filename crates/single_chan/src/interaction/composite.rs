@@ -31,8 +31,4 @@ impl<P: Interaction> Interaction for Composite<P> {
     fn value(&self, r: f64) -> f64 {
         self.interactions.iter().fold(0., |acc, p| acc + p.value(r))
     }
-
-    fn asymptote(&self) -> f64 {
-        self.interactions.iter().fold(0., |acc, p| acc + p.asymptote())
-    }
 }

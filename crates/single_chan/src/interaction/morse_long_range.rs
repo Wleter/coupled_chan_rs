@@ -128,10 +128,6 @@ impl Interaction for MorseLongRange {
 
         self.d0 * (1. - self.u_lr(r) / self.tail_re * exponent).powi(2) - self.d0
     }
-
-    fn asymptote(&self) -> f64 {
-        0.
-    }
 }
 
 #[inline]

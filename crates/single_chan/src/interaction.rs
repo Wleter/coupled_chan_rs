@@ -3,6 +3,8 @@ use constants::units::{
     atomic_units::{AuEnergy, AuMass},
 };
 
+use crate::interaction::dispersion::Centrifugal;
+
 pub mod composite;
 pub mod dispersion;
 pub mod func_potential;
@@ -10,26 +12,52 @@ pub mod morse_long_range;
 
 pub trait Interaction {
     fn value(&self, r: f64) -> f64;
-    fn asymptote(&self) -> f64;
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct Level {
+    pub asymptote: f64,
+    pub l: u32,
+}
+
+impl Level {
+    pub fn new(l: u32, asymptote: Quantity64<AuEnergy>) -> Self {
+        Self {
+            asymptote: asymptote.value(),
+            l,
+        }
+    }
 }
 
 pub struct RedInteraction<'a, P: Interaction> {
     energy: f64,
     mass: f64,
     interaction: &'a P,
+    centrifugal: Centrifugal,
+    level: Level,
 }
 
 impl<'a, P: Interaction> RedInteraction<'a, P> {
-    pub fn new(interaction: &'a P, mass: Quantity64<AuMass>, energy: Quantity64<AuEnergy>) -> Self {
+    pub fn new(interaction: &'a P, mass: Quantity64<AuMass>, energy: Quantity64<AuEnergy>, level: Level) -> Self {
         Self {
-            energy: energy.to_base() - interaction.asymptote(),
-            mass: mass.to_base(),
+            energy: energy.value() - level.asymptote,
+            mass: mass.value(),
             interaction,
+            centrifugal: Centrifugal::new(level.l, mass),
+            level,
         }
     }
 
     pub fn value(&self, r: f64) -> f64 {
-        2. * self.mass * (self.energy - self.interaction.value(r))
+        2. * self.mass * (self.energy - self.interaction.value(r) - self.centrifugal.value(r))
+    }
+
+    pub fn asymptote(&self) -> f64 {
+        2. * self.mass * (self.energy - self.level.asymptote)
+    }
+
+    pub fn l(&self) -> u32 {
+        self.level.l
     }
 }
 
@@ -48,9 +76,5 @@ impl DynInteraction {
 impl Interaction for DynInteraction {
     fn value(&self, r: f64) -> f64 {
         self.interaction.value(r)
-    }
-
-    fn asymptote(&self) -> f64 {
-        self.interaction.asymptote()
     }
 }
