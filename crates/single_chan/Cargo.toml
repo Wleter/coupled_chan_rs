@@ -1,0 +1,8 @@
+[package]
+name = "single_chan"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+constants = {path = "../constants"}
+propagator = {path = "../propagator"}

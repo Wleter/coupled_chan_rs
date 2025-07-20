@@ -1,0 +1,6 @@
+[package]
+name = "propagator"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]

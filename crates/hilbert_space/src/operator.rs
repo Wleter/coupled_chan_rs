@@ -110,7 +110,7 @@ macro_rules! filter_space {
                 i += 1;
             )*
             assert_eq!(i, x.len(), "Not whole space for space filtering is defined");
-        
+
             $body
         })
     };
@@ -122,7 +122,7 @@ macro_rules! filter_space {
                 i += 1;
             )*
             assert_eq!(i, x.len(), "Not whole space for space filtering is defined");
-        
+
             $body
         }).collect()
     };

@@ -1,5 +1,14 @@
 [workspace]
-members = [ "crates/math_utils", "crates/qol_utils", "crates/constants", "crates/hilbert_space", "crates/matrix_utils", "benches", "crates/spin_algebra"]
+members = [ 
+    "crates/math_utils", 
+    "crates/qol_utils", 
+    "crates/constants", 
+    "crates/hilbert_space", 
+    "crates/matrix_utils", 
+    "benches", 
+    "crates/spin_algebra", 
+    "crates/single_chan"
+, "crates/propagator", "crates/coupled_chan"]
 resolver = "3"
 
 [workspace.package]

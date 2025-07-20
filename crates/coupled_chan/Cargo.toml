@@ -1,0 +1,6 @@
+[package]
+name = "coupled_chan"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]

@@ -40,6 +40,10 @@ impl<T: Real + From<f64>, U: Unit> Quantity<T, U> {
         self.1
     }
 
+    pub fn to_base(&self) -> T {
+        self.0 * U::TO_BASE.into()
+    }
+
     pub fn to<V: Unit<Base = U::Base>>(&self, unit: V) -> Quantity<T, V> {
         Quantity(self.0 * (U::TO_BASE / V::TO_BASE).into(), unit)
     }

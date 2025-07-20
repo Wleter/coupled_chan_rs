@@ -261,6 +261,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "coupled_chan"
+version = "0.1.0"
+
+[[package]]
 name = "cpufeatures"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1296,6 +1300,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "propagator"
+version = "0.1.0"
+
+[[package]]
 name = "pulp"
 version = "0.21.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1627,6 +1635,14 @@ dependencies = [
  "colored",
  "log",
  "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "single_chan"
+version = "0.1.0"
+dependencies = [
+ "constants",
+ "propagator",
 ]
 
 [[package]]

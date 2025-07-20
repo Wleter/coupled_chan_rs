@@ -20,7 +20,11 @@ fn main() -> eyre::Result<()> {
 mod static_way {
     use diol::prelude::*;
     use hilbert_space::{
-        faer::Mat, filter_space, operator::{into_variant, Operator}, operator_mel, static_space::{BasisElements, SpaceBasis, SubspaceBasis}
+        faer::Mat,
+        filter_space,
+        operator::{Operator, into_variant},
+        operator_mel,
+        static_space::{BasisElements, SpaceBasis, SubspaceBasis},
     };
     use spin_algebra::{Spin, SpinOps, get_spin_basis, half_integer::HalfU32};
 
@@ -44,7 +48,7 @@ mod static_way {
             .push_subspace(SubspaceBasis::new(into_variant(spins.clone(), StaticBasis::Spin3)))
             .push_subspace(SubspaceBasis::new(into_variant(spins, StaticBasis::Spin4)));
 
-        let basis: BasisElements<StaticBasis> = filter_space!(basis, 
+        let basis: BasisElements<StaticBasis> = filter_space!(basis,
             |[state1: Spin1, state2: Spin2, state3: Spin3, state4: Spin4]| {
                 (state1.m + state2.m + state3.m + state4.m).double_value() == 0
             }
@@ -63,7 +67,11 @@ mod static_way {
 mod dynamic_way {
     use diol::prelude::*;
     use hilbert_space::{
-        dyn_space::{BasisElements, SpaceBasis, SubspaceBasis}, faer::Mat, filter_space, operator::Operator, operator_mel
+        dyn_space::{BasisElements, SpaceBasis, SubspaceBasis},
+        faer::Mat,
+        filter_space,
+        operator::Operator,
+        operator_mel,
     };
     use spin_algebra::{Spin, SpinOps, get_spin_basis, half_integer::HalfU32};
 
@@ -76,7 +84,7 @@ mod dynamic_way {
         let s3 = basis.push_subspace(SubspaceBasis::new(spins.clone()));
         let s4 = basis.push_subspace(SubspaceBasis::new(spins.clone()));
 
-        let basis: BasisElements = filter_space!(dyn basis, 
+        let basis: BasisElements = filter_space!(dyn basis,
             |[s1: Spin, s2: Spin, s3: Spin, s4: Spin]| {
                 (s1.m + s2.m + s3.m + s4.m).double_value() == 0
             }
