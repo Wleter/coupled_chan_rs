@@ -249,7 +249,7 @@ mod tests {
         let solution = numerov.propagate_to(1500.0);
         let s_matrix = get_s_matrix(solution, &red_interaction);
 
-        // values at which the result was correct.
+        // values at which the result were correct.
         assert_approx_eq!(s_matrix.get_scattering_length().re, -15.55074, 1e-6);
         assert_approx_eq!(s_matrix.get_scattering_length().im, 7.741696e-13, 1e-6);
         assert_approx_eq!(s_matrix.get_elastic_cross_sect(), 3.038868e3, 1e-6);

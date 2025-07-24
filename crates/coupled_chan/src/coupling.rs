@@ -45,7 +45,7 @@ impl Asymptote {
             levels.asymptote[i]
         });
 
-        let centrifugal = MultiCentrifugal::new(&levels);
+        let centrifugal = MultiCentrifugal::new_diagonal(&levels);
 
         Self {
             entrance_channel,
@@ -75,7 +75,7 @@ pub struct MultiCentrifugal {
 }
 
 impl MultiCentrifugal {
-    pub fn new(levels: &Levels) -> Self {
+    pub fn new_diagonal(levels: &Levels) -> Self {
         let mask = Mat::from_fn(levels.l.len(), levels.l.len(), |i, j| {
             if i != j {
                 return 0.;
