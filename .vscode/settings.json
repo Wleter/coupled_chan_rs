@@ -1,6 +1,7 @@
 {
     "rust-analyzer.cargo.features": "all",
     "cSpell.words": [
-        "Hartree"
+        "Hartree",
+        "ldlt"
     ],
 }
