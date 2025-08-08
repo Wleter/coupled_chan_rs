@@ -1,5 +1,6 @@
 pub mod coupling;
 pub mod s_matrix;
+pub mod ratio_numerov;
 
 pub use constants;
 use faer::Mat;
@@ -14,5 +15,9 @@ impl Channels {
         assert_eq!(self.0.nrows(), self.0.ncols(), "Mismatched number of columns vs rows");
 
         self.0.nrows()
+    }
+
+    pub fn zeros(size: usize) -> Self {
+        Channels(Mat::zeros(size, size))
     }
 }

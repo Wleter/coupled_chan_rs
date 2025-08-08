@@ -10,3 +10,4 @@ matrix_utils = {path = "../matrix_utils", features = ["faer"]}
 single_chan = {path = "../single_chan"}
 propagator = {path = "../propagator"}
 constants = {path = "../constants"}
+math_utils = {path = "../math_utils"}

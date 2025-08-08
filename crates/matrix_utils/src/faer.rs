@@ -242,7 +242,7 @@ pub fn inverse_ldlt_inplace(mat: MatRef<f64>, mut out: MatMut<f64>, buffer: &mut
     zip!(&mut l, &mat).for_each(|unzip!(l, m)| *l = *m);
 
     cholesky::ldlt::factor::cholesky_in_place(l.as_mut(), Default::default(), faer::Par::Seq, stack, Default::default())
-        .unwrap_or_else(|_| panic!("Could not perform ldlt decomposition {mat:?}"));
+        .unwrap_or_else(|e| panic!("Could not perform ldlt decomposition {mat:?} with error {e}"));
 
     diag.copy_from(l.as_ref().diagonal());
     l.as_mut().diagonal_mut().fill(1.);

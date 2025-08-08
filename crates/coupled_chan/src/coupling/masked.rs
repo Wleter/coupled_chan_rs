@@ -33,7 +33,7 @@ impl<P: Interaction> VanishingCoupling for Masked<P> {
         let value = self.interaction.value(r);
 
         zip!(channels.0.as_mut(), self.masking.0.as_ref()).for_each(|unzip!(v, m)| {
-            *v = value * m;
+            *v += value * m;
         });
     }
 

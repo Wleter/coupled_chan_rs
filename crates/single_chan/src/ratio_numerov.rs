@@ -210,7 +210,7 @@ pub fn get_s_matrix<P: Interaction>(sol: &Solution<Ratio<f64>>, red_interaction:
 
 #[inline]
 fn get_wavelength(red_pot: f64) -> f64 {
-    2. * PI / red_pot
+    2. * PI / red_pot.abs().sqrt()
 }
 
 #[cfg(test)]
