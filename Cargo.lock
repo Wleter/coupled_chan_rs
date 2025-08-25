@@ -169,6 +169,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "cc_problems"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "coupled_chan",
+ "hilbert_space",
+ "spin_algebra",
+]
+
+[[package]]
 name = "cfg-if"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -266,6 +276,7 @@ version = "0.1.0"
 dependencies = [
  "constants",
  "faer",
+ "hilbert_space",
  "math_utils",
  "matrix_utils",
  "num-complex",

@@ -147,7 +147,7 @@ impl<M> Operator<M> {
         T2: PartialEq,
     {
         let mel = get_transform_mel(elements, elements_transform, mat_element);
-        let mat = M::from_fn(elements.len(), elements.len(), mel);
+        let mat = M::from_fn(elements_transform.len(), elements.len(), mel);
 
         Self { backed: mat }
     }

@@ -17,6 +17,15 @@ impl<E> MatrixCreation<E> for Mat<E> {
     }
 }
 
+pub fn diagonalize(mat: MatRef<f64>) -> (Vec<f64>, Mat<f64>) {
+    let eigen = mat
+        .self_adjoint_eigen(faer::Side::Upper)
+        .expect("failed diagonalizing matrix");
+    let values = eigen.S().column_vector().iter().copied().collect();
+
+    (values, eigen.U().to_owned())
+}
+
 pub fn get_ldlt_inverse_buffer(size: usize) -> MemBuffer {
     MemBuffer::new(
         temp_mat_scratch::<f64>(size, 1)

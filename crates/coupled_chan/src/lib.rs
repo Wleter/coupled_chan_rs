@@ -4,6 +4,7 @@ pub mod ratio_numerov;
 
 pub use constants;
 use faer::Mat;
+use hilbert_space::operator::Operator;
 pub use propagator;
 pub use single_chan::interaction::*;
 
@@ -19,5 +20,11 @@ impl Channels {
 
     pub fn zeros(size: usize) -> Self {
         Channels(Mat::zeros(size, size))
+    }
+}
+
+impl From<Operator<Mat<f64>>> for Channels {
+    fn from(value: Operator<Mat<f64>>) -> Self {
+        Channels(value.backed())
     }
 }

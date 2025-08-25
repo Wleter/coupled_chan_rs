@@ -1,3 +1,5 @@
+use std::ops::{Add, AddAssign};
+
 pub mod dyn_operator;
 pub mod static_operator;
 
@@ -37,8 +39,29 @@ impl<M> Operator<M> {
         Self { backed: mat }
     }
 
-    pub fn into_backed(self) -> M {
+    pub fn backed(self) -> M {
         self.backed
+    }
+}
+
+#[cfg(feature = "faer")]
+impl Operator<faer::Mat<f64>> {
+    pub fn transform(&self, transformation: &Self) -> Self {
+        Self::new(&transformation.backed * &self.backed * transformation.backed.transpose())
+    }
+}
+
+impl<M: AddAssign> AddAssign for Operator<M> {
+    fn add_assign(&mut self, rhs: Self) {
+        self.backed += rhs.backed
+    }
+}
+
+impl<M: Add<Output = M>> Add for Operator<M> {
+    type Output = Operator<M>;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Operator::new(self.backed + rhs.backed)
     }
 }
 

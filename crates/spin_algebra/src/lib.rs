@@ -9,7 +9,7 @@ pub enum SpinType {
     Bosonic,
 }
 
-#[derive(Clone, Copy, PartialEq, Default)]
+#[derive(Clone, Copy, PartialEq, Default, Hash)]
 pub struct Spin {
     pub s: HalfU32,
     pub m: HalfI32,

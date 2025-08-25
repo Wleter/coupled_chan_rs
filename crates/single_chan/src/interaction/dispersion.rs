@@ -3,7 +3,7 @@ use constants::units::{
     atomic_units::{AuEnergy, AuMass, Bohr},
 };
 
-use crate::interaction::{Interaction, composite::Composite};
+use crate::interaction::{Interaction, composite_int::CompositeInt};
 
 /// Potential of the form d0 * r^n
 #[derive(Debug, Clone)]
@@ -27,13 +27,13 @@ impl Interaction for Dispersion {
     }
 }
 
-pub fn lennard_jones(d6: Quantity64<AuEnergy>, r6: Quantity64<Bohr>) -> Composite<Dispersion> {
+pub fn lennard_jones(d6: Quantity64<AuEnergy>, r6: Quantity64<Bohr>) -> CompositeInt<Dispersion> {
     let d6 = d6.value();
     let r6 = r6.value();
     let c12 = d6 * r6.powi(12);
     let c6 = -2.0 * d6 * r6.powi(6);
 
-    Composite::new(vec![Dispersion::new(c12, -12), Dispersion::new(c6, -6)])
+    CompositeInt::new(vec![Dispersion::new(c12, -12), Dispersion::new(c6, -6)])
 }
 
 pub struct Centrifugal {

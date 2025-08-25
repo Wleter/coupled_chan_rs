@@ -1,0 +1,10 @@
+[package]
+name = "cc_problems"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+coupled_chan = {path = "../coupled_chan"}
+hilbert_space = {path = "../hilbert_space", features = ["faer"]}
+spin_algebra = {path = "../spin_algebra"}
+anyhow = {workspace = true}

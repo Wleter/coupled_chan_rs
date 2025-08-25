@@ -11,3 +11,4 @@ single_chan = {path = "../single_chan"}
 propagator = {path = "../propagator"}
 constants = {path = "../constants"}
 math_utils = {path = "../math_utils"}
+hilbert_space = {path = "../hilbert_space"}

@@ -159,7 +159,7 @@ impl<M> Operator<M> {
         F: FnMut([&'a Box<dyn DynSubspaceElement>; N], [&'a Box<dyn DynSubspaceElement>; K]) -> E + 'a,
     {
         let mel = get_transform_mel(elements, elements_transform, subspaces, subspaces_transform, mat_element);
-        let mat = M::from_fn(elements.len(), elements.len(), mel);
+        let mat = M::from_fn(elements_transform.len(), elements.len(), mel);
 
         Self { backed: mat }
     }
