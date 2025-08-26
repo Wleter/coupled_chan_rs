@@ -180,7 +180,6 @@ impl<'a, R: LogDerivativeReference, W: WMatrix> DiabaticLogDerivative<'a, R, W> 
     }
 
     fn step_r_target(&mut self, r: Option<f64>) {
-        self.w_matrix.value_inplace(self.solution.r, &mut self.step.w_matrix_buffer);
         let wavelength = get_wavelength(&self.step.w_matrix_buffer);
 
         let dr_new = self.step_strat.get_step(self.solution.r, wavelength);
@@ -313,10 +312,9 @@ impl<R: LogDerivativeReference> LogDerivativeStep<R> {
         matmul(self.buffer2.as_mut(), Replace, self.buffer3.as_ref(), self.buffer1.as_ref(), 1.0, Seq);
         // buffer2 is a second term in y_1(a, b)
 
-        w_matrix.value_inplace(sol.r, &mut self.buffer1);
         R::imbedding1(h, &self.w_ref, &mut self.buffer3);
 
-        zip!(self.buffer3.as_mut(), self.buffer1.as_ref(), self.w_ref.as_ref())
+        zip!(self.buffer3.as_mut(), self.w_matrix_buffer.as_ref(), self.w_ref.as_ref())
         .for_each(|unzip!(y1, w_a, w_ref)| {
             *y1 += h / 3. * (w_ref - w_a) // sign change because of different convention
         });
@@ -360,10 +358,10 @@ impl<R: LogDerivativeReference> LogDerivativeStep<R> {
         matmul(self.buffer2.as_mut(), Replace, self.buffer3.as_ref(), self.buffer1.as_ref(), 1.0, Seq);
         // buffer2 is a second term in y_4(a, b)
 
-        w_matrix.value_inplace(sol.r + sol.dr, &mut self.buffer1);
+        w_matrix.value_inplace(sol.r + sol.dr, &mut self.w_matrix_buffer);
         R::imbedding4(h, &self.w_ref, &mut self.buffer3);
 
-        zip!(self.buffer3.as_mut(), self.buffer1.as_ref(), self.w_ref.as_ref())
+        zip!(self.buffer3.as_mut(), self.w_matrix_buffer.as_ref(), self.w_ref.as_ref())
         .for_each(|unzip!(y4, w_a, w_ref)| {
             *y4 += h / 3. * (w_ref - w_a) // sign change because of different convention
         });
