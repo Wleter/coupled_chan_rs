@@ -92,3 +92,4 @@ pub fn get_s_matrix<W: WMatrix>(sol: &Solution<LogDeriv<Operator>>, w_matrix: &W
 
     SMatrix::new(s_matrix, momenta[asymptote.entrance_level], entrance)
 }
+

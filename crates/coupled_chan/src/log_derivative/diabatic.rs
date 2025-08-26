@@ -25,6 +25,9 @@ pub trait LogDerivativeReference {
     fn imbedding4(h: f64, w_ref: &Operator, out: &mut Operator);
 }
 
+pub type JohnsonLogDerivative<'a, W> = DiabaticLogDerivative<'a, Johnson, W>;
+pub type ManolopoulosLogDerivative<'a, W> = DiabaticLogDerivative<'a, DiabaticManolopoulos, W>;
+
 pub struct Johnson;
 impl LogDerivativeReference for Johnson {
     fn w_ref(_w_c: &Operator, w_ref: &mut Operator) {
