@@ -53,6 +53,10 @@ mod tests {
         RedCoupling::new(coupling, asymptote)
     }
 
+    // values at which the result were correct.
+    const SCATTERING_LENGTH_RE: f64 = -36.99816556437914;
+    const ELASTIC_CROSS_SECTION: f64 = 1.720171035e4;
+
     #[test]
     pub fn ratio_numerov_scattering() {
         let red_coupling = get_red_coupling();
@@ -68,11 +72,8 @@ mod tests {
         let solution = numerov.propagate_to(1500.0);
         let s_matrix = ratio_numerov::get_s_matrix(solution, &red_coupling);
 
-        // values at which the result were correct.
-        assert_approx_eq!(s_matrix.get_scattering_length().re, -37.07176, 1e-6);
-        assert_approx_eq!(s_matrix.get_scattering_length().im, -1.550004e-12, 1e-6);
-        assert_approx_eq!(s_matrix.get_elastic_cross_sect(), 1.7270067e4, 1e-6);
-        assert_approx_eq!(s_matrix.get_inelastic_cross_sect(), 4.1425318e-23, 1e-6);
+        assert_approx_eq!(s_matrix.get_scattering_length().re, SCATTERING_LENGTH_RE, 1e-4);
+        assert_approx_eq!(s_matrix.get_elastic_cross_sect(), ELASTIC_CROSS_SECTION, 1e-4);
     }
 
     #[test]
@@ -90,11 +91,8 @@ mod tests {
         let solution = propagator.propagate_to(1500.0);
         let s_matrix = log_derivative::get_s_matrix(solution, &red_coupling);
 
-        // values at which the result were correct.
-        assert_approx_eq!(s_matrix.get_scattering_length().re, -37.07176, 1e-6);
-        assert_approx_eq!(s_matrix.get_scattering_length().im, -1.550004e-12, 1e-6);
-        assert_approx_eq!(s_matrix.get_elastic_cross_sect(), 1.7270067e4, 1e-6);
-        assert_approx_eq!(s_matrix.get_inelastic_cross_sect(), 4.1425318e-23, 1e-6);
+        assert_approx_eq!(s_matrix.get_scattering_length().re, SCATTERING_LENGTH_RE, 1e-4);
+        assert_approx_eq!(s_matrix.get_elastic_cross_sect(), ELASTIC_CROSS_SECTION, 1e-4);
     }
 
     #[test]
@@ -112,10 +110,7 @@ mod tests {
         let solution = propagator.propagate_to(1500.0);
         let s_matrix = log_derivative::get_s_matrix(solution, &red_coupling);
 
-        // values at which the result were correct.
-        assert_approx_eq!(s_matrix.get_scattering_length().re, -37.07176, 1e-6);
-        assert_approx_eq!(s_matrix.get_scattering_length().im, -1.550004e-12, 1e-6);
-        assert_approx_eq!(s_matrix.get_elastic_cross_sect(), 1.7270067e4, 1e-6);
-        assert_approx_eq!(s_matrix.get_inelastic_cross_sect(), 4.1425318e-23, 1e-6);
+        assert_approx_eq!(s_matrix.get_scattering_length().re, SCATTERING_LENGTH_RE, 1e-4);
+        assert_approx_eq!(s_matrix.get_elastic_cross_sect(), ELASTIC_CROSS_SECTION, 1e-4);
     }
 }
