@@ -13,20 +13,20 @@ use propagator::{
 };
 
 use crate::{
-    coupling::{RedCoupling, VanishingCoupling},
+    coupling::WMatrix,
     s_matrix::SMatrix, Operator,
 };
 
 // todo! look whether V(r) is evaluated at correct values
 
 /// 10.1063/1.436421
-pub struct RatioNumerov<'a, P: VanishingCoupling> {
-    red_coupling: &'a RedCoupling<P>,
+pub struct RatioNumerov<'a, W: WMatrix> {
+    w_matrix: &'a W,
     step: StepStrategy,
 
     solution: Solution<Ratio<Operator>>,
 
-    red_coupling_buffer: Operator,
+    w_matrix_buffer: Operator,
     watchers: Option<Vec<&'a mut dyn PropagatorWatcher<Ratio<Operator>>>>,
 
     prev_sol: Ratio<Operator>,
@@ -41,14 +41,14 @@ pub struct RatioNumerov<'a, P: VanishingCoupling> {
     inverse_buffer: MemBuffer,
 }
 
-impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
-    pub fn new(red_coupling: &'a RedCoupling<P>, step: StepStrategy, boundary: Boundary<Operator>) -> Self {
-        let size = red_coupling.size();
+impl<'a, W: WMatrix> RatioNumerov<'a, W> {
+    pub fn new(w_matrix: &'a W, step: StepStrategy, boundary: Boundary<Operator>) -> Self {
+        let size = w_matrix.size();
         let r = boundary.r_start;
 
         let mut red_coupling_buffer = Operator::zeros(size);
 
-        red_coupling.value_inplace(r, &mut red_coupling_buffer);
+        w_matrix.value_inplace(r, &mut red_coupling_buffer);
         let local_wavelength = get_wavelength(&red_coupling_buffer);
 
         let dr = match boundary.direction {
@@ -57,14 +57,14 @@ impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
         };
 
         let mut f_last = Operator::zeros(size);
-        red_coupling.value_inplace(r - dr, &mut f_last);
+        w_matrix.value_inplace(r - dr, &mut f_last);
 
         let mut f_prev_last = Operator::zeros(size);
-        red_coupling.value_inplace(r - 2. * dr, &mut f_prev_last);
+        w_matrix.value_inplace(r - 2. * dr, &mut f_prev_last);
 
-        let f_last = red_coupling.id.0.as_ref() + dr * dr / 12. * f_last.0;
-        let f_prev_last = red_coupling.id.0.as_ref() + dr * dr / 12. * f_prev_last.0;
-        let f = red_coupling.id.0.as_ref() + dr * dr / 12. * &red_coupling_buffer.0;
+        let f_last = w_matrix.id().as_ref() + dr * dr / 12. * f_last.0;
+        let f_prev_last = w_matrix.id().as_ref() + dr * dr / 12. * f_prev_last.0;
+        let f = w_matrix.id().as_ref() + dr * dr / 12. * &red_coupling_buffer.0;
 
         let sol = Ratio(Operator::new(
             &f * (&boundary.derivative.0 * dr + &boundary.value.0)
@@ -80,7 +80,7 @@ impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
         ));
 
         Self {
-            red_coupling,
+            w_matrix,
             step,
             solution: Solution { r, dr, sol },
             f,
@@ -88,7 +88,7 @@ impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
             f_prev_last,
             prev_sol,
 
-            red_coupling_buffer,
+            w_matrix_buffer: red_coupling_buffer,
             watchers: None,
 
             buffer1: Operator::zeros(size),
@@ -141,9 +141,9 @@ impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
             Par::Seq,
         );
 
-        zip!(self.f.as_mut(), self.red_coupling.id.0.as_ref()).for_each(|unzip!(f, u)| *f = *f / 4. + 0.75 * u);
+        zip!(self.f.as_mut(), self.w_matrix.id().as_ref()).for_each(|unzip!(f, u)| *f = *f / 4. + 0.75 * u);
 
-        zip!(self.f_last.as_mut(), self.red_coupling.id.0.as_ref()).for_each(|unzip!(f, u)| *f = *f / 4. + 0.75 * u);
+        zip!(self.f_last.as_mut(), self.w_matrix.id().as_ref()).for_each(|unzip!(f, u)| *f = *f / 4. + 0.75 * u);
 
         matmul(
             self.buffer1.0.as_mut(),
@@ -167,11 +167,10 @@ impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
 
         ///////////////////////////////////////////////////////
 
-        self.red_coupling
-            .value_inplace(self.solution.r - self.solution.dr, &mut self.buffer2);
+        self.w_matrix.value_inplace(self.solution.r - self.solution.dr, &mut self.buffer2);
         zip!(
             self.f_prev_last.as_mut(),
-            self.red_coupling.id.0.as_ref(),
+            self.w_matrix.id().as_ref(),
             self.buffer2.0.as_ref()
         )
         .for_each(|unzip!(b1, u, c)| *b1 = u + self.solution.dr * self.solution.dr / 12. * c);
@@ -182,7 +181,7 @@ impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
 
         zip!(
             self.buffer1.0.as_mut(),
-            self.red_coupling.id.0.as_ref(),
+            self.w_matrix.id().as_ref(),
             self.f_prev_last.as_ref()
         )
         .for_each(|unzip!(b1, u, f)| *b1 = 12. * u - 10. * f);
@@ -204,7 +203,7 @@ impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
         zip!(
             self.buffer2.0.as_mut(),
             self.solution.sol.0.0.as_ref(),
-            self.red_coupling.id.0.as_ref()
+            self.w_matrix.id().as_ref()
         )
         .for_each(|unzip!(b2, sol, u)| *b2 = sol + u);
 
@@ -264,11 +263,11 @@ impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
             Par::Seq,
         );
 
-        zip!(self.f.as_mut(), self.red_coupling.id.0.as_ref()).for_each(|unzip!(f, u)| *f = 4. * *f - 3. * u);
+        zip!(self.f.as_mut(), self.w_matrix.id().as_ref()).for_each(|unzip!(f, u)| *f = 4. * *f - 3. * u);
 
         zip!(
             self.f_last.as_mut(),
-            self.red_coupling.id.0.as_ref(),
+            self.w_matrix.id().as_ref(),
             self.f_prev_last.as_ref()
         )
         .for_each(|unzip!(f, u, f_prev)| *f = 4. * *f_prev - 3. * u);
@@ -299,8 +298,8 @@ impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
 
         zip!(
             self.buffer1.0.as_mut(),
-            self.red_coupling.id.0.as_ref(),
-            self.red_coupling_buffer.0.as_ref()
+            self.w_matrix.id().as_ref(),
+            self.w_matrix_buffer.0.as_ref()
         )
         .for_each(|unzip!(b1, u, c)| *b1 = u + self.solution.dr * self.solution.dr / 12. * c);
         // buffer1 is (1 - T_n)
@@ -310,7 +309,7 @@ impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
 
         zip!(
             self.buffer3.0.as_mut(),
-            self.red_coupling.id.0.as_ref(),
+            self.w_matrix.id().as_ref(),
             self.buffer1.0.as_ref()
         )
         .for_each(|unzip!(b3, u, b1)| *b3 = 12. * u - 10. * *b1);
@@ -343,7 +342,7 @@ impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
     }
 }
 
-impl<P: VanishingCoupling> Propagator<Ratio<Operator>> for RatioNumerov<'_, P> {
+impl<W: WMatrix> Propagator<Ratio<Operator>> for RatioNumerov<'_, W> {
     fn step(&mut self) -> &Solution<Ratio<Operator>> {
         if let Some(watchers) = &mut self.watchers {
             for w in watchers {
@@ -351,9 +350,8 @@ impl<P: VanishingCoupling> Propagator<Ratio<Operator>> for RatioNumerov<'_, P> {
             }
         }
 
-        self.red_coupling
-            .value_inplace(self.solution.r, &mut self.red_coupling_buffer);
-        let wavelength = get_wavelength(&self.red_coupling_buffer);
+        self.w_matrix.value_inplace(self.solution.r, &mut self.w_matrix_buffer);
+        let wavelength = get_wavelength(&self.w_matrix_buffer);
 
         let dr = self.step.get_step(self.solution.r, wavelength);
 
@@ -408,24 +406,24 @@ fn get_wavelength(red_coupling: &Operator) -> f64 {
     2. * PI / max_g_val.abs().sqrt()
 }
 
-pub fn get_s_matrix<P: VanishingCoupling>(sol: &Solution<Ratio<Operator>>, red_coupling: &RedCoupling<P>) -> SMatrix {
-    let size = red_coupling.size();
+pub fn get_s_matrix<W: WMatrix>(sol: &Solution<Ratio<Operator>>, w_matrix: &W) -> SMatrix {
+    let size = w_matrix.size();
     let r_last = sol.r;
     let r_prev_last = sol.r - sol.dr;
 
     let mut f_last = Operator::zeros(size);
-    red_coupling.value_inplace(r_last, &mut f_last);
+    w_matrix.value_inplace(r_last, &mut f_last);
     f_last.0 *= sol.dr * sol.dr / 12.;
-    f_last.0 += &red_coupling.id.0;
+    f_last.0 += &w_matrix.id().0;
 
     let mut f_prev_last = Operator::zeros(size);
-    red_coupling.value_inplace(r_prev_last, &mut f_prev_last);
+    w_matrix.value_inplace(r_prev_last, &mut f_prev_last);
     f_prev_last.0 *= sol.dr * sol.dr / 12.;
-    f_prev_last.0 += &red_coupling.id.0;
+    f_prev_last.0 += &w_matrix.id().0;
 
     let wave_ratio = f_last.0.partial_piv_lu().inverse() * sol.sol.0.0.as_ref() * f_prev_last.0;
 
-    let asymptote = &red_coupling.asymptote;
+    let asymptote = &w_matrix.asymptote();
     let levels = asymptote.levels();
 
     let wave_ratio = if let Some(transformation) = asymptote.transformation() {

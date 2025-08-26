@@ -220,6 +220,14 @@ impl MultiCentrifugal {
     }
 }
 
+pub trait WMatrix {
+    fn size(&self) -> usize;
+    fn value_inplace(&self, r: f64, channels: &mut Operator);
+
+    fn id(&self) -> &Operator;
+    fn asymptote(&self) -> &Asymptote;
+}
+
 pub struct RedCoupling<P: VanishingCoupling> {
     pub coupling: P,
     pub asymptote: Asymptote,
@@ -240,8 +248,10 @@ impl<P: VanishingCoupling> RedCoupling<P> {
             asymptote,
         }
     }
+}
 
-    pub fn value_inplace(&self, r: f64, channels: &mut Operator) {
+impl<V: VanishingCoupling> WMatrix for RedCoupling<V> {
+    fn value_inplace(&self, r: f64, channels: &mut Operator) {
         self.coupling.value_inplace(r, channels);
         channels.0 += &self.asymptote.asymptote_channels.0;
         self.asymptote.centrifugal.value_inplace_add(r, channels);
@@ -250,7 +260,15 @@ impl<P: VanishingCoupling> RedCoupling<P> {
             .for_each(|unzip!(c, i)| *c = 2.0 * self.asymptote.red_mass * (self.asymptote.energy * i - *c));
     }
 
-    pub fn size(&self) -> usize {
+    fn size(&self) -> usize {
         self.coupling.size()
+    }
+
+    fn id(&self) -> &Operator {
+        &self.id
+    }
+
+    fn asymptote(&self) -> &Asymptote {
+        &self.asymptote
     }
 }
