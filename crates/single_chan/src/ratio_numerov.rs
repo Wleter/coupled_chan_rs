@@ -166,7 +166,7 @@ impl<P: Interaction> Propagator<Ratio<f64>> for RatioNumerov<'_, P> {
             }
         }
 
-        while (self.solution.r - r) * self.solution.dr.signum() <= 0. {
+        while (self.solution.r - r) * self.solution.dr.signum() < 0. {
             self.step();
         }
 

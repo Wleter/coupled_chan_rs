@@ -2,6 +2,7 @@
     "rust-analyzer.cargo.features": "all",
     "cSpell.words": [
         "Hartree",
-        "ldlt"
+        "ldlt",
+        "Manolopoulos"
     ],
 }

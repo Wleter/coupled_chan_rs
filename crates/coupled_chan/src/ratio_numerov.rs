@@ -380,7 +380,7 @@ impl<W: WMatrix> Propagator<Ratio<Operator>> for RatioNumerov<'_, W> {
             }
         }
 
-        while (self.solution.r - r) * self.solution.dr.signum() <= 0. {
+        while (self.solution.r - r) * self.solution.dr.signum() < 0. {
             self.step();
         }
 
@@ -394,7 +394,7 @@ impl<W: WMatrix> Propagator<Ratio<Operator>> for RatioNumerov<'_, W> {
 }
 
 #[inline]
-fn get_wavelength(red_coupling: &Operator) -> f64 {
+pub fn get_wavelength(red_coupling: &Operator) -> f64 {
     let max_g_val = red_coupling
         .0
         .diagonal()
