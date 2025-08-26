@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use faer::{dyn_stack::MemBuffer, linalg::{matmul::matmul, solvers::DenseSolveCore}, unzip, zip, Accum::Replace, Par::Seq};
 use matrix_utils::faer::{get_ldlt_inverse_buffer, inverse_ldlt_inplace, inverse_ldlt_inplace_nodes};
-use propagator::{propagator_watcher::PropagatorWatcher, step_strategy::StepStrategy, Boundary, Direction, LogDeriv, Nodes, Propagator, Solution};
+use propagator::{propagator_watcher::PropagatorWatcher, step_strategy::StepStrategy, Boundary, Direction, LogDeriv, NodeCountPropagator, Nodes, Propagator, Solution};
 
 use crate::{coupling::WMatrix, ratio_numerov::get_wavelength, Operator};
 
@@ -214,6 +214,12 @@ impl<R: LogDerivativeReference, W: WMatrix> Propagator<LogDeriv<Operator>> for D
         }
 
         &self.solution
+    }
+}
+
+impl<R: LogDerivativeReference, W: WMatrix> NodeCountPropagator<LogDeriv<Operator>> for DiabaticLogDerivative<'_, R, W> {
+    fn nodes(&self) -> Nodes {
+        self.nodes
     }
 }
 
