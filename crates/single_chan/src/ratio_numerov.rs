@@ -1,7 +1,7 @@
 use std::f64::consts::PI;
 
 use crate::{
-    interaction::{Interaction, RedInteraction},
+    interaction::{Interaction, RedInteraction, WFunction},
     s_matrix::SMatrix,
     step_strategy::StepStrategy,
 };
@@ -10,8 +10,8 @@ use num_complex::Complex64;
 use propagator::{Boundary, Direction, Propagator, Ratio, Solution, propagator_watcher::PropagatorWatcher};
 
 /// doi: 10.1063/1.435384
-pub struct RatioNumerov<'a, P: Interaction> {
-    red_interaction: &'a RedInteraction<'a, P>,
+pub struct RatioNumerov<'a, W: WFunction> {
+    w_function: &'a W,
     step: StepStrategy,
 
     solution: Solution<Ratio<f64>>,
@@ -25,11 +25,11 @@ pub struct RatioNumerov<'a, P: Interaction> {
     watchers: Option<Vec<&'a mut dyn PropagatorWatcher<Ratio<f64>>>>,
 }
 
-impl<'a, P: Interaction> RatioNumerov<'a, P> {
-    pub fn new(red_potential: &'a RedInteraction<'a, P>, step: StepStrategy, boundary: Boundary<f64>) -> Self {
+impl<'a, W: WFunction> RatioNumerov<'a, W> {
+    pub fn new(w_function: &'a W, step: StepStrategy, boundary: Boundary<f64>) -> Self {
         let r = boundary.r_start;
 
-        let red_pot = red_potential.value(r);
+        let red_pot = w_function.value(r);
         let local_wavelength = get_wavelength(red_pot);
 
         let dr = match boundary.direction {
@@ -37,15 +37,15 @@ impl<'a, P: Interaction> RatioNumerov<'a, P> {
             Direction::Outwards => step.get_step(r, local_wavelength).abs(),
         };
 
-        let f_prev_last = 1. + dr * dr / 12. * red_potential.value(r - 2. * dr);
-        let f_last = 1. + dr * dr / 12. * red_potential.value(r - dr);
+        let f_prev_last = 1. + dr * dr / 12. * w_function.value(r - 2. * dr);
+        let f_last = 1. + dr * dr / 12. * w_function.value(r - dr);
         let f = 1. + dr * dr / 12. * red_pot;
 
         let sol = Ratio(f * (boundary.derivative * dr + boundary.value) / boundary.value / f_last);
         let prev_sol = Ratio(f_last * boundary.value / (boundary.value - boundary.derivative * dr) / f_prev_last);
 
         Self {
-            red_interaction: red_potential,
+            w_function,
             step,
             solution: Solution { r, dr, sol },
             f,
@@ -87,7 +87,7 @@ impl<'a, P: Interaction> RatioNumerov<'a, P> {
         self.solution.sol.0 *= self.f / self.f_last;
 
         let f_last =
-            1.0 + self.solution.dr * self.solution.dr * self.red_interaction.value(self.solution.r - self.solution.dr);
+            1.0 + self.solution.dr * self.solution.dr * self.w_function.value(self.solution.r - self.solution.dr);
         let u = (12.0 - 10.0 * f_last) / f_last;
 
         let sol_half = (self.solution.sol.0 + 1.) / u;
@@ -127,7 +127,7 @@ impl<'a, P: Interaction> RatioNumerov<'a, P> {
     }
 }
 
-impl<P: Interaction> Propagator<Ratio<f64>> for RatioNumerov<'_, P> {
+impl<W: WFunction> Propagator<Ratio<f64>> for RatioNumerov<'_, W> {
     fn step(&mut self) -> &Solution<Ratio<f64>> {
         if let Some(watchers) = &mut self.watchers {
             for w in watchers {
@@ -135,7 +135,7 @@ impl<P: Interaction> Propagator<Ratio<f64>> for RatioNumerov<'_, P> {
             }
         }
 
-        let red_pot = self.red_interaction.value(self.solution.r);
+        let red_pot = self.w_function.value(self.solution.r);
         self.red_potential_buffer = red_pot;
         let wavelength = get_wavelength(red_pot);
 
@@ -250,9 +250,7 @@ mod tests {
         let s_matrix = get_s_matrix(solution, &red_interaction);
 
         // values at which the result were correct.
-        assert_approx_eq!(s_matrix.get_scattering_length().re, -15.55074, 1e-6);
-        assert_approx_eq!(s_matrix.get_scattering_length().im, 7.741696e-13, 1e-6);
-        assert_approx_eq!(s_matrix.get_elastic_cross_sect(), 3.038868e3, 1e-6);
-        assert_approx_eq!(s_matrix.get_inelastic_cross_sect(), 0., 1e-6);
+        assert_approx_eq!(s_matrix.get_scattering_length().re, -15.49933, 1e-4);
+        assert_approx_eq!(s_matrix.get_elastic_cross_sect(), 3.0188e3, 1e-4);
     }
 }

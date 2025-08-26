@@ -30,6 +30,12 @@ impl Level {
     }
 }
 
+pub trait WFunction {
+    fn value(&self, r: f64) -> f64;
+    fn asymptote(&self) -> f64;
+    fn l(&self) -> u32;
+}
+
 pub struct RedInteraction<'a, P: Interaction> {
     energy: f64,
     mass: f64,
@@ -48,16 +54,18 @@ impl<'a, P: Interaction> RedInteraction<'a, P> {
             level,
         }
     }
+}
 
-    pub fn value(&self, r: f64) -> f64 {
+impl<'a, P: Interaction> WFunction for RedInteraction<'a, P> {
+    fn value(&self, r: f64) -> f64 {
         2. * self.mass * (self.energy - self.interaction.value(r) - self.centrifugal.value(r))
     }
 
-    pub fn asymptote(&self) -> f64 {
+    fn asymptote(&self) -> f64 {
         2. * self.mass * (self.energy - self.level.asymptote)
     }
 
-    pub fn l(&self) -> u32 {
+    fn l(&self) -> u32 {
         self.level.l
     }
 }
