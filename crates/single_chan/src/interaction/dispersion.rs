@@ -1,5 +1,5 @@
 use constants::units::{
-    Quantity64,
+    Quantity,
     atomic_units::{AuEnergy, AuMass, Bohr},
 };
 
@@ -27,7 +27,7 @@ impl Interaction for Dispersion {
     }
 }
 
-pub fn lennard_jones(d6: Quantity64<AuEnergy>, r6: Quantity64<Bohr>) -> CompositeInt<Dispersion> {
+pub fn lennard_jones(d6: Quantity<AuEnergy>, r6: Quantity<Bohr>) -> CompositeInt<Dispersion> {
     let d6 = d6.value();
     let r6 = r6.value();
     let c12 = d6 * r6.powi(12);
@@ -42,7 +42,7 @@ pub struct Centrifugal {
 }
 
 impl Centrifugal {
-    pub fn new(l: u32, red_mass: Quantity64<AuMass>) -> Self {
+    pub fn new(l: u32, red_mass: Quantity<AuMass>) -> Self {
         Self {
             l,
             d0: (l * (l + 1)) as f64 / (2. * red_mass.value()),

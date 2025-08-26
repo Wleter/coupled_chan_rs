@@ -1,5 +1,5 @@
 use constants::units::{
-    Quantity64,
+    Quantity,
     atomic_units::{AuEnergy, Bohr},
 };
 
@@ -19,7 +19,7 @@ pub struct MorseLongRangeBuilder {
 }
 
 impl MorseLongRangeBuilder {
-    pub fn new(d0: Quantity64<AuEnergy>, r_e: Quantity64<Bohr>, tail: Vec<Dispersion>) -> Self {
+    pub fn new(d0: Quantity<AuEnergy>, r_e: Quantity<Bohr>, tail: Vec<Dispersion>) -> Self {
         Self {
             d0: d0.value(),
             tail,

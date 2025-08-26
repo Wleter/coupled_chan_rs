@@ -1,5 +1,5 @@
 use constants::units::{
-    Quantity64,
+    Quantity,
     atomic_units::{AuEnergy, AuMass},
 };
 
@@ -22,7 +22,7 @@ pub struct Level {
 }
 
 impl Level {
-    pub fn new(l: u32, asymptote: Quantity64<AuEnergy>) -> Self {
+    pub fn new(l: u32, asymptote: Quantity<AuEnergy>) -> Self {
         Self {
             asymptote: asymptote.value(),
             l,
@@ -39,7 +39,7 @@ pub struct RedInteraction<'a, P: Interaction> {
 }
 
 impl<'a, P: Interaction> RedInteraction<'a, P> {
-    pub fn new(interaction: &'a P, mass: Quantity64<AuMass>, energy: Quantity64<AuEnergy>, level: Level) -> Self {
+    pub fn new(interaction: &'a P, mass: Quantity<AuMass>, energy: Quantity<AuEnergy>, level: Level) -> Self {
         Self {
             energy: energy.value() - level.asymptote,
             mass: mass.value(),

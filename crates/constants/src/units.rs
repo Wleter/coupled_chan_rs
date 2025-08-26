@@ -6,8 +6,6 @@ use std::{
     ops::{Add, AddAssign, Sub, SubAssign},
 };
 
-use num_traits::real::Real;
-
 pub trait Unit: Copy + Default {
     type Base;
 
@@ -15,24 +13,22 @@ pub trait Unit: Copy + Default {
 }
 
 #[derive(Clone, Copy)]
-pub struct Quantity<T, U>(pub T, pub U);
-pub type Quantity64<U> = Quantity<f64, U>;
-pub type Quantity32<U> = Quantity<f32, U>;
+pub struct Quantity<U>(pub f64, pub U);
 
-impl<T: Debug, U: Debug> Debug for Quantity<T, U> {
+impl<U: Debug> Debug for Quantity<U> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?} {:?}", self.0, self.1)
     }
 }
 
-impl<T: Display, U: Debug> Display for Quantity<T, U> {
+impl<U: Debug> Display for Quantity<U> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} {:?}", self.0, self.1)
     }
 }
 
-impl<T: Real + From<f64>, U: Unit> Quantity<T, U> {
-    pub fn value(&self) -> T {
+impl< U: Unit> Quantity<U> {
+    pub fn value(&self) -> f64 {
         self.0
     }
 
@@ -40,16 +36,12 @@ impl<T: Real + From<f64>, U: Unit> Quantity<T, U> {
         self.1
     }
 
-    pub fn to_base(&self) -> T {
-        self.0 * U::TO_BASE.into()
-    }
-
-    pub fn to<V: Unit<Base = U::Base>>(&self, unit: V) -> Quantity<T, V> {
-        Quantity(self.0 * (U::TO_BASE / V::TO_BASE).into(), unit)
+    pub fn to<V: Unit<Base = U::Base>>(&self, unit: V) -> Quantity<V> {
+        Quantity(self.0 * (U::TO_BASE / V::TO_BASE), unit)
     }
 }
 
-impl<T: Real + From<f64>, U: Unit> Add for Quantity<T, U> {
+impl<U: Unit> Add for Quantity<U> {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
@@ -57,19 +49,19 @@ impl<T: Real + From<f64>, U: Unit> Add for Quantity<T, U> {
     }
 }
 
-impl<T: Real + From<f64> + AddAssign, U: Unit> AddAssign for Quantity<T, U> {
+impl<U: Unit> AddAssign for Quantity<U> {
     fn add_assign(&mut self, rhs: Self) {
         self.0 += rhs.0;
     }
 }
 
-impl<T: Real + From<f64> + Sum, U: Unit> Sum for Quantity<T, U> {
+impl<U: Unit> Sum for Quantity<U> {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
         Quantity(iter.map(|x| x.0).sum(), U::default())
     }
 }
 
-impl<T: Real + From<f64>, U: Unit> Sub for Quantity<T, U> {
+impl<U: Unit> Sub for Quantity<U> {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
@@ -77,7 +69,7 @@ impl<T: Real + From<f64>, U: Unit> Sub for Quantity<T, U> {
     }
 }
 
-impl<T: Real + From<f64> + SubAssign, U: Unit> SubAssign for Quantity<T, U> {
+impl<U: Unit> SubAssign for Quantity<U> {
     fn sub_assign(&mut self, rhs: Self) {
         self.0 -= rhs.0;
     }

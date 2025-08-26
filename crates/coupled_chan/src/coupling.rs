@@ -4,7 +4,7 @@ pub mod masked;
 pub mod pair;
 
 use constants::units::{
-    Quantity64,
+    Quantity,
     atomic_units::{AuEnergy, AuMass},
 };
 use faer::{Mat, unzip, zip};
@@ -107,8 +107,8 @@ pub struct Asymptote {
 
 impl Asymptote {
     pub fn new_diagonal(
-        mass: Quantity64<AuMass>,
-        energy: Quantity64<AuEnergy>,
+        mass: Quantity<AuMass>,
+        energy: Quantity<AuEnergy>,
         levels: Levels,
         entrance_level: usize,
     ) -> Self {
@@ -136,8 +136,8 @@ impl Asymptote {
     }
 
     pub fn new_angular_blocks(
-        mass: Quantity64<AuMass>,
-        energy: Quantity64<AuEnergy>,
+        mass: Quantity<AuMass>,
+        energy: Quantity<AuEnergy>,
         angular_blocks: AngularBlocks,
         entrance_level: usize,
     ) -> Self {
@@ -158,8 +158,8 @@ impl Asymptote {
     }
 
     pub fn new_general(
-        mass: Quantity64<AuMass>,
-        energy: Quantity64<AuEnergy>,
+        mass: Quantity<AuMass>,
+        energy: Quantity<AuEnergy>,
         levels: Levels,
         transformation: Channels,
         entrance_level: usize,
@@ -201,7 +201,7 @@ pub struct MultiCentrifugal {
 }
 
 impl MultiCentrifugal {
-    pub fn new_diagonal(levels: &Levels, mass: Quantity64<AuMass>) -> Self {
+    pub fn new_diagonal(levels: &Levels, mass: Quantity<AuMass>) -> Self {
         let mask = Mat::from_fn(levels.l.len(), levels.l.len(), |i, j| {
             if i != j {
                 return 0.;
