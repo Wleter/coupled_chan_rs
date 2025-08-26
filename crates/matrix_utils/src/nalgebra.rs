@@ -1,6 +1,9 @@
 use nalgebra::{DMatrix, SMatrix, Scalar};
 
-use crate::MatrixCreation;
+use crate::{MatrixCreation, MatrixLike};
+impl<E: Scalar> MatrixLike for DMatrix<E> {}
+impl<E: Scalar, const N: usize, const M: usize> MatrixLike for SMatrix<E, N, M> {}
+
 
 impl<E: Scalar> MatrixCreation<E> for DMatrix<E> {
     fn from_fn(nrows: usize, ncols: usize, f: impl FnMut(usize, usize) -> E) -> Self {

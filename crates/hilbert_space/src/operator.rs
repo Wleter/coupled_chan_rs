@@ -1,4 +1,6 @@
-use std::ops::{Add, AddAssign};
+use std::ops::{Add, AddAssign, Deref, DerefMut};
+
+use matrix_utils::MatrixLike;
 
 pub mod dyn_operator;
 pub mod static_operator;
@@ -30,38 +32,62 @@ pub fn into_variant<V, T>(elements: Vec<V>, variant: fn(V) -> T) -> Vec<T> {
 }
 
 #[derive(Debug, Clone)]
-pub struct Operator<M> {
-    backed: M,
+pub struct Operator<M: MatrixLike>(pub M);
+
+impl<M: MatrixLike> Deref for Operator<M> {
+    type Target = M;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
-impl<M> Operator<M> {
+impl<M: MatrixLike> DerefMut for Operator<M> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<M: MatrixLike> Operator<M> {
     pub fn new(mat: M) -> Self {
-        Self { backed: mat }
-    }
-
-    pub fn backed(self) -> M {
-        self.backed
+        Self(mat)
     }
 }
 
+// todo! it is hard to combine faer, ndarray, nalgebra into single api, 
+// so for now I specialize in faer
 #[cfg(feature = "faer")]
 impl Operator<faer::Mat<f64>> {
+    pub fn size(&self) -> usize {
+        assert_eq!(self.0.nrows(), self.0.ncols(), "Mismatched number of columns vs rows");
+
+        self.0.nrows()
+    }
+
+    pub fn zeros(size: usize) -> Self {
+        Self(faer::Mat::zeros(size, size))
+    }
+
+    pub fn identity(size: usize) -> Self {
+        Self(faer::Mat::identity(size, size))
+    }
+
     pub fn transform(&self, transformation: &Self) -> Self {
-        Self::new(&transformation.backed * &self.backed * transformation.backed.transpose())
+        Self(&transformation.0 * &self.0 * transformation.0.transpose())
     }
 }
 
-impl<M: AddAssign> AddAssign for Operator<M> {
+impl<M: MatrixLike + AddAssign> AddAssign for Operator<M> {
     fn add_assign(&mut self, rhs: Self) {
-        self.backed += rhs.backed
+        self.0 += rhs.0
     }
 }
 
-impl<M: Add<Output = M>> Add for Operator<M> {
+impl<M: MatrixLike + Add<Output = M>> Add for Operator<M> {
     type Output = Operator<M>;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Operator::new(self.backed + rhs.backed)
+        Operator(self.0 + rhs.0)
     }
 }
 

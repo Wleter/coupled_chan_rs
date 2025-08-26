@@ -1,5 +1,5 @@
 use coupled_chan::{
-    Channels, Interaction,
+    Operator, Interaction,
     constants::units::{
         Quantity,
         atomic_units::{AuEnergy, AuMass},
@@ -9,9 +9,7 @@ use coupled_chan::{
 use hilbert_space::{
     Parity,
     dyn_space::{SpaceBasis, SubspaceBasis},
-    faer::Mat,
     filter_space,
-    operator::Operator,
     operator_diag_mel, operator_mel, operator_transform_mel,
 };
 use spin_algebra::{
@@ -66,7 +64,7 @@ impl<P: Interaction, V: Interaction> AtomAtomBuilder<P, V> {
             s1.m + i1.m + s2.m + i2.m == self.projection
         });
 
-        let mut zeeman: Operator<Mat<f64>> = operator_diag_mel!(dyn &basis_sep, [s1], |[s: Spin]| {
+        let mut zeeman: Operator = operator_diag_mel!(dyn &basis_sep, [s1], |[s: Spin]| {
             -self.gamma_e1 * magnetic_field * s.m.value()
         });
         zeeman += operator_diag_mel!(dyn &basis_sep, [s2], |[s: Spin]| {
@@ -79,7 +77,7 @@ impl<P: Interaction, V: Interaction> AtomAtomBuilder<P, V> {
             -self.gamma_i2 * magnetic_field * i.m.value()
         });
 
-        let mut hifi: Operator<Mat<f64>> = operator_mel!(dyn &basis_sep, [s1, i1], |[s: Spin, i: Spin]| {
+        let mut hifi: Operator = operator_mel!(dyn &basis_sep, [s1, i1], |[s: Spin, i: Spin]| {
             self.a_hifi1 * SpinOps::dot(s, i)
         });
         hifi += operator_mel!(dyn &basis_sep, [s2, i2], |[s: Spin, i: Spin]| {
@@ -114,12 +112,12 @@ impl<P: Interaction, V: Interaction> AtomAtomBuilder<P, V> {
         let singlet_masking = operator_diag_mel!(dyn &basis, [s], |[s: Spin]| {
             if s.s == 0 { 1. } else { 0. }
         });
-        let singlet = Masked::new(self.singlet, Channels(singlet_masking.backed()));
+        let singlet = Masked::new(self.singlet, singlet_masking);
 
         let triplet_masking = operator_diag_mel!(dyn &basis, [s], |[s: Spin]| {
             if s.s == 0 { 0. } else { 1. }
         });
-        let triplet = Masked::new(self.triplet, Channels(triplet_masking.backed()));
+        let triplet = Masked::new(self.triplet, triplet_masking);
 
         let coupling = Pair::new(singlet, triplet);
 
@@ -138,7 +136,7 @@ impl<P: Interaction, V: Interaction> AtomAtomBuilder<P, V> {
 #[cfg(test)]
 mod tests {
     use coupled_chan::{
-        Channels,
+        Operator,
         composite_int::CompositeInt,
         constants::{
             BOHR_MAG, G_FACTOR,
@@ -187,8 +185,8 @@ mod tests {
         let boundary = Boundary {
             r_start: 4.,
             direction: Direction::Outwards,
-            value: Channels(1e-50 * &problem.red_coupling.id.0),
-            derivative: Channels(1. * &problem.red_coupling.id.0),
+            value: Operator::new(1e-50 * &problem.red_coupling.id.0),
+            derivative: Operator::new(1. * &problem.red_coupling.id.0),
         };
         let mut numerov = RatioNumerov::new(&problem.red_coupling, step_strategy.into(), boundary);
 

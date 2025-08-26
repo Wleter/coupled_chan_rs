@@ -10,11 +10,11 @@ use constants::units::{
 use faer::{Mat, unzip, zip};
 use matrix_utils::faer::diagonalize;
 
-use crate::Channels;
+use crate::Operator;
 
 pub trait VanishingCoupling {
-    fn value_inplace(&self, r: f64, channels: &mut Channels);
-    fn value_inplace_add(&self, r: f64, channels: &mut Channels);
+    fn value_inplace(&self, r: f64, channels: &mut Operator);
+    fn value_inplace_add(&self, r: f64, channels: &mut Operator);
     fn size(&self) -> usize;
 }
 
@@ -25,8 +25,8 @@ pub struct Levels {
 }
 
 impl Levels {
-    pub fn as_channels(&self) -> Channels {
-        let mut channels = Channels::zeros(self.l.len());
+    pub fn as_channels(&self) -> Operator {
+        let mut channels = Operator::zeros(self.l.len());
 
         for (c, &a) in channels.0.diagonal_mut().column_vector_mut().iter_mut().zip(&self.asymptote) {
             *c = a
@@ -39,7 +39,7 @@ impl Levels {
 #[derive(Clone, Debug)]
 pub struct AngularBlocks {
     pub l: Vec<u32>,
-    pub angular_blocks: Vec<Channels>,
+    pub angular_blocks: Vec<Operator>,
 }
 
 impl AngularBlocks {
@@ -47,11 +47,11 @@ impl AngularBlocks {
         self.angular_blocks.iter().map(|b| b.size()).sum()
     }
 
-    pub fn diagonalize(&self) -> (Levels, Channels) {
+    pub fn diagonalize(&self) -> (Levels, Operator) {
         let n = self.size();
         let mut energies = Vec::with_capacity(n);
         let mut ls = Vec::with_capacity(n);
-        let mut eigenstates = Channels::zeros(n);
+        let mut eigenstates = Operator::zeros(n);
 
         let mut block_index = 0;
         for (block, l) in self.angular_blocks.iter().zip(&self.l) {
@@ -75,9 +75,9 @@ impl AngularBlocks {
         (levels, eigenstates)
     }
 
-    pub fn channels(&self) -> Channels {
+    pub fn channels(&self) -> Operator {
         let n = self.size();
-        let mut channels = Channels::zeros(n);
+        let mut channels = Operator::zeros(n);
 
         let mut block_index = 0;
         for block in &self.angular_blocks {
@@ -95,13 +95,13 @@ impl AngularBlocks {
 
 pub struct Asymptote {
     levels: Levels,
-    transformation: Option<Channels>,
+    transformation: Option<Operator>,
 
     pub entrance_level: usize,
     pub red_mass: f64,
     pub energy: f64,
 
-    asymptote_channels: Channels,
+    asymptote_channels: Operator,
     centrifugal: MultiCentrifugal,
 }
 
@@ -130,7 +130,7 @@ impl Asymptote {
             levels,
 
             transformation: None,
-            asymptote_channels: Channels(asymptote_channels),
+            asymptote_channels: Operator::new(asymptote_channels),
             centrifugal,
         }
     }
@@ -161,12 +161,11 @@ impl Asymptote {
         mass: Quantity<AuMass>,
         energy: Quantity<AuEnergy>,
         levels: Levels,
-        transformation: Channels,
+        transformation: Operator,
         entrance_level: usize,
     ) -> Self {
         let centrifugal = MultiCentrifugal::new_diagonal(&levels, mass);
-
-        let channels = Channels(&transformation.0 * levels.as_channels().0 * transformation.0.transpose());
+        let channels = levels.as_channels().transform(&transformation);
 
         Self {
             red_mass: mass.value(),
@@ -189,14 +188,14 @@ impl Asymptote {
         self.levels.asymptote[self.entrance_level]
     }
 
-    pub fn transformation(&self) -> &Option<Channels> {
+    pub fn transformation(&self) -> &Option<Operator> {
         &self.transformation
     }
 }
 
 /// Multichannel centrifugal term L^2 / (2 m r^2)
 pub struct MultiCentrifugal {
-    mask: Channels,
+    mask: Operator,
     mass: f64,
 }
 
@@ -211,12 +210,12 @@ impl MultiCentrifugal {
         });
 
         Self {
-            mask: Channels(mask),
+            mask: Operator::new(mask),
             mass: mass.value(),
         }
     }
 
-    pub fn value_inplace_add(&self, r: f64, channels: &mut Channels) {
+    pub fn value_inplace_add(&self, r: f64, channels: &mut Operator) {
         zip!(channels.0.as_mut(), self.mask.0.as_ref()).for_each(|unzip!(o, m)| *o += m / (2. * self.mass * r * r));
     }
 }
@@ -224,7 +223,7 @@ impl MultiCentrifugal {
 pub struct RedCoupling<P: VanishingCoupling> {
     pub coupling: P,
     pub asymptote: Asymptote,
-    pub id: Channels,
+    pub id: Operator,
 }
 
 impl<P: VanishingCoupling> RedCoupling<P> {
@@ -236,13 +235,13 @@ impl<P: VanishingCoupling> RedCoupling<P> {
         );
 
         Self {
-            id: Channels(Mat::identity(coupling.size(), coupling.size())),
+            id: Operator::identity(coupling.size()),
             coupling,
             asymptote,
         }
     }
 
-    pub fn value_inplace(&self, r: f64, channels: &mut Channels) {
+    pub fn value_inplace(&self, r: f64, channels: &mut Operator) {
         self.coupling.value_inplace(r, channels);
         channels.0 += &self.asymptote.asymptote_channels.0;
         self.asymptote.centrifugal.value_inplace_add(r, channels);

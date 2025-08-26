@@ -1,5 +1,5 @@
 use crate::operator::Operator;
-use matrix_utils::MatrixCreation;
+use matrix_utils::{MatrixCreation, MatrixLike};
 use num_traits::Zero;
 
 use crate::{
@@ -113,7 +113,7 @@ where
     }
 }
 
-impl<M> Operator<M> {
+impl<M: MatrixLike> Operator<M> {
     pub fn from_mel_dyn<'a, E, const N: usize, F>(
         elements: &'a BasisElements,
         action_subspaces: [BasisId; N],
@@ -127,7 +127,7 @@ impl<M> Operator<M> {
         let mel = get_mel(elements, action_subspaces, mat_element);
         let mat = M::from_fn(elements.len(), elements.len(), mel);
 
-        Self { backed: mat }
+        Self(mat)
     }
 
     pub fn from_diag_mel_dyn<'a, E, const N: usize, F>(
@@ -143,7 +143,7 @@ impl<M> Operator<M> {
         let mel = get_diagonal_mel(elements, action_subspaces, mat_element);
         let mat = M::from_fn(elements.len(), elements.len(), mel);
 
-        Self { backed: mat }
+        Self(mat)
     }
 
     pub fn from_transform_mel_dyn<'a, E, const N: usize, const K: usize, F>(
@@ -161,7 +161,7 @@ impl<M> Operator<M> {
         let mel = get_transform_mel(elements, elements_transform, subspaces, subspaces_transform, mat_element);
         let mat = M::from_fn(elements_transform.len(), elements.len(), mel);
 
-        Self { backed: mat }
+        Self(mat)
     }
 }
 
@@ -228,7 +228,7 @@ mod tests {
             [0.0, 0.0, 1089.0, 1109.0, 0.0, 0.0, 0.1, 0.1],
             [0.0, 0.0, 1091.0, 1111.0, 0.0, 0.0, 0.1, 0.1],
         ];
-        assert_eq!(expected, operator.backed);
+        assert_eq!(expected, operator.0);
 
         let operator_short: Operator<Mat<f64>> = operator_mel!(dyn &basis,
             [e_id, vib_id],
@@ -241,7 +241,7 @@ mod tests {
                 }
             }
         );
-        assert_eq!(operator_short.backed, operator.backed);
+        assert_eq!(operator_short.0, operator.0);
 
         let operator_diag: Operator<Mat<f64>> = operator_diag_mel!(dyn &basis,
             [e_id, vib_id],
@@ -259,7 +259,7 @@ mod tests {
             [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 8.8, 0.0],
             [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 10.8],
         ];
-        assert_eq!(expected, operator_diag.backed);
+        assert_eq!(expected, operator_diag.0);
     }
 
     #[test]
@@ -299,7 +299,7 @@ mod tests {
                 0.0, 0.0, 1091.0, 1111.0, 0.0, 0.0, 0.1, 0.1
             ]).transpose();
 
-        assert_eq!(expected, operator.backed);
+        assert_eq!(expected, operator.0);
 
         let operator_short: Operator<DMatrix<f64>> = operator_mel!(dyn &basis,
             [e_id, vib_id],
@@ -313,7 +313,7 @@ mod tests {
             }
         );
 
-        assert_eq!(operator_short.backed, operator.backed);
+        assert_eq!(operator_short.0, operator.0);
 
         let operator_diag: Operator<DMatrix<f64>> = operator_diag_mel!(dyn &basis,
             [e_id, vib_id],
@@ -331,7 +331,7 @@ mod tests {
             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 8.8, 0.0,
             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 10.8,
         ]);
-        assert_eq!(expected, operator_diag.backed);
+        assert_eq!(expected, operator_diag.0);
     }
 
     #[test]
@@ -372,7 +372,7 @@ mod tests {
             ]
         ).unwrap();
 
-        assert_eq!(expected, operator.backed);
+        assert_eq!(expected, operator.0);
 
         let operator_short: Operator<Array2<f64>> = operator_mel!(dyn &basis,
             [e_id, vib_id],
@@ -386,7 +386,7 @@ mod tests {
             }
         );
 
-        assert_eq!(operator_short.backed, operator.backed);
+        assert_eq!(operator_short.0, operator.0);
 
         let operator_diag: Operator<Array2<f64>> = operator_diag_mel!(dyn &basis,
             [e_id, vib_id],
@@ -404,7 +404,7 @@ mod tests {
             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 8.8, 0.0,
             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 10.8,
         ]).unwrap();
-        assert_eq!(expected, operator_diag.backed);
+        assert_eq!(expected, operator_diag.0);
     }
 
     #[derive(Clone, Copy, Debug, PartialEq)]
@@ -458,6 +458,6 @@ mod tests {
             [0.0, 0.0, 0.0, -3.2, 0.0, 0.0, 0.0, 3.2],
             [0.0, -1.0, -1.0, 0.0, 0.0, 1.0, 1.0, 0.0],
         ];
-        assert_eq!(expected, transform.backed);
+        assert_eq!(expected, transform.0);
     }
 }

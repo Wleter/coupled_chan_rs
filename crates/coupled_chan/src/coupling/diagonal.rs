@@ -20,7 +20,7 @@ impl<P: Interaction> Diagonal<P> {
 }
 
 impl<P: Interaction> VanishingCoupling for Diagonal<P> {
-    fn value_inplace(&self, r: f64, channels: &mut crate::Channels) {
+    fn value_inplace(&self, r: f64, channels: &mut crate::Operator) {
         assert_eq!(channels.size(), self.size(), "Number mismatch between channels and coupling");
         channels.0.fill(0.);
 
@@ -35,7 +35,7 @@ impl<P: Interaction> VanishingCoupling for Diagonal<P> {
         }
     }
 
-    fn value_inplace_add(&self, r: f64, channels: &mut crate::Channels) {
+    fn value_inplace_add(&self, r: f64, channels: &mut crate::Operator) {
         assert_eq!(channels.size(), self.size(), "Number mismatch between channels and coupling");
 
         for (c, a) in channels

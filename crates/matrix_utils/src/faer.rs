@@ -9,7 +9,9 @@ use faer::{
     unzip, zip,
 };
 
-use crate::MatrixCreation;
+use crate::{MatrixCreation, MatrixLike};
+impl<E> MatrixLike for Mat<E> {}
+
 
 impl<E> MatrixCreation<E> for Mat<E> {
     fn from_fn(nrows: usize, ncols: usize, f: impl FnMut(usize, usize) -> E) -> Self {

@@ -1,6 +1,7 @@
 use ndarray::Array2;
 
-use crate::MatrixCreation;
+use crate::{MatrixCreation, MatrixLike};
+impl<E> MatrixLike for Array2<E> {}
 
 impl<E> MatrixCreation<E> for Array2<E> {
     fn from_fn(nrows: usize, ncols: usize, mut f: impl FnMut(usize, usize) -> E) -> Self {

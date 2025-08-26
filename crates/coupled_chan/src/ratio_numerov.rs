@@ -13,9 +13,8 @@ use propagator::{
 };
 
 use crate::{
-    Channels,
     coupling::{RedCoupling, VanishingCoupling},
-    s_matrix::SMatrix,
+    s_matrix::SMatrix, Operator,
 };
 
 // todo! look whether V(r) is evaluated at correct values
@@ -25,29 +24,29 @@ pub struct RatioNumerov<'a, P: VanishingCoupling> {
     red_coupling: &'a RedCoupling<P>,
     step: StepStrategy,
 
-    solution: Solution<Ratio<Channels>>,
+    solution: Solution<Ratio<Operator>>,
 
-    red_coupling_buffer: Channels,
-    watchers: Option<Vec<&'a mut dyn PropagatorWatcher<Ratio<Channels>>>>,
+    red_coupling_buffer: Operator,
+    watchers: Option<Vec<&'a mut dyn PropagatorWatcher<Ratio<Operator>>>>,
 
-    prev_sol: Ratio<Channels>,
+    prev_sol: Ratio<Operator>,
 
     f: Mat<f64>,
     f_last: Mat<f64>,
     f_prev_last: Mat<f64>,
 
-    buffer1: Channels,
-    buffer2: Channels,
-    buffer3: Channels,
+    buffer1: Operator,
+    buffer2: Operator,
+    buffer3: Operator,
     inverse_buffer: MemBuffer,
 }
 
 impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
-    pub fn new(red_coupling: &'a RedCoupling<P>, step: StepStrategy, boundary: Boundary<Channels>) -> Self {
+    pub fn new(red_coupling: &'a RedCoupling<P>, step: StepStrategy, boundary: Boundary<Operator>) -> Self {
         let size = red_coupling.size();
         let r = boundary.r_start;
 
-        let mut red_coupling_buffer = Channels::zeros(size);
+        let mut red_coupling_buffer = Operator::zeros(size);
 
         red_coupling.value_inplace(r, &mut red_coupling_buffer);
         let local_wavelength = get_wavelength(&red_coupling_buffer);
@@ -57,23 +56,23 @@ impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
             Direction::Outwards => step.get_step(r, local_wavelength).abs(),
         };
 
-        let mut f_last = Channels::zeros(size);
+        let mut f_last = Operator::zeros(size);
         red_coupling.value_inplace(r - dr, &mut f_last);
 
-        let mut f_prev_last = Channels::zeros(size);
+        let mut f_prev_last = Operator::zeros(size);
         red_coupling.value_inplace(r - 2. * dr, &mut f_prev_last);
 
         let f_last = red_coupling.id.0.as_ref() + dr * dr / 12. * f_last.0;
         let f_prev_last = red_coupling.id.0.as_ref() + dr * dr / 12. * f_prev_last.0;
         let f = red_coupling.id.0.as_ref() + dr * dr / 12. * &red_coupling_buffer.0;
 
-        let sol = Ratio(Channels(
+        let sol = Ratio(Operator::new(
             &f * (&boundary.derivative.0 * dr + &boundary.value.0)
                 * boundary.value.0.partial_piv_lu().inverse()
                 * f_last.partial_piv_lu().inverse(),
         ));
 
-        let prev_sol = Ratio(Channels(
+        let prev_sol = Ratio(Operator::new(
             &f_last
                 * &boundary.value.0
                 * (&boundary.value.0 - &boundary.derivative.0 * dr).partial_piv_lu().inverse()
@@ -92,14 +91,14 @@ impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
             red_coupling_buffer,
             watchers: None,
 
-            buffer1: Channels::zeros(size),
-            buffer2: Channels::zeros(size),
-            buffer3: Channels::zeros(size),
+            buffer1: Operator::zeros(size),
+            buffer2: Operator::zeros(size),
+            buffer3: Operator::zeros(size),
             inverse_buffer: get_ldlt_inverse_buffer(size),
         }
     }
 
-    pub fn add_watcher(&mut self, watcher: &'a mut impl PropagatorWatcher<Ratio<Channels>>) {
+    pub fn add_watcher(&mut self, watcher: &'a mut impl PropagatorWatcher<Ratio<Operator>>) {
         if let Some(watchers) = &mut self.watchers {
             watchers.push(watcher)
         } else {
@@ -107,7 +106,7 @@ impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
         }
     }
 
-    pub fn set_watchers(&mut self, watchers: Vec<&'a mut dyn PropagatorWatcher<Ratio<Channels>>>) {
+    pub fn set_watchers(&mut self, watchers: Vec<&'a mut dyn PropagatorWatcher<Ratio<Operator>>>) {
         self.watchers = Some(watchers)
     }
 
@@ -344,8 +343,8 @@ impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
     }
 }
 
-impl<P: VanishingCoupling> Propagator<Ratio<Channels>> for RatioNumerov<'_, P> {
-    fn step(&mut self) -> &Solution<Ratio<Channels>> {
+impl<P: VanishingCoupling> Propagator<Ratio<Operator>> for RatioNumerov<'_, P> {
+    fn step(&mut self) -> &Solution<Ratio<Operator>> {
         if let Some(watchers) = &mut self.watchers {
             for w in watchers {
                 w.before_step(&self.solution);
@@ -376,7 +375,7 @@ impl<P: VanishingCoupling> Propagator<Ratio<Channels>> for RatioNumerov<'_, P> {
         &self.solution
     }
 
-    fn propagate_to(&mut self, r: f64) -> &Solution<Ratio<Channels>> {
+    fn propagate_to(&mut self, r: f64) -> &Solution<Ratio<Operator>> {
         if let Some(watchers) = &mut self.watchers {
             for w in watchers {
                 w.init(&self.solution);
@@ -397,7 +396,7 @@ impl<P: VanishingCoupling> Propagator<Ratio<Channels>> for RatioNumerov<'_, P> {
 }
 
 #[inline]
-fn get_wavelength(red_coupling: &Channels) -> f64 {
+fn get_wavelength(red_coupling: &Operator) -> f64 {
     let max_g_val = red_coupling
         .0
         .diagonal()
@@ -409,17 +408,17 @@ fn get_wavelength(red_coupling: &Channels) -> f64 {
     2. * PI / max_g_val.abs().sqrt()
 }
 
-pub fn get_s_matrix<P: VanishingCoupling>(sol: &Solution<Ratio<Channels>>, red_coupling: &RedCoupling<P>) -> SMatrix {
+pub fn get_s_matrix<P: VanishingCoupling>(sol: &Solution<Ratio<Operator>>, red_coupling: &RedCoupling<P>) -> SMatrix {
     let size = red_coupling.size();
     let r_last = sol.r;
     let r_prev_last = sol.r - sol.dr;
 
-    let mut f_last = Channels::zeros(size);
+    let mut f_last = Operator::zeros(size);
     red_coupling.value_inplace(r_last, &mut f_last);
     f_last.0 *= sol.dr * sol.dr / 12.;
     f_last.0 += &red_coupling.id.0;
 
-    let mut f_prev_last = Channels::zeros(size);
+    let mut f_prev_last = Operator::zeros(size);
     red_coupling.value_inplace(r_prev_last, &mut f_prev_last);
     f_prev_last.0 *= sol.dr * sol.dr / 12.;
     f_prev_last.0 += &red_coupling.id.0;
@@ -520,9 +519,8 @@ mod tests {
     use single_chan::interaction::{dispersion::lennard_jones, func_potential::FuncPotential};
 
     use crate::{
-        Channels,
-        coupling::{Asymptote, Levels, RedCoupling, VanishingCoupling, diagonal::Diagonal, masked::Masked, pair::Pair},
-        ratio_numerov::{RatioNumerov, get_s_matrix},
+        coupling::{diagonal::Diagonal, masked::Masked, pair::Pair, Asymptote, Levels, RedCoupling, VanishingCoupling},
+        ratio_numerov::{get_s_matrix, RatioNumerov}, Operator,
     };
 
     pub fn get_red_coupling() -> RedCoupling<impl VanishingCoupling> {
@@ -535,7 +533,7 @@ mod tests {
 
         let coupling = FuncPotential::new(move |x| k * f64::exp(-0.5 * ((x - x0) / sigma).powi(2)));
 
-        let coupling = Masked::new(coupling, Channels(mat![[0., 1.], [1., 0.]]));
+        let coupling = Masked::new(coupling, Operator::new(mat![[0., 1.], [1., 0.]]));
         let potential = Diagonal::new(vec![potential_lj1, potential_lj2]);
 
         let coupling = Pair::new(potential, coupling);
@@ -559,8 +557,8 @@ mod tests {
         let boundary = Boundary {
             r_start: 6.5,
             direction: Direction::Outwards,
-            value: Channels(1e-50 * &red_coupling.id.0),
-            derivative: Channels(1. * &red_coupling.id.0),
+            value: Operator::new(1e-50 * &red_coupling.id.0),
+            derivative: Operator::new(1. * &red_coupling.id.0),
         };
 
         let mut numerov = RatioNumerov::new(&red_coupling, LocalWavelengthStep::default().into(), boundary);

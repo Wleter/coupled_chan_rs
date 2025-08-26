@@ -41,7 +41,7 @@ impl<P: VanishingCoupling> Composite<P> {
 }
 
 impl<P: VanishingCoupling> VanishingCoupling for Composite<P> {
-    fn value_inplace(&self, r: f64, channels: &mut crate::Channels) {
+    fn value_inplace(&self, r: f64, channels: &mut crate::Operator) {
         channels.0.fill(0.);
 
         for c in self.couplings.iter() {
@@ -49,7 +49,7 @@ impl<P: VanishingCoupling> VanishingCoupling for Composite<P> {
         }
     }
 
-    fn value_inplace_add(&self, r: f64, channels: &mut crate::Channels) {
+    fn value_inplace_add(&self, r: f64, channels: &mut crate::Operator) {
         for c in self.couplings.iter() {
             c.value_inplace_add(r, channels);
         }
