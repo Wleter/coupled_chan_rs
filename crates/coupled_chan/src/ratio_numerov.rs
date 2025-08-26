@@ -1,13 +1,24 @@
 use std::{f64::consts::PI, mem::swap};
 
-use faer::{c64, dyn_stack::MemBuffer, linalg::{matmul::matmul, solvers::DenseSolveCore}, unzip, zip, Accum, Mat, Par};
+use faer::{
+    Accum, Mat, Par, c64,
+    dyn_stack::MemBuffer,
+    linalg::{matmul::matmul, solvers::DenseSolveCore},
+    unzip, zip,
+};
 use math_utils::bessel::{ratio_riccati_i, ratio_riccati_k, riccati_j, riccati_n};
 use matrix_utils::faer::{get_ldlt_inverse_buffer, inverse_ldlt_inplace};
-use propagator::{propagator_watcher::PropagatorWatcher, step_strategy::StepStrategy, Boundary, Direction, Propagator, Ratio, Solution};
+use propagator::{
+    Boundary, Direction, Propagator, Ratio, Solution, propagator_watcher::PropagatorWatcher, step_strategy::StepStrategy,
+};
 
-use crate::{coupling::{RedCoupling, VanishingCoupling}, s_matrix::SMatrix, Channels};
+use crate::{
+    Channels,
+    coupling::{RedCoupling, VanishingCoupling},
+    s_matrix::SMatrix,
+};
 
-// todo! look whether V(r) is evaluated at correct values 
+// todo! look whether V(r) is evaluated at correct values
 
 /// 10.1063/1.436421
 pub struct RatioNumerov<'a, P: VanishingCoupling> {
@@ -57,13 +68,16 @@ impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
         let f = red_coupling.id.0.as_ref() + dr * dr / 12. * &red_coupling_buffer.0;
 
         let sol = Ratio(Channels(
-            &f * (&boundary.derivative.0 * dr + &boundary.value.0) 
-            * boundary.value.0.partial_piv_lu().inverse() * f_last.partial_piv_lu().inverse()
+            &f * (&boundary.derivative.0 * dr + &boundary.value.0)
+                * boundary.value.0.partial_piv_lu().inverse()
+                * f_last.partial_piv_lu().inverse(),
         ));
 
         let prev_sol = Ratio(Channels(
-            &f_last * &boundary.value.0 * (&boundary.value.0 - &boundary.derivative.0 * dr).partial_piv_lu().inverse() 
-            * f_prev_last.partial_piv_lu().inverse()
+            &f_last
+                * &boundary.value.0
+                * (&boundary.value.0 - &boundary.derivative.0 * dr).partial_piv_lu().inverse()
+                * f_prev_last.partial_piv_lu().inverse(),
         ));
 
         Self {
@@ -108,11 +122,7 @@ impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
     fn halve_the_step(&mut self) {
         self.solution.dr /= 2.0;
 
-        inverse_ldlt_inplace(
-            self.f.as_ref(),
-            self.buffer1.0.as_mut(),
-            &mut self.inverse_buffer,
-        );
+        inverse_ldlt_inplace(self.f.as_ref(), self.buffer1.0.as_mut(), &mut self.inverse_buffer);
 
         matmul(
             self.buffer2.0.as_mut(),
@@ -134,8 +144,7 @@ impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
 
         zip!(self.f.as_mut(), self.red_coupling.id.0.as_ref()).for_each(|unzip!(f, u)| *f = *f / 4. + 0.75 * u);
 
-        zip!(self.f_last.as_mut(), self.red_coupling.id.0.as_ref())
-            .for_each(|unzip!(f, u)| *f = *f / 4. + 0.75 * u);
+        zip!(self.f_last.as_mut(), self.red_coupling.id.0.as_ref()).for_each(|unzip!(f, u)| *f = *f / 4. + 0.75 * u);
 
         matmul(
             self.buffer1.0.as_mut(),
@@ -146,11 +155,7 @@ impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
             Par::Seq,
         );
 
-        inverse_ldlt_inplace(
-            self.f_last.as_ref(),
-            self.buffer2.0.as_mut(),
-            &mut self.inverse_buffer,
-        );
+        inverse_ldlt_inplace(self.f_last.as_ref(), self.buffer2.0.as_mut(), &mut self.inverse_buffer);
 
         matmul(
             self.solution.sol.0.0.as_mut(),
@@ -163,7 +168,8 @@ impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
 
         ///////////////////////////////////////////////////////
 
-        self.red_coupling.value_inplace(self.solution.r - self.solution.dr, &mut self.buffer2);
+        self.red_coupling
+            .value_inplace(self.solution.r - self.solution.dr, &mut self.buffer2);
         zip!(
             self.f_prev_last.as_mut(),
             self.red_coupling.id.0.as_ref(),
@@ -172,11 +178,7 @@ impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
         .for_each(|unzip!(b1, u, c)| *b1 = u + self.solution.dr * self.solution.dr / 12. * c);
         // f_prev_last is (1 - T_n)
 
-        inverse_ldlt_inplace(
-            self.f_prev_last.as_ref(),
-            self.buffer3.0.as_mut(),
-            &mut self.inverse_buffer,
-        );
+        inverse_ldlt_inplace(self.f_prev_last.as_ref(), self.buffer3.0.as_mut(), &mut self.inverse_buffer);
         // buffer3 is (1 - T_n)^-1
 
         zip!(
@@ -197,15 +199,15 @@ impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
         );
         // buffer2 is U_n
 
-        inverse_ldlt_inplace(
-            self.buffer2.0.as_ref(),
-            self.buffer1.0.as_mut(),
-            &mut self.inverse_buffer,
-        );
+        inverse_ldlt_inplace(self.buffer2.0.as_ref(), self.buffer1.0.as_mut(), &mut self.inverse_buffer);
         // buffer1 is U_n^-1
 
-        zip!(self.buffer2.0.as_mut(), self.solution.sol.0.0.as_ref(), self.red_coupling.id.0.as_ref())
-            .for_each(|unzip!(b2, sol, u)| *b2 = sol + u);
+        zip!(
+            self.buffer2.0.as_mut(),
+            self.solution.sol.0.0.as_ref(),
+            self.red_coupling.id.0.as_ref()
+        )
+        .for_each(|unzip!(b2, sol, u)| *b2 = sol + u);
 
         matmul(
             self.prev_sol.0.0.as_mut(),
@@ -216,11 +218,7 @@ impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
             Par::Seq,
         );
 
-        inverse_ldlt_inplace(
-            self.prev_sol.0.0.as_ref(),
-            self.buffer1.0.as_mut(),
-            &mut self.inverse_buffer,
-        );
+        inverse_ldlt_inplace(self.prev_sol.0.0.as_ref(), self.buffer1.0.as_mut(), &mut self.inverse_buffer);
 
         matmul(
             self.buffer2.0.as_mut(),
@@ -247,11 +245,7 @@ impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
             Par::Seq,
         );
 
-        inverse_ldlt_inplace(
-            self.f.as_ref(),
-            self.buffer2.0.as_mut(),
-            &mut self.inverse_buffer,
-        );
+        inverse_ldlt_inplace(self.f.as_ref(), self.buffer2.0.as_mut(), &mut self.inverse_buffer);
 
         matmul(
             self.buffer3.0.as_mut(),
@@ -289,11 +283,7 @@ impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
             Par::Seq,
         );
 
-        inverse_ldlt_inplace(
-            self.f_last.as_ref(),
-            self.buffer2.0.as_mut(),
-            &mut self.inverse_buffer,
-        );
+        inverse_ldlt_inplace(self.f_last.as_ref(), self.buffer2.0.as_mut(), &mut self.inverse_buffer);
 
         matmul(
             self.solution.sol.0.0.as_mut(),
@@ -316,11 +306,7 @@ impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
         .for_each(|unzip!(b1, u, c)| *b1 = u + self.solution.dr * self.solution.dr / 12. * c);
         // buffer1 is (1 - T_n)
 
-        inverse_ldlt_inplace(
-            self.buffer1.0.as_ref(),
-            self.prev_sol.0.0.as_mut(),
-            &mut self.inverse_buffer,
-        );
+        inverse_ldlt_inplace(self.buffer1.0.as_ref(), self.prev_sol.0.0.as_mut(), &mut self.inverse_buffer);
         // prev_sol is (1 - T_n)^-1
 
         zip!(
@@ -347,8 +333,7 @@ impl<'a, P: VanishingCoupling> RatioNumerov<'a, P> {
             &mut self.inverse_buffer,
         );
 
-        zip!(self.prev_sol.0.0.as_mut(), self.buffer2.0.as_ref())
-            .for_each(|unzip!(sol, u)| *sol = u - *sol);
+        zip!(self.prev_sol.0.0.as_mut(), self.buffer2.0.as_ref()).for_each(|unzip!(sol, u)| *sol = u - *sol);
         // prev_sol is R_n
 
         swap(&mut self.prev_sol, &mut self.solution.sol);
@@ -367,7 +352,8 @@ impl<P: VanishingCoupling> Propagator<Ratio<Channels>> for RatioNumerov<'_, P> {
             }
         }
 
-        self.red_coupling.value_inplace(self.solution.r, &mut self.red_coupling_buffer);
+        self.red_coupling
+            .value_inplace(self.solution.r, &mut self.red_coupling_buffer);
         let wavelength = get_wavelength(&self.red_coupling_buffer);
 
         let dr = self.step.get_step(self.solution.r, wavelength);
@@ -530,10 +516,14 @@ mod tests {
     };
     use faer::mat;
     use math_utils::assert_approx_eq;
-    use propagator::{step_strategy::LocalWavelengthStep, Boundary, Direction, Propagator};
+    use propagator::{Boundary, Direction, Propagator, step_strategy::LocalWavelengthStep};
     use single_chan::interaction::{dispersion::lennard_jones, func_potential::FuncPotential};
 
-    use crate::{coupling::{diagonal::Diagonal, masked::Masked, pair::Pair, Asymptote, Levels, RedCoupling, VanishingCoupling}, ratio_numerov::{get_s_matrix, RatioNumerov}, Channels};
+    use crate::{
+        Channels,
+        coupling::{Asymptote, Levels, RedCoupling, VanishingCoupling, diagonal::Diagonal, masked::Masked, pair::Pair},
+        ratio_numerov::{RatioNumerov, get_s_matrix},
+    };
 
     pub fn get_red_coupling() -> RedCoupling<impl VanishingCoupling> {
         let potential_lj1 = lennard_jones(Quantity(0.002, AuEnergy), Quantity(9., Bohr));
@@ -551,13 +541,13 @@ mod tests {
         let coupling = Pair::new(potential, coupling);
 
         let asymptote = Asymptote::new_diagonal(
-            Quantity(5903.538543342382, AuMass), 
-            Quantity(1e-7, Kelvin).to(AuEnergy), 
+            Quantity(5903.538543342382, AuMass),
+            Quantity(1e-7, Kelvin).to(AuEnergy),
             Levels {
                 l: vec![0, 0],
                 asymptote: vec![0., Quantity(1., Kelvin).to_base()],
-            }, 
-            0
+            },
+            0,
         );
 
         RedCoupling::new(coupling, asymptote)
@@ -566,11 +556,11 @@ mod tests {
     #[test]
     pub fn ratio_numerov_scattering() {
         let red_coupling = get_red_coupling();
-        let boundary = Boundary { 
-            r_start: 6.5, 
-            direction: Direction::Outwards, 
-            value: Channels(1e-50 * &red_coupling.id.0), 
-            derivative: Channels(1. * &red_coupling.id.0)
+        let boundary = Boundary {
+            r_start: 6.5,
+            direction: Direction::Outwards,
+            value: Channels(1e-50 * &red_coupling.id.0),
+            derivative: Channels(1. * &red_coupling.id.0),
         };
 
         let mut numerov = RatioNumerov::new(&red_coupling, LocalWavelengthStep::default().into(), boundary);

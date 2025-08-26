@@ -7,7 +7,7 @@ use spin_algebra::Spin;
 
 pub struct HamiltonianTerm {
     pub name: String,
-    pub hamiltonian: Box<dyn Fn(BasisElements) -> Operator<Mat<f64>>>
+    pub hamiltonian: Box<dyn Fn(BasisElements) -> Operator<Mat<f64>>>,
 }
 
 pub trait CoupledProblemBuilder {
@@ -20,14 +20,11 @@ pub struct CoupledProblem<V: VanishingCoupling> {
     pub red_coupling: RedCoupling<V>,
 }
 
-impl<V: VanishingCoupling> CoupledProblem<V> {
-
-}
+impl<V: VanishingCoupling> CoupledProblem<V> {}
 
 // pub struct FieldDependentProblem<F> {
-    
-// }
 
+// }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq)]
 pub struct AtomS(Spin);

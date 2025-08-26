@@ -1,6 +1,6 @@
 pub mod coupling;
-pub mod s_matrix;
 pub mod ratio_numerov;
+pub mod s_matrix;
 
 pub use constants;
 use faer::Mat;

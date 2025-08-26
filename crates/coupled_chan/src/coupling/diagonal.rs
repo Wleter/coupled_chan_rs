@@ -24,7 +24,13 @@ impl<P: Interaction> VanishingCoupling for Diagonal<P> {
         assert_eq!(channels.size(), self.size(), "Number mismatch between channels and coupling");
         channels.0.fill(0.);
 
-        for (c, a) in channels.0.diagonal_mut().column_vector_mut().iter_mut().zip(self.couplings.iter()) {
+        for (c, a) in channels
+            .0
+            .diagonal_mut()
+            .column_vector_mut()
+            .iter_mut()
+            .zip(self.couplings.iter())
+        {
             *c = a.value(r)
         }
     }
@@ -32,7 +38,13 @@ impl<P: Interaction> VanishingCoupling for Diagonal<P> {
     fn value_inplace_add(&self, r: f64, channels: &mut crate::Channels) {
         assert_eq!(channels.size(), self.size(), "Number mismatch between channels and coupling");
 
-        for (c, a) in channels.0.diagonal_mut().column_vector_mut().iter_mut().zip(self.couplings.iter()) {
+        for (c, a) in channels
+            .0
+            .diagonal_mut()
+            .column_vector_mut()
+            .iter_mut()
+            .zip(self.couplings.iter())
+        {
             *c += a.value(r)
         }
     }

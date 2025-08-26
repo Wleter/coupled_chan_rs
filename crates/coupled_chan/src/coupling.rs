@@ -1,7 +1,7 @@
 pub mod composite;
+pub mod diagonal;
 pub mod masked;
 pub mod pair;
-pub mod diagonal;
 
 use constants::units::{
     Quantity64,
@@ -106,7 +106,12 @@ pub struct Asymptote {
 }
 
 impl Asymptote {
-    pub fn new_diagonal(mass: Quantity64<AuMass>, energy: Quantity64<AuEnergy>, levels: Levels, entrance_level: usize) -> Self {
+    pub fn new_diagonal(
+        mass: Quantity64<AuMass>,
+        energy: Quantity64<AuEnergy>,
+        levels: Levels,
+        entrance_level: usize,
+    ) -> Self {
         let asymptote_channels = Mat::from_fn(levels.asymptote.len(), levels.asymptote.len(), |i, j| {
             if i != j {
                 return 0.;
@@ -130,7 +135,12 @@ impl Asymptote {
         }
     }
 
-    pub fn new_angular_blocks(mass: Quantity64<AuMass>, energy: Quantity64<AuEnergy>, angular_blocks: AngularBlocks, entrance_level: usize) -> Self {
+    pub fn new_angular_blocks(
+        mass: Quantity64<AuMass>,
+        energy: Quantity64<AuEnergy>,
+        angular_blocks: AngularBlocks,
+        entrance_level: usize,
+    ) -> Self {
         let (levels, transformation) = angular_blocks.diagonalize();
         let centrifugal = MultiCentrifugal::new_diagonal(&levels, mass);
 
@@ -148,11 +158,11 @@ impl Asymptote {
     }
 
     pub fn new_general(
-        mass: Quantity64<AuMass>, 
+        mass: Quantity64<AuMass>,
         energy: Quantity64<AuEnergy>,
-        levels: Levels, 
-        transformation: Channels, 
-        entrance_level: usize
+        levels: Levels,
+        transformation: Channels,
+        entrance_level: usize,
     ) -> Self {
         let centrifugal = MultiCentrifugal::new_diagonal(&levels, mass);
 
@@ -200,12 +210,14 @@ impl MultiCentrifugal {
             (levels.l[i] * (levels.l[i] + 1)) as f64
         });
 
-        Self { mask: Channels(mask), mass: mass.value() }
+        Self {
+            mask: Channels(mask),
+            mass: mass.value(),
+        }
     }
 
     pub fn value_inplace_add(&self, r: f64, channels: &mut Channels) {
-        zip!(channels.0.as_mut(), self.mask.0.as_ref())
-            .for_each(|unzip!(o, m)| *o += m / (2. * self.mass * r * r));
+        zip!(channels.0.as_mut(), self.mask.0.as_ref()).for_each(|unzip!(o, m)| *o += m / (2. * self.mass * r * r));
     }
 }
 
@@ -215,9 +227,13 @@ pub struct RedCoupling<P: VanishingCoupling> {
     pub id: Channels,
 }
 
-impl<'a, P: VanishingCoupling> RedCoupling<P> {
+impl<P: VanishingCoupling> RedCoupling<P> {
     pub fn new(coupling: P, asymptote: Asymptote) -> Self {
-        assert_eq!(coupling.size(), asymptote.asymptote_channels.size(), "mismatched sizes between asymptote and coupling");
+        assert_eq!(
+            coupling.size(),
+            asymptote.asymptote_channels.size(),
+            "mismatched sizes between asymptote and coupling"
+        );
 
         Self {
             id: Channels(Mat::identity(coupling.size(), coupling.size())),

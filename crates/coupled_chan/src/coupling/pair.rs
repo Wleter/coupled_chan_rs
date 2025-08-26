@@ -1,10 +1,9 @@
 use crate::coupling::VanishingCoupling;
 
-
 #[derive(Debug, Clone)]
 pub struct Pair<P: VanishingCoupling, C: VanishingCoupling> {
     first: P,
-    second: C
+    second: C,
 }
 
 impl<P: VanishingCoupling, C: VanishingCoupling> Pair<P, C> {

@@ -2,11 +2,15 @@ use anyhow::{Result, anyhow};
 use log::info;
 use serde::Serialize;
 use std::{
-    fmt::LowerExp, fs::{create_dir_all, File, OpenOptions}, io::{BufWriter, Write}, path::Path, sync::mpsc::{channel, Sender}
+    fmt::LowerExp,
+    fs::{File, OpenOptions, create_dir_all},
+    io::{BufWriter, Write},
+    path::Path,
+    sync::mpsc::{Sender, channel},
 };
 
 pub struct DataSaver<D: Send> {
-    tx: Sender<D>
+    tx: Sender<D>,
 }
 
 impl<D: Send + Sync + 'static> DataSaver<D> {
@@ -18,31 +22,24 @@ impl<D: Send + Sync + 'static> DataSaver<D> {
         let filepath = path.parent().ok_or(anyhow!("Could not get parent path"))?;
 
         if !Path::new(&filepath).exists() {
-            create_dir_all(&filepath)?;
+            create_dir_all(filepath)?;
             info!("created path {}", filepath.display());
         }
 
         let file = match file_access {
-            FileAccess::Append => {
-                OpenOptions::new()
-                    .append(true)
-                    .create(true)
-                    .open(&path)?
-            },
-            FileAccess::Create => {
-                File::create(&path)?
-            },
+            FileAccess::Append => OpenOptions::new().append(true).create(true).open(&path)?,
+            FileAccess::Create => File::create(&path)?,
         };
 
         std::thread::spawn(move || {
             let mut writer = BufWriter::new(file);
             if let Some(header) = format.header() {
-                writeln!(writer, "{}", header).unwrap();
+                writeln!(writer, "{header}").unwrap();
             }
-            
+
             for result in rx.iter() {
                 let formatted = format.format_data(&result);
-                writeln!(writer, "{}", formatted).unwrap();
+                writeln!(writer, "{formatted}").unwrap();
             }
         });
 
@@ -83,7 +80,9 @@ pub struct DatFormat {
 
 impl DatFormat {
     pub fn new(header: &str) -> Self {
-        Self { header: header.to_string() }
+        Self {
+            header: header.to_string(),
+        }
     }
 }
 
