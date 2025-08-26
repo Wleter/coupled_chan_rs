@@ -12,10 +12,7 @@ use propagator::{
     Boundary, Direction, Propagator, Ratio, Solution, propagator_watcher::PropagatorWatcher, step_strategy::StepStrategy,
 };
 
-use crate::{
-    coupling::WMatrix,
-    s_matrix::SMatrix, Operator,
-};
+use crate::{Operator, coupling::WMatrix, s_matrix::SMatrix};
 
 // todo! look whether V(r) is evaluated at correct values
 
@@ -167,7 +164,8 @@ impl<'a, W: WMatrix> RatioNumerov<'a, W> {
 
         ///////////////////////////////////////////////////////
 
-        self.w_matrix.value_inplace(self.solution.r - self.solution.dr, &mut self.buffer2);
+        self.w_matrix
+            .value_inplace(self.solution.r - self.solution.dr, &mut self.buffer2);
         zip!(
             self.f_prev_last.as_mut(),
             self.w_matrix.id().as_ref(),
@@ -265,12 +263,8 @@ impl<'a, W: WMatrix> RatioNumerov<'a, W> {
 
         zip!(self.f.as_mut(), self.w_matrix.id().as_ref()).for_each(|unzip!(f, u)| *f = 4. * *f - 3. * u);
 
-        zip!(
-            self.f_last.as_mut(),
-            self.w_matrix.id().as_ref(),
-            self.f_prev_last.as_ref()
-        )
-        .for_each(|unzip!(f, u, f_prev)| *f = 4. * *f_prev - 3. * u);
+        zip!(self.f_last.as_mut(), self.w_matrix.id().as_ref(), self.f_prev_last.as_ref())
+            .for_each(|unzip!(f, u, f_prev)| *f = 4. * *f_prev - 3. * u);
 
         matmul(
             self.buffer1.0.as_mut(),
@@ -307,12 +301,8 @@ impl<'a, W: WMatrix> RatioNumerov<'a, W> {
         inverse_ldlt_inplace(self.buffer1.0.as_ref(), self.prev_sol.0.0.as_mut(), &mut self.inverse_buffer);
         // prev_sol is (1 - T_n)^-1
 
-        zip!(
-            self.buffer3.0.as_mut(),
-            self.w_matrix.id().as_ref(),
-            self.buffer1.0.as_ref()
-        )
-        .for_each(|unzip!(b3, u, b1)| *b3 = 12. * u - 10. * *b1);
+        zip!(self.buffer3.0.as_mut(), self.w_matrix.id().as_ref(), self.buffer1.0.as_ref())
+            .for_each(|unzip!(b3, u, b1)| *b3 = 12. * u - 10. * *b1);
         // buffer3 is (2 + 10T_n)
 
         matmul(
@@ -517,8 +507,9 @@ mod tests {
     use single_chan::interaction::{dispersion::lennard_jones, func_potential::FuncPotential};
 
     use crate::{
-        coupling::{diagonal::Diagonal, masked::Masked, pair::Pair, Asymptote, Levels, RedCoupling, VanishingCoupling},
-        ratio_numerov::{get_s_matrix, RatioNumerov}, Operator,
+        Operator,
+        coupling::{Asymptote, Levels, RedCoupling, VanishingCoupling, diagonal::Diagonal, masked::Masked, pair::Pair},
+        ratio_numerov::{RatioNumerov, get_s_matrix},
     };
 
     pub fn get_red_coupling() -> RedCoupling<impl VanishingCoupling> {

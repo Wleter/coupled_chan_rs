@@ -1,5 +1,5 @@
 use coupled_chan::{
-    Operator, Interaction,
+    Interaction, Operator,
     constants::units::{
         Quantity,
         atomic_units::{AuEnergy, AuMass},
@@ -9,8 +9,7 @@ use coupled_chan::{
 use hilbert_space::{
     Parity,
     dyn_space::{SpaceBasis, SubspaceBasis},
-    filter_space,
-    operator_diag_mel, operator_mel, operator_transform_mel,
+    filter_space, operator_diag_mel, operator_mel, operator_transform_mel,
 };
 use spin_algebra::{
     Spin, SpinOps, get_spin_basis, get_summed_spin_basis,
@@ -123,7 +122,7 @@ impl<P: Interaction, V: Interaction> AtomAtomBuilder<P, V> {
 
         let angular_blocks = AngularBlocks {
             l: vec![0],
-            angular_blocks: vec![(hifi + zeeman).into()],
+            angular_blocks: vec![hifi + zeeman],
         };
         let asymptote = Asymptote::new_angular_blocks(self.mass, self.energy, angular_blocks, self.entrance);
 

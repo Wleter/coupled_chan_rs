@@ -54,7 +54,7 @@ impl<M: MatrixLike> Operator<M> {
     }
 }
 
-// todo! it is hard to combine faer, ndarray, nalgebra into single api, 
+// todo! it is hard to combine faer, ndarray, nalgebra into single api,
 // so for now I specialize in faer
 #[cfg(feature = "faer")]
 impl Operator<faer::Mat<f64>> {

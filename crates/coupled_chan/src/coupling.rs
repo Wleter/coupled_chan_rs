@@ -106,12 +106,7 @@ pub struct Asymptote {
 }
 
 impl Asymptote {
-    pub fn new_diagonal(
-        mass: Quantity<AuMass>,
-        energy: Quantity<AuEnergy>,
-        levels: Levels,
-        entrance_level: usize,
-    ) -> Self {
+    pub fn new_diagonal(mass: Quantity<AuMass>, energy: Quantity<AuEnergy>, levels: Levels, entrance_level: usize) -> Self {
         let asymptote_channels = Mat::from_fn(levels.asymptote.len(), levels.asymptote.len(), |i, j| {
             if i != j {
                 return 0.;

@@ -1,10 +1,19 @@
 use std::marker::PhantomData;
 
-use faer::{dyn_stack::MemBuffer, linalg::{matmul::matmul, solvers::DenseSolveCore}, unzip, zip, Accum::Replace, Par::Seq};
+use faer::{
+    Accum::Replace,
+    Par::Seq,
+    dyn_stack::MemBuffer,
+    linalg::{matmul::matmul, solvers::DenseSolveCore},
+    unzip, zip,
+};
 use matrix_utils::faer::{get_ldlt_inverse_buffer, inverse_ldlt_inplace, inverse_ldlt_inplace_nodes};
-use propagator::{propagator_watcher::PropagatorWatcher, step_strategy::StepStrategy, Boundary, Direction, LogDeriv, NodeCountPropagator, Nodes, Propagator, Solution};
+use propagator::{
+    Boundary, Direction, LogDeriv, NodeCountPropagator, Nodes, Propagator, Solution, propagator_watcher::PropagatorWatcher,
+    step_strategy::StepStrategy,
+};
 
-use crate::{coupling::WMatrix, ratio_numerov::get_wavelength, Operator};
+use crate::{Operator, coupling::WMatrix, ratio_numerov::get_wavelength};
 
 // doi: 10.1063/1.451472
 pub trait LogDerivativeReference {
@@ -25,19 +34,13 @@ impl LogDerivativeReference for Johnson {
     fn imbedding1(h: f64, _w_ref: &Operator, out: &mut Operator) {
         out.fill(0.);
 
-        out.diagonal_mut()
-            .column_vector_mut()
-            .iter_mut()
-            .for_each(|y1| *y1 = 1.0 / h);
+        out.diagonal_mut().column_vector_mut().iter_mut().for_each(|y1| *y1 = 1.0 / h);
     }
 
     fn imbedding2(h: f64, _w_ref: &Operator, out: &mut Operator) {
         out.fill(0.);
 
-        out.diagonal_mut()
-            .column_vector_mut()
-            .iter_mut()
-            .for_each(|y2| *y2 = 1.0 / h);
+        out.diagonal_mut().column_vector_mut().iter_mut().for_each(|y2| *y2 = 1.0 / h);
     }
 
     #[inline]
@@ -110,7 +113,7 @@ impl LogDerivativeReference for DiabaticManolopoulos {
 pub struct DiabaticLogDerivative<'a, R, W>
 where
     R: LogDerivativeReference,
-    W: WMatrix
+    W: WMatrix,
 {
     w_matrix: &'a W,
     solution: Solution<LogDeriv<Operator>>,
@@ -126,10 +129,10 @@ impl<'a, R: LogDerivativeReference, W: WMatrix> DiabaticLogDerivative<'a, R, W> 
         let r = boundary.r_start;
 
         let mut step = LogDerivativeStep::new(w_matrix.size());
-        
+
         w_matrix.value_inplace(r, &mut step.w_matrix_buffer);
         let local_wavelength = get_wavelength(&step.w_matrix_buffer);
-        
+
         let dr = match boundary.direction {
             Direction::Inwards => -(step_strat.get_step(r, local_wavelength).abs()),
             Direction::Outwards => step_strat.get_step(r, local_wavelength).abs(),
@@ -138,7 +141,9 @@ impl<'a, R: LogDerivativeReference, W: WMatrix> DiabaticLogDerivative<'a, R, W> 
         let sol = Solution {
             r,
             dr,
-            sol: LogDeriv(Operator::new(boundary.derivative.0 * boundary.value.partial_piv_lu().inverse())),
+            sol: LogDeriv(Operator::new(
+                boundary.derivative.0 * boundary.value.partial_piv_lu().inverse(),
+            )),
         };
 
         Self {
@@ -176,8 +181,7 @@ impl<'a, R: LogDerivativeReference, W: WMatrix> DiabaticLogDerivative<'a, R, W> 
         let wavelength = get_wavelength(&self.step.w_matrix_buffer);
 
         let dr_new = self.step_strat.get_step(self.solution.r, wavelength);
-        self.solution.dr =
-            dr_new.clamp(0., 2. * self.solution.dr.abs()) * self.solution.dr.signum();
+        self.solution.dr = dr_new.clamp(0., 2. * self.solution.dr.abs()) * self.solution.dr.signum();
 
         if let Some(r) = r {
             if (self.solution.r - r).abs() < self.solution.dr.abs() {
@@ -236,7 +240,7 @@ struct LogDerivativeStep<R: LogDerivativeReference> {
     reference: PhantomData<R>,
     w_matrix_buffer: Operator,
 
-    wave_reconstruct_buffer: Option<Operator>
+    wave_reconstruct_buffer: Option<Operator>,
 }
 
 impl<R: LogDerivativeReference> LogDerivativeStep<R> {
@@ -249,7 +253,7 @@ impl<R: LogDerivativeReference> LogDerivativeStep<R> {
 
             z_matrix: Operator::zeros(size),
             w_ref: Operator::zeros(size),
-            
+
             w_matrix_buffer: Operator::zeros(size),
 
             reference: PhantomData,
@@ -281,7 +285,7 @@ impl<R: LogDerivativeReference> LogDerivativeStep<R> {
 
         zip!(self.buffer1.as_mut(), self.buffer2.as_ref())
         .for_each(|unzip!(y4, w_tilde)| {
-            *y4 = *y4 + 2. * h / 3. * w_tilde
+            *y4 += 2. * h / 3. * w_tilde
         });
         // buffer1 is a y_4(a, c)
 
@@ -289,13 +293,13 @@ impl<R: LogDerivativeReference> LogDerivativeStep<R> {
 
         zip!(self.buffer3.as_mut(), self.buffer2.as_ref())
         .for_each(|unzip!(y4, w_tilde)| {
-            *y4 = *y4 + 2. * h / 3. * w_tilde
+            *y4 += 2. * h / 3. * w_tilde
         });
         // buffer3 is a y_1(c, b)
 
         zip!(self.buffer1.as_mut(), self.buffer3.as_ref())
         .for_each(|unzip!(y4, y1)| {
-            *y4 = *y4 + y1
+            *y4 += y1
         });
         inverse_ldlt_inplace(self.buffer1.as_ref(), self.z_matrix.as_mut(), &mut self.inverse_buffer);
         // z_matrix is a z(a, b, c)
@@ -305,27 +309,27 @@ impl<R: LogDerivativeReference> LogDerivativeStep<R> {
         R::imbedding3(h, &self.w_ref, &mut self.buffer1);
         matmul(self.buffer2.as_mut(), Replace, self.buffer3.as_ref(), self.buffer1.as_ref(), 1.0, Seq);
         // buffer2 is a second term in y_1(a, b)
-        
+
         w_matrix.value_inplace(sol.r, &mut self.buffer1);
         R::imbedding1(h, &self.w_ref, &mut self.buffer3);
 
         zip!(self.buffer3.as_mut(), self.buffer1.as_ref(), self.w_ref.as_ref())
         .for_each(|unzip!(y1, w_a, w_ref)| {
-            *y1 = *y1 + h / 3. * (w_ref - w_a) // sign change because of different convention
+            *y1 += h / 3. * (w_ref - w_a) // sign change because of different convention
         });
         // buffer3 is a y_1(a, c)
 
         zip!(self.buffer3.as_mut(), self.buffer2.as_ref())
         .for_each(|unzip!(y1, b)| {
-            *y1 = *y1 - b
+            *y1 -= b
         });
         // buffer3 is a y_1(a, b)
-        
+
         zip!(self.buffer3.as_mut(), sol.sol.0.as_ref())
         .for_each(|unzip!(y1, sol)| {
-            *y1 = sol + *y1
+            *y1 += sol
         });
-        
+
         let mut nodes_new = inverse_ldlt_inplace_nodes(self.buffer3.as_ref(), sol.sol.0.as_mut(), &mut self.inverse_buffer);
         // sol is now (y + y1(a, b))^-1
 
@@ -343,7 +347,7 @@ impl<R: LogDerivativeReference> LogDerivativeStep<R> {
         R::imbedding3(h, &self.w_ref, &mut self.buffer2);
         matmul(sol.sol.0.as_mut(), Replace, self.buffer2.as_ref(), self.z_matrix.as_ref(), 1.0, Seq);
         matmul(self.buffer3.as_mut(), Replace, sol.sol.0.as_ref(), self.buffer2.as_ref(), 1.0, Seq);
-        
+
         matmul(sol.sol.0.as_mut(), Replace, self.buffer3.as_ref(), self.buffer1.as_ref(), 1.0, Seq);
         // sol is now y_3(a, b) * (y + y1(a, b))^-1 * y_2(a, b)
 
@@ -352,19 +356,19 @@ impl<R: LogDerivativeReference> LogDerivativeStep<R> {
         R::imbedding2(h, &self.w_ref, &mut self.buffer1);
         matmul(self.buffer2.as_mut(), Replace, self.buffer3.as_ref(), self.buffer1.as_ref(), 1.0, Seq);
         // buffer2 is a second term in y_4(a, b)
-        
+
         w_matrix.value_inplace(sol.r + sol.dr, &mut self.buffer1);
         R::imbedding4(h, &self.w_ref, &mut self.buffer3);
 
         zip!(self.buffer3.as_mut(), self.buffer1.as_ref(), self.w_ref.as_ref())
         .for_each(|unzip!(y4, w_a, w_ref)| {
-            *y4 = *y4 + h / 3. * (w_ref - w_a) // sign change because of different convention
+            *y4 += h / 3. * (w_ref - w_a) // sign change because of different convention
         });
         // buffer3 is a y_4(c, b)
 
         zip!(self.buffer3.as_mut(), self.buffer2.as_ref())
         .for_each(|unzip!(y4, b)| {
-            *y4 = *y4 - b
+            *y4 -= b
         });
         // buffer3 is a y_4(a, b)
 
@@ -383,4 +387,3 @@ impl<R: LogDerivativeReference> LogDerivativeStep<R> {
         sol.r += sol.dr;
     }
 }
-

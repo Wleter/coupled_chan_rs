@@ -27,7 +27,7 @@ impl<U: Debug> Display for Quantity<U> {
     }
 }
 
-impl< U: Unit> Quantity<U> {
+impl<U: Unit> Quantity<U> {
     pub fn value(&self) -> f64 {
         self.0
     }
