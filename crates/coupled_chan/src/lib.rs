@@ -22,7 +22,13 @@ mod tests {
     use single_chan::interaction::{dispersion::lennard_jones, func_potential::FuncPotential};
 
     use crate::{
-        coupling::{diagonal::Diagonal, masked::Masked, pair::Pair, Asymptote, Levels, RedCoupling, VanishingCoupling}, log_derivative::{self, diabatic::{JohnsonLogDerivative, ManolopoulosLogDerivative}}, ratio_numerov::{self, RatioNumerov}, Operator
+        Operator,
+        coupling::{Asymptote, Levels, RedCoupling, VanishingCoupling, diagonal::Diagonal, masked::Masked, pair::Pair},
+        log_derivative::{
+            self,
+            diabatic::{JohnsonLogDerivative, ManolopoulosLogDerivative},
+        },
+        ratio_numerov::{self, RatioNumerov},
     };
 
     pub fn get_red_coupling() -> RedCoupling<impl VanishingCoupling> {

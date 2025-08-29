@@ -185,7 +185,7 @@ macro_rules! filter_space {
 macro_rules! operator_mel {
     (dyn $basis:expr, $elements:expr, |[$($args:ident: $subspaces:ty),*]| $body:expr) => {
         $crate::operator::Operator::from_mel_dyn(
-            $basis,
+            &($basis.as_ref()),
             $elements,
             |[$($args),*]| {
                 $(
@@ -219,7 +219,7 @@ macro_rules! operator_mel {
 macro_rules! operator_diag_mel {
     (dyn $basis:expr, $elements:expr, |[$($args:ident: $subspaces:ty),*]| $body:expr) => {
         $crate::operator::Operator::from_diag_mel_dyn(
-            $basis,
+            &($basis.as_ref()),
             $elements,
             |[$($args),*]| {
                 $(
@@ -261,9 +261,9 @@ macro_rules! operator_transform_mel {
         $body:expr
     ) => {
         $crate::operator::Operator::from_transform_mel_dyn(
-            $basis,
+            &($basis.as_ref()),
             $elements,
-            $basis_transf,
+            &($basis_transf.as_ref()),
             $elements_transf,
             |[$($args),*], [$($args_transf),*]| {
                 $(

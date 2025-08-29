@@ -3,6 +3,7 @@ use dyn_clone::DynClone;
 use std::{
     fmt::{Debug, Display},
     ops::{Deref, DerefMut, Index},
+    ptr,
 };
 
 pub trait DynSubspaceElement: DynClone + Debug + DowncastSync {}
@@ -26,6 +27,16 @@ impl Deref for BasisId {
 pub struct SubspaceBasis {
     basis: Vec<Box<dyn DynSubspaceElement>>,
     id: BasisId,
+}
+
+impl Eq for SubspaceBasis {}
+
+impl PartialEq for SubspaceBasis {
+    fn eq(&self, other: &Self) -> bool {
+        let elements_same = self.basis.iter().zip(other.basis.iter()).all(|(a, b)| ptr::eq(a, b));
+
+        self.basis.len() == other.basis.len() && elements_same && self.id == other.id
+    }
 }
 
 impl SubspaceBasis {
@@ -59,6 +70,10 @@ impl SpaceBasis {
 
     pub fn size(&self) -> usize {
         self.0.iter().fold(1, |acc, s| acc * s.size())
+    }
+
+    pub fn subspaces_len(&self) -> usize {
+        self.0.len()
     }
 
     pub fn push_subspace(&mut self, mut state: SubspaceBasis) -> BasisId {
@@ -96,7 +111,7 @@ impl SpaceBasis {
             .collect();
 
         BasisElements {
-            basis: self.0.clone(),
+            basis: self.clone(),
             elements_indices: filtered,
         }
     }
@@ -110,7 +125,7 @@ impl SpaceBasis {
         };
 
         BasisElements {
-            basis: self.0.clone(),
+            basis: self.clone(),
             elements_indices: iter.collect(),
         }
     }
@@ -118,6 +133,16 @@ impl SpaceBasis {
 
 #[derive(Clone, Debug)]
 pub struct BasisElementIndices(Vec<usize>);
+
+impl BasisElementIndices {
+    #[allow(clippy::borrowed_box)]
+    pub fn index<'a>(&'a self, index: BasisId, basis: &'a SpaceBasis) -> &'a Box<dyn DynSubspaceElement> {
+        let basis_subspace = &basis.0[index.0 as usize];
+        let subspace_index = self[index];
+
+        &basis_subspace.basis[subspace_index]
+    }
+}
 
 impl Deref for BasisElementIndices {
     type Target = [usize];
@@ -169,11 +194,19 @@ impl Iterator for BasisElementIter {
 
 #[derive(Clone, Debug)]
 pub struct BasisElements {
-    pub basis: Vec<SubspaceBasis>,
-    pub(crate) elements_indices: Vec<BasisElementIndices>,
+    pub basis: SpaceBasis,
+    pub elements_indices: Vec<BasisElementIndices>,
 }
 
+// todo! duplicate code
 impl BasisElements {
+    pub fn as_ref<'a>(&'a self) -> BasisElementsRef<'a> {
+        BasisElementsRef {
+            basis: &self.basis,
+            elements_indices: &self.elements_indices,
+        }
+    }
+
     pub fn is_empty(&self) -> bool {
         self.elements_indices.is_empty()
     }
@@ -187,7 +220,42 @@ impl Index<(usize, BasisId)> for BasisElements {
     type Output = Box<dyn DynSubspaceElement>;
 
     fn index(&self, index: (usize, BasisId)) -> &Self::Output {
-        let basis_subspace = &self.basis[index.1.0 as usize];
+        let basis_subspace = &self.basis.0[index.1.0 as usize];
+        let subspace_index = self.elements_indices[index.0][index.1];
+
+        &basis_subspace.basis[subspace_index]
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct BasisElementsRef<'a> {
+    pub basis: &'a SpaceBasis,
+    pub elements_indices: &'a [BasisElementIndices],
+}
+
+impl BasisElementsRef<'_> {
+    pub fn as_ref<'a>(&'a self) -> BasisElementsRef<'a> {
+        *self
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.elements_indices.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.elements_indices.len()
+    }
+
+    pub fn indices_iter(&self) -> impl Iterator<Item = usize> {
+        0..self.len()
+    }
+}
+
+impl<'a> Index<(usize, BasisId)> for BasisElementsRef<'a> {
+    type Output = Box<dyn DynSubspaceElement>;
+
+    fn index(&self, index: (usize, BasisId)) -> &'a Self::Output {
+        let basis_subspace = &self.basis.0[index.1.0 as usize];
         let subspace_index = self.elements_indices[index.0][index.1];
 
         &basis_subspace.basis[subspace_index]
@@ -197,7 +265,7 @@ impl Index<(usize, BasisId)> for BasisElements {
 impl Display for BasisElements {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for indices in &self.elements_indices {
-            for (index, b) in indices.iter().zip(self.basis.iter()) {
+            for (index, b) in indices.iter().zip(self.basis.0.iter()) {
                 write!(f, "|{:?} ⟩ ", b.basis[*index])?
             }
             writeln!(f)?
