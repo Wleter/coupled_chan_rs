@@ -86,8 +86,7 @@ impl<'a, W: WFunction> RatioNumerov<'a, W> {
         self.f_last = self.f_last / 4.0 + 0.75;
         self.solution.sol.0 *= self.f / self.f_last;
 
-        let f_last =
-            1.0 + self.solution.dr * self.solution.dr * self.w_function.value(self.solution.r - self.solution.dr);
+        let f_last = 1.0 + self.solution.dr * self.solution.dr * self.w_function.value(self.solution.r - self.solution.dr);
         let u = (12.0 - 10.0 * f_last) / f_last;
 
         let sol_half = (self.solution.sol.0 + 1.) / u;
