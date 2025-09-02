@@ -12,6 +12,17 @@ dyn_clone::clone_trait_object!(DynSubspaceElement);
 
 impl<T: Clone + Debug + Send + Sync + 'static> DynSubspaceElement for T {}
 
+#[derive(Clone, Debug)]
+pub struct SubspaceElement(Box<dyn DynSubspaceElement>);
+
+impl Deref for SubspaceElement {
+    type Target = Box<dyn DynSubspaceElement>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct BasisId(pub u64);
 
@@ -25,7 +36,7 @@ impl Deref for BasisId {
 
 #[derive(Clone, Debug)]
 pub struct SubspaceBasis {
-    basis: Vec<Box<dyn DynSubspaceElement>>,
+    basis: Vec<SubspaceElement>,
     id: BasisId,
 }
 
@@ -45,13 +56,13 @@ impl SubspaceBasis {
 
         let basis = basis
             .into_iter()
-            .map(|x| Box::new(x) as Box<dyn DynSubspaceElement>)
+            .map(|x| SubspaceElement(Box::new(x)))
             .collect();
 
         Self { basis, id: BasisId(0) }
     }
 
-    pub fn elements(&self) -> &[Box<dyn DynSubspaceElement>] {
+    pub fn elements(&self) -> &[SubspaceElement] {
         &self.basis
     }
 
@@ -86,7 +97,7 @@ impl SpaceBasis {
 }
 
 impl SpaceBasis {
-    pub fn get_filtered_basis(&self, f: impl Fn(&[&Box<dyn DynSubspaceElement>]) -> bool) -> BasisElements {
+    pub fn get_filtered_basis(&self, f: impl Fn(&[&SubspaceElement]) -> bool) -> BasisElements {
         let iter = BasisElementIter {
             size: self.size(),
             basis_sizes: self.0.iter().map(|x| x.size()).collect(),
@@ -136,7 +147,7 @@ pub struct BasisElementIndices(Vec<usize>);
 
 impl BasisElementIndices {
     #[allow(clippy::borrowed_box)]
-    pub fn index<'a>(&'a self, index: BasisId, basis: &'a SpaceBasis) -> &'a Box<dyn DynSubspaceElement> {
+    pub fn index<'a>(&'a self, index: BasisId, basis: &'a SpaceBasis) -> &'a SubspaceElement {
         let basis_subspace = &basis.0[index.0 as usize];
         let subspace_index = self[index];
 
@@ -217,7 +228,7 @@ impl BasisElements {
 }
 
 impl Index<(usize, BasisId)> for BasisElements {
-    type Output = Box<dyn DynSubspaceElement>;
+    type Output = SubspaceElement;
 
     fn index(&self, index: (usize, BasisId)) -> &Self::Output {
         let basis_subspace = &self.basis.0[index.1.0 as usize];
@@ -252,7 +263,7 @@ impl BasisElementsRef<'_> {
 }
 
 impl<'a> Index<(usize, BasisId)> for BasisElementsRef<'a> {
-    type Output = Box<dyn DynSubspaceElement>;
+    type Output = SubspaceElement;
 
     fn index(&self, index: (usize, BasisId)) -> &'a Self::Output {
         let basis_subspace = &self.basis.0[index.1.0 as usize];

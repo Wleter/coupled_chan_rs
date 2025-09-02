@@ -1,9 +1,9 @@
-use crate::{dyn_space::BasisElementsRef, operator::Operator};
+use crate::{dyn_space::{BasisElementsRef, SubspaceElement}, operator::Operator};
 use matrix_utils::{MatrixCreation, MatrixLike};
 use num_traits::Zero;
 
 use crate::{
-    dyn_space::{BasisId, DynSubspaceElement},
+    dyn_space::BasisId,
     operator::Braket,
 };
 
@@ -13,7 +13,7 @@ pub fn get_mel<'a, const N: usize, F, E>(
     mut mat_element: F,
 ) -> impl FnMut(usize, usize) -> E + 'a
 where
-    F: FnMut([Braket<&'a Box<dyn DynSubspaceElement>>; N]) -> E + 'a,
+    F: FnMut([Braket<&'a SubspaceElement>; N]) -> E + 'a,
     E: Zero,
 {
     let action_indices = action_subspaces.map(|x| x.0 as usize);
@@ -52,7 +52,7 @@ pub fn get_diagonal_mel<'a, const N: usize, F, E>(
     mut mat_element: F,
 ) -> impl FnMut(usize, usize) -> E + 'a
 where
-    F: FnMut([&'a Box<dyn DynSubspaceElement>; N]) -> E + 'a,
+    F: FnMut([&'a SubspaceElement; N]) -> E + 'a,
     E: Zero,
 {
     let action_indices = action_subspaces.map(|x| x.0 as usize);
@@ -80,7 +80,7 @@ pub fn get_transform_mel<'a, const N: usize, const M: usize, F, E>(
     mut mat_element: F,
 ) -> impl FnMut(usize, usize) -> E + 'a
 where
-    F: FnMut([&'a Box<dyn DynSubspaceElement>; N], [&'a Box<dyn DynSubspaceElement>; M]) -> E + 'a,
+    F: FnMut([&'a SubspaceElement; N], [&'a SubspaceElement; M]) -> E + 'a,
     E: Zero,
 {
     let indices = subspaces.map(|x| x.0 as usize);
@@ -126,7 +126,7 @@ impl<M: MatrixLike> Operator<M> {
     where
         E: Zero,
         M: MatrixCreation<E>,
-        F: FnMut([Braket<&'a Box<dyn DynSubspaceElement>>; N]) -> E + 'a,
+        F: FnMut([Braket<&'a SubspaceElement>; N]) -> E + 'a,
     {
         let mel = get_mel(elements, action_subspaces, mat_element);
         let mat = M::from_fn(elements.len(), elements.len(), mel);
@@ -142,7 +142,7 @@ impl<M: MatrixLike> Operator<M> {
     where
         E: Zero,
         M: MatrixCreation<E>,
-        F: FnMut([&'a Box<dyn DynSubspaceElement>; N]) -> E + 'a,
+        F: FnMut([&'a SubspaceElement; N]) -> E + 'a,
     {
         let mel = get_diagonal_mel(elements, action_subspaces, mat_element);
         let mat = M::from_fn(elements.len(), elements.len(), mel);
@@ -160,7 +160,7 @@ impl<M: MatrixLike> Operator<M> {
     where
         E: Zero,
         M: MatrixCreation<E>,
-        F: FnMut([&'a Box<dyn DynSubspaceElement>; N], [&'a Box<dyn DynSubspaceElement>; K]) -> E + 'a,
+        F: FnMut([&'a SubspaceElement; N], [&'a SubspaceElement; K]) -> E + 'a,
     {
         let mel = get_transform_mel(elements, elements_transform, subspaces, subspaces_transform, mat_element);
         let mat = M::from_fn(elements_transform.len(), elements.len(), mel);
