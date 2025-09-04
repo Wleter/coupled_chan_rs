@@ -1,7 +1,10 @@
 pub mod atom_atom_problem;
+pub mod atom_rotor_problem;
 pub mod atom_structure;
+pub mod operator_mel;
 pub mod rotor_structure;
 pub mod system_structure;
+pub mod tram_basis;
 pub use coupled_chan;
 
 use coupled_chan::{
@@ -10,12 +13,12 @@ use coupled_chan::{
 };
 use hilbert_space::{
     cast_variant,
-    dyn_space::{BasisElementIndices, BasisElements, BasisElementsRef},
+    dyn_space::{BasisElementIndices, BasisElements, BasisElementsRef, BasisId, DynSubspaceElement},
 };
 
 use crate::system_structure::SystemStructure;
 
-#[derive(Clone, Copy, Hash, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Hash, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct AngularMomentum(pub u32);
 
 pub struct AngularBasisElements {
@@ -25,13 +28,21 @@ pub struct AngularBasisElements {
 }
 
 impl AngularBasisElements {
-    pub fn new(full_basis: BasisElements, system: &SystemStructure) -> Self {
+    pub fn new_system(full_basis: BasisElements, system: &SystemStructure) -> Self {
+        Self::new(full_basis, system.l, |&a| a)
+    }
+
+    pub fn new<T: DynSubspaceElement>(
+        full_basis: BasisElements,
+        l_index: BasisId,
+        conversion: impl Fn(&T) -> AngularMomentum,
+    ) -> Self {
         let basis = full_basis.basis;
 
         let mut angular_indices: Vec<(AngularMomentum, BasisElementIndices)> = full_basis
             .elements_indices
             .into_iter()
-            .map(|indices| (*cast_variant!(dyn indices.index(system.l, &basis), AngularMomentum), indices))
+            .map(|indices| (conversion(cast_variant!(dyn indices.index(l_index, &basis), T)), indices))
             .collect();
         angular_indices.sort_by_key(|(l, _)| *l);
         let ordered_indices = angular_indices.iter().map(|x| x.1.clone()).collect();
@@ -92,7 +103,7 @@ impl HamiltonianTerm {
         }
     }
 
-    pub fn as_operator(&self) -> Operator {
+    pub fn operator(&self) -> Operator {
         Operator::new(self.scaling * &self.hamiltonian.0)
     }
 }

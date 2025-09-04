@@ -11,9 +11,10 @@ pub use nalgebra;
 #[cfg(feature = "ndarray")]
 pub use ndarray;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub enum Parity {
     All,
+    #[default]
     Even,
     Odd,
 }

@@ -2,6 +2,7 @@ use hilbert_space::dyn_space::{BasisId, SpaceBasis, SubspaceBasis};
 
 use crate::AngularMomentum;
 
+#[derive(Clone, Debug)]
 pub struct SystemStructure {
     pub l: BasisId,
 }

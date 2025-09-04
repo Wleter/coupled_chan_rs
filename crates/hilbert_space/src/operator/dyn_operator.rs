@@ -1,11 +1,11 @@
-use crate::{dyn_space::{BasisElementsRef, SubspaceElement}, operator::Operator};
+use crate::{
+    dyn_space::{BasisElementsRef, SubspaceElement},
+    operator::Operator,
+};
 use matrix_utils::{MatrixCreation, MatrixLike};
 use num_traits::Zero;
 
-use crate::{
-    dyn_space::BasisId,
-    operator::Braket,
-};
+use crate::{dyn_space::BasisId, operator::Braket};
 
 pub fn get_mel<'a, const N: usize, F, E>(
     elements: &'a BasisElementsRef<'a>,

@@ -1,0 +1,62 @@
+use hilbert_space::{
+    Parity, cast_variant,
+    dyn_space::{BasisId, SpaceBasis, SubspaceBasis, SubspaceElement},
+};
+use spin_algebra::{Spin, get_spin_basis};
+
+use crate::{
+    AngularMomentum,
+    rotor_structure::{RotorStructure, RotorStructureRecipe},
+    system_structure::SystemStructure,
+};
+
+#[derive(Clone, Debug)]
+pub struct TRAMBasis {
+    pub l: SystemStructure,
+    pub n: RotorStructure,
+    pub n_tot: BasisId,
+    pub parity: Parity,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct TRAMBasisRecipe {
+    pub l_max: u32,
+    pub rotor: RotorStructureRecipe,
+    pub n_tot_max: u32,
+    pub parity: Parity,
+}
+
+impl TRAMBasis {
+    pub fn new(recipe: TRAMBasisRecipe, space_basis: &mut SpaceBasis) -> Self {
+        let n = RotorStructure::new(recipe.rotor, space_basis);
+        let l = SystemStructure::new(AngularMomentum(recipe.l_max), space_basis);
+
+        let n_tot = (0..=recipe.n_tot_max)
+            .flat_map(|n_tot| get_spin_basis(n_tot.into()))
+            .collect();
+
+        let n_tot = space_basis.push_subspace(SubspaceBasis::new(n_tot));
+
+        Self {
+            n,
+            l,
+            n_tot,
+            parity: recipe.parity,
+        }
+    }
+
+    pub fn filter(&self, element: &[&SubspaceElement]) -> bool {
+        let l = cast_variant!(dyn element[self.l.l.0 as usize], AngularMomentum);
+        let n = cast_variant!(dyn element[self.n.n.0 as usize], AngularMomentum);
+        let n_tot_spin = cast_variant!(dyn element[self.n_tot.0 as usize], Spin);
+        let n_tot = n_tot_spin.s.double_value() / 2;
+
+        (l.0 + n.0) >= n_tot
+            && (l.0 as i32 - n.0 as i32).unsigned_abs() <= n_tot
+            && match self.parity {
+                Parity::All => true,
+                Parity::Even => (l.0 + n.0) & 1 == 0,
+                Parity::Odd => (l.0 + n.0) & 1 == 1,
+            }
+    }
+}

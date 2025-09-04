@@ -54,10 +54,7 @@ impl SubspaceBasis {
     pub fn new<T: DynSubspaceElement>(basis: Vec<T>) -> Self {
         assert!(!basis.is_empty(), "0 size basis is not allowed");
 
-        let basis = basis
-            .into_iter()
-            .map(|x| SubspaceElement(Box::new(x)))
-            .collect();
+        let basis = basis.into_iter().map(|x| SubspaceElement(Box::new(x))).collect();
 
         Self { basis, id: BasisId(0) }
     }
