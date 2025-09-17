@@ -23,7 +23,6 @@ use crate::{
 pub struct AlkaliHomoDiatomRecipe {
     pub atom: AtomStructureRecipe,
     pub l_max: AngularMomentum,
-    pub parity: Parity,
 
     pub tot_projection: HalfI32,
 }
@@ -71,13 +70,19 @@ impl AlkaliHomoDiatomBuilder {
         let atom_b = AtomStructureBuilder::new(recipe.atom, &mut basis_sep);
         let system_sep = SystemStructure::new(recipe.l_max, &mut basis_sep);
 
+        let parity = if (recipe.atom.s + recipe.atom.i).double_value() % 2 == 0 {
+            Parity::Even
+        } else {
+            Parity::Odd
+        };
+
         Self {
             combined_structure: AtomStructureBuilder { s: s_tot, i: i_tot },
             s_max: recipe.atom.s + recipe.atom.s,
             i_max: recipe.atom.i + recipe.atom.i,
 
             tot_projection: recipe.tot_projection,
-            parity: recipe.parity,
+            parity,
             system,
             basis,
 
