@@ -1,3 +1,4 @@
+use coupled_chan::coupling::AngularBlocks;
 use hilbert_space::{
     Parity, cast_variant,
     dyn_space::{BasisId, SpaceBasis, SubspaceBasis, SubspaceElement},
@@ -5,30 +6,30 @@ use hilbert_space::{
 use spin_algebra::{Spin, get_spin_basis};
 
 use crate::{
-    AngularMomentum,
-    rotor_structure::{RotorStructure, RotorStructureRecipe},
-    system_structure::SystemStructure,
+    AngularBasisElements, AngularMomentum,
+    rotor_structure::{RotorParams, RotorStructure},
+    system_structure::{SystemParams, SystemStructure},
 };
 
+#[derive(Clone, Debug, Default)]
+pub struct TRAMBasisRecipe {
+    pub l_max: u32,
+    pub n_max: u32,
+    pub n_tot_max: u32,
+    pub parity: Parity,
+}
+
 #[derive(Clone, Debug)]
-pub struct TRAMBasis {
+pub struct TRAMBasisBuilder {
     pub l: SystemStructure,
     pub n: RotorStructure,
     pub n_tot: BasisId,
     pub parity: Parity,
 }
 
-#[derive(Clone, Debug, Default)]
-pub struct TRAMBasisRecipe {
-    pub l_max: u32,
-    pub rotor: RotorStructureRecipe,
-    pub n_tot_max: u32,
-    pub parity: Parity,
-}
-
-impl TRAMBasis {
+impl TRAMBasisBuilder {
     pub fn new(recipe: TRAMBasisRecipe, space_basis: &mut SpaceBasis) -> Self {
-        let n = RotorStructure::new(recipe.rotor, space_basis);
+        let n = RotorStructure::new(recipe.n_max, space_basis);
         let l = SystemStructure::new(AngularMomentum(recipe.l_max), space_basis);
 
         let n_tot = (0..=recipe.n_tot_max)
@@ -59,4 +60,29 @@ impl TRAMBasis {
                 Parity::Odd => (l.0 + n.0) & 1 == 1,
             }
     }
+
+    pub fn build(self, full_basis: &AngularBasisElements) -> TRAMBasis {
+        TRAMBasis {
+            rot_energy: full_basis.get_angular_blocks(|e| self.n.rotational_energy(e)),
+            distortion: full_basis.get_angular_blocks(|e| self.n.distortion(e)),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct TRAMBasis {
+    rot_energy: AngularBlocks,
+    distortion: AngularBlocks,
+}
+
+impl TRAMBasis {
+    pub fn with_params(&self, params: &TRAMBasisParams) -> AngularBlocks {
+        self.rot_energy.scale(params.rotor.rot_const.value()) + self.distortion.scale(params.rotor.distortion.value())
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct TRAMBasisParams {
+    pub rotor: RotorParams,
+    pub system: SystemParams,
 }

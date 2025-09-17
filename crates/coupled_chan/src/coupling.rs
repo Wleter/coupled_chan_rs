@@ -3,6 +3,8 @@ pub mod diagonal;
 pub mod masked;
 pub mod pair;
 
+use std::ops::Add;
+
 use constants::units::{
     Quantity,
     atomic_units::{AuEnergy, AuMass},
@@ -47,7 +49,28 @@ impl AngularBlocks {
         self.angular_blocks.iter().map(|b| b.size()).sum()
     }
 
-    pub fn diagonalize(&self) -> (Levels, Operator) {
+    pub fn scale(&self, scaling: f64) -> Self {
+        AngularBlocks {
+            l: self.l.clone(),
+            angular_blocks: self.angular_blocks.iter().map(|x| Operator::new(scaling * &x.0)).collect(),
+        }
+    }
+
+    pub fn transform(&self, transform: &Self) -> Self {
+        assert_eq!(self.l, transform.l);
+
+        Self {
+            l: self.l.clone(),
+            angular_blocks: self
+                .angular_blocks
+                .iter()
+                .zip(&transform.angular_blocks)
+                .map(|(x, t)| x.transform(t))
+                .collect(),
+        }
+    }
+
+    pub fn diagonalized(&self) -> (Levels, Operator) {
         let n = self.size();
         let mut energies = Vec::with_capacity(n);
         let mut ls = Vec::with_capacity(n);
@@ -75,7 +98,7 @@ impl AngularBlocks {
         (levels, eigenstates)
     }
 
-    pub fn channels(&self) -> Operator {
+    pub fn operator(&self) -> Operator {
         let n = self.size();
         let mut channels = Operator::zeros(n);
 
@@ -90,6 +113,24 @@ impl AngularBlocks {
         }
 
         channels
+    }
+}
+
+impl Add for AngularBlocks {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        assert!(self.l.iter().zip(&rhs.l).all(|(a, b)| a == b));
+
+        Self {
+            l: self.l,
+            angular_blocks: self
+                .angular_blocks
+                .into_iter()
+                .zip(rhs.angular_blocks)
+                .map(|(x, y)| x + y)
+                .collect(),
+        }
     }
 }
 
@@ -136,7 +177,7 @@ impl Asymptote {
         angular_blocks: AngularBlocks,
         entrance_level: usize,
     ) -> Self {
-        let (levels, transformation) = angular_blocks.diagonalize();
+        let (levels, transformation) = angular_blocks.diagonalized();
         let centrifugal = MultiCentrifugal::new_diagonal(&levels, mass);
 
         Self {
@@ -147,7 +188,7 @@ impl Asymptote {
             levels,
 
             transformation: Some(transformation),
-            asymptote_channels: angular_blocks.channels(),
+            asymptote_channels: angular_blocks.operator(),
             centrifugal,
         }
     }

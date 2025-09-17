@@ -26,7 +26,7 @@ impl<P: VanishingCoupling> Composite<P> {
         Self { couplings }
     }
 
-    pub fn add_interaction(&mut self, coupling: P) -> &mut Self {
+    pub fn add_coupling(&mut self, coupling: P) -> &mut Self {
         if !self.couplings.is_empty() {
             assert_eq!(
                 coupling.size(),

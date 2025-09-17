@@ -1,6 +1,13 @@
 use coupled_chan::{
     Operator,
-    constants::{BOHR_MAG, G_FACTOR},
+    constants::{
+        BOHR_MAG, G_FACTOR,
+        units::{
+            Quantity,
+            atomic_units::{AuEnergy, Gauss},
+        },
+    },
+    coupling::AngularBlocks,
 };
 use hilbert_space::{
     dyn_space::{BasisElementsRef, BasisId, SpaceBasis, SubspaceBasis},
@@ -8,37 +15,21 @@ use hilbert_space::{
 };
 use spin_algebra::{Spin, SpinOps, get_spin_basis, half_integer::HalfU32};
 
-#[derive(Clone, Debug)]
-pub struct AtomStructure {
-    pub s: BasisId,
-    pub i: BasisId,
+use crate::AngularBasisElements;
 
-    pub recipe: AtomStructureRecipe,
-}
-
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct AtomStructureRecipe {
     pub s: HalfU32,
     pub i: HalfU32,
-
-    pub gamma_e: f64,
-    pub gamma_i: f64,
-    pub a_hifi: f64,
 }
 
-impl Default for AtomStructureRecipe {
-    fn default() -> Self {
-        Self {
-            s: Default::default(),
-            i: Default::default(),
-            gamma_e: -G_FACTOR * BOHR_MAG,
-            gamma_i: Default::default(),
-            a_hifi: Default::default(),
-        }
-    }
+#[derive(Clone, Debug)]
+pub struct AtomStructureBuilder {
+    pub s: BasisId,
+    pub i: BasisId,
 }
 
-impl AtomStructure {
+impl AtomStructureBuilder {
     pub fn new(recipe: AtomStructureRecipe, space_basis: &mut SpaceBasis) -> Self {
         let s = get_spin_basis(recipe.s);
         let i = get_spin_basis(recipe.i);
@@ -46,18 +37,68 @@ impl AtomStructure {
         let s = space_basis.push_subspace(SubspaceBasis::new(s));
         let i = space_basis.push_subspace(SubspaceBasis::new(i));
 
-        Self { s, i, recipe }
+        Self { s, i }
     }
 
-    pub fn zeeman_prop(&self, basis: &BasisElementsRef) -> Operator {
-        operator_diag_mel!(dyn basis, [self.s, self.i], |[s: Spin, i: Spin]| {
-            -self.recipe.gamma_e * s.m.value() - self.recipe.gamma_i * i.m.value()
+    pub fn zeeman_n(&self, basis: &BasisElementsRef) -> Operator {
+        operator_diag_mel!(dyn basis, [self.i], |[i: Spin]| {
+            -i.m.value()
+        })
+    }
+
+    pub fn zeeman_e(&self, basis: &BasisElementsRef) -> Operator {
+        operator_diag_mel!(dyn basis, [self.s], |[s: Spin]| {
+            -s.m.value()
         })
     }
 
     pub fn hyperfine(&self, basis: &BasisElementsRef) -> Operator {
         operator_mel!(dyn basis, [self.s, self.i], |[s: Spin, i: Spin]| {
-            self.recipe.a_hifi * SpinOps::dot(s, i)
+            SpinOps::dot(s, i)
         })
+    }
+
+    pub fn build(self, full_basis: &AngularBasisElements) -> AtomStructure {
+        AtomStructure {
+            hifi: full_basis.get_angular_blocks(|e| self.hyperfine(e)),
+            zee_e: full_basis.get_angular_blocks(|e| self.zeeman_e(e)),
+            zee_n: full_basis.get_angular_blocks(|e| self.zeeman_n(e)),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct AtomStructure {
+    pub hifi: AngularBlocks,
+    pub zee_e: AngularBlocks,
+    pub zee_n: AngularBlocks,
+}
+
+impl AtomStructure {
+    pub fn with_params(&self, params: &AtomStructureParams) -> AngularBlocks {
+        let hifi = self.hifi.scale(params.a_hifi.value());
+        let zee_i = self.zee_e.scale(params.gamma_e.value() * params.b_field.value());
+        let zee_e = self.zee_n.scale(params.gamma_n.value() * params.b_field.value());
+
+        hifi + zee_i + zee_e
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct AtomStructureParams {
+    gamma_e: Quantity<AuEnergy>,
+    gamma_n: Quantity<AuEnergy>,
+    a_hifi: Quantity<AuEnergy>,
+    b_field: Quantity<Gauss>,
+}
+
+impl Default for AtomStructureParams {
+    fn default() -> Self {
+        Self {
+            gamma_e: Quantity(-G_FACTOR * BOHR_MAG, AuEnergy),
+            gamma_n: Default::default(),
+            a_hifi: Default::default(),
+            b_field: Default::default(),
+        }
     }
 }

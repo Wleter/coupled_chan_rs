@@ -1,5 +1,6 @@
-pub mod atom_atom_problem;
-pub mod atom_rotor_problem;
+pub mod alkali_atom_rotor;
+pub mod alkali_diatom;
+pub mod alkali_homo_diatom;
 pub mod atom_structure;
 pub mod operator_mel;
 pub mod rotor_structure;
@@ -7,10 +8,7 @@ pub mod system_structure;
 pub mod tram_basis;
 pub use coupled_chan;
 
-use coupled_chan::{
-    Operator,
-    coupling::{RedCoupling, VanishingCoupling},
-};
+use coupled_chan::{Operator, coupling::AngularBlocks};
 use hilbert_space::{
     cast_variant,
     dyn_space::{BasisElementIndices, BasisElements, BasisElementsRef, BasisId, DynSubspaceElement},
@@ -75,51 +73,19 @@ impl AngularBasisElements {
         }
     }
 
-    pub fn angular_iter<'a>(&'a self) -> impl Iterator<Item = (AngularMomentum, BasisElementsRef<'a>)> {
-        self.ls.iter().zip(&self.separated_basis_indices).map(|(l, indices)| {
-            (
-                *l,
-                BasisElementsRef {
-                    basis: &self.full_basis.basis,
-                    elements_indices: indices,
-                },
-            )
+    pub fn angular_iter<'a>(&'a self) -> impl Iterator<Item = BasisElementsRef<'a>> {
+        self.separated_basis_indices.iter().map(|indices| BasisElementsRef {
+            basis: &self.full_basis.basis,
+            elements_indices: indices,
         })
     }
-}
 
-pub struct HamiltonianTerm {
-    pub name: String,
-    pub scaling: f64,
-    hamiltonian: Operator,
-}
+    pub fn get_angular_blocks(&self, mut f: impl FnMut(&BasisElementsRef) -> Operator) -> AngularBlocks {
+        let blocks = self.angular_iter().map(|e| f(&e)).collect();
 
-impl HamiltonianTerm {
-    pub fn new(name: &str, hamiltonian: Operator) -> Self {
-        Self {
-            name: name.to_string(),
-            scaling: 1.,
-            hamiltonian,
+        AngularBlocks {
+            l: self.ls.iter().map(|a| a.0).collect(),
+            angular_blocks: blocks,
         }
     }
-
-    pub fn operator(&self) -> Operator {
-        Operator::new(self.scaling * &self.hamiltonian.0)
-    }
 }
-
-pub trait CoupledProblemBuilder {
-    type Dependence;
-
-    fn build(self, dependence: Self::Dependence) -> CoupledProblem<impl VanishingCoupling>;
-}
-
-pub struct CoupledProblem<V: VanishingCoupling> {
-    pub red_coupling: RedCoupling<V>,
-}
-
-impl<V: VanishingCoupling> CoupledProblem<V> {}
-
-// pub struct FieldDependentProblem<F> {
-
-// }

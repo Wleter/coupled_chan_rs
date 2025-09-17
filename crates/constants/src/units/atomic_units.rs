@@ -80,3 +80,12 @@ impl Unit for Dalton {
 
     const TO_BASE: f64 = 1. / 5.485799090441e-4;
 }
+
+#[derive(Clone, Copy, Default, Debug)]
+pub struct Gauss;
+
+impl Unit for Gauss {
+    type Base = Gauss;
+
+    const TO_BASE: f64 = 1.;
+}

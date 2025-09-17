@@ -12,7 +12,7 @@ pub trait Unit: Copy + Default {
     const TO_BASE: f64;
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct Quantity<U>(pub f64, pub U);
 
 impl<U: Debug> Debug for Quantity<U> {
