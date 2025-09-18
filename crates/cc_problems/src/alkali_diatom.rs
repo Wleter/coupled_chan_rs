@@ -77,6 +77,7 @@ impl AlkaliDiatomBuilder {
         AlkaliDiatom {
             atom_a: self.atom_a.build(&basis),
             atom_b: self.atom_b.build(&basis),
+            basis,
             triplet,
             singlet,
         }
@@ -94,6 +95,7 @@ impl AlkaliDiatomBuilder {
 
 #[derive(Clone, Debug)]
 pub struct AlkaliDiatom {
+    pub basis: AngularBasisElements,
     atom_a: AtomStructure,
     atom_b: AtomStructure,
 

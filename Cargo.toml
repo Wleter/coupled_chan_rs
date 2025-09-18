@@ -10,8 +10,9 @@ members = [
     "crates/single_chan", 
     "crates/propagator", 
     "crates/coupled_chan", 
-    "crates/cc_problems"
-]
+    "crates/cc_problems", 
+    "example_calculations/li2_feshbach",
+    "example_calculations/srf_rb_feshbach"]
 resolver = "3"
 
 [workspace.package]
@@ -19,23 +20,24 @@ version = "0.1.0"
 edition = "2024"
 
 [workspace.dependencies]
-rayon = "1.6.0"
+rayon = "1.11.0"
 
 num-complex = "0.4.6"
 num-traits = "0.2.19"
 
-anyhow = "1.0.98"
-log = "0.4.27"
+anyhow = "1.0"
+log = "0.4"
 simple_logger = {version = "5.0.0", default-features = false, features = ["colors"]}
 
 serde = { version = "1.0.219", features = ["derive"]}
 serde_json = "1.0.140"
 
 faer = "0.22.6"
-nalgebra = "0.33.2"
+nalgebra = "0.34"
 ndarray = "0.16.1"
 
 clebsch-gordan = { git = "https://github.com/Wleter/clebsch-gordan", branch = "master" }
+cc_problems = { path = "crates/cc_problems" }
 
 [profile.dev.package.faer]
 opt-level = 3

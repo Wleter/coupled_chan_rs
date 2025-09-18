@@ -86,10 +86,10 @@ impl AtomStructure {
 
 #[derive(Clone, Copy, Debug)]
 pub struct AtomStructureParams {
-    gamma_e: Quantity<AuEnergy>,
-    gamma_n: Quantity<AuEnergy>,
-    a_hifi: Quantity<AuEnergy>,
-    b_field: Quantity<Gauss>,
+    pub gamma_e: Quantity<AuEnergy>,
+    pub gamma_n: Quantity<AuEnergy>,
+    pub a_hifi: Quantity<AuEnergy>,
+    pub b_field: Quantity<Gauss>,
 }
 
 impl Default for AtomStructureParams {

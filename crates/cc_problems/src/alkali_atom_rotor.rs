@@ -123,6 +123,7 @@ impl AlkaliAtomRotorTRAMBuilder {
             atom_b: self.atom_b.build(&basis),
             atom_c: self.atom_c.build(&basis),
             tram: self.tram.build(&basis),
+            basis,
             triplet,
             singlet,
         }
@@ -147,6 +148,8 @@ impl AlkaliAtomRotorTRAMBuilder {
 
 #[derive(Clone, Debug)]
 pub struct AlkaliAtomRotorTRAM {
+    pub basis: AngularBasisElements,
+
     atom_a: AtomStructure,
     atom_b: AtomStructure,
     atom_c: AtomStructure,

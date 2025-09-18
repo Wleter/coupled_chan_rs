@@ -7,4 +7,11 @@ edition.workspace = true
 coupled_chan = {path = "../coupled_chan"}
 hilbert_space = {path = "../hilbert_space", features = ["faer"]}
 spin_algebra = {path = "../spin_algebra"}
-anyhow = {workspace = true}
+anyhow = { workspace = true }
+
+serde = {workspace = true}
+serde_json = {workspace = true}
+
+qol_utils = { path = "../qol_utils" }
+math_utils = {path = "../math_utils"}
+rayon = {workspace = true}

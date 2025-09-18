@@ -4,11 +4,32 @@ pub mod ratio_numerov;
 pub mod s_matrix;
 
 pub use constants;
+use constants::units::{Quantity, atomic_units::Bohr};
 use faer::Mat;
 pub use propagator;
+use propagator::{Boundary, Direction};
 pub use single_chan::interaction::*;
 
+use crate::coupling::WMatrix;
+
 pub type Operator = hilbert_space::operator::Operator<Mat<f64>>;
+
+const DERIVATIVE_VANISHING: f64 = 1.;
+const VALUE_VANISHING: f64 = 1e-50;
+
+pub fn vanishing_boundary(r_start: Quantity<Bohr>, direction: Direction, w_matrix: &impl WMatrix) -> Boundary<Operator> {
+    let sign = match direction {
+        Direction::Inwards => -1.,
+        Direction::Outwards => 1.,
+    };
+
+    Boundary {
+        r_start: r_start.value(),
+        direction,
+        value: Operator::new(VALUE_VANISHING * &w_matrix.id().0),
+        derivative: Operator::new(sign * DERIVATIVE_VANISHING * &w_matrix.id().0),
+    }
+}
 
 #[cfg(test)]
 mod tests {

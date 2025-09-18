@@ -1,5 +1,6 @@
 use coupled_chan::{
     Interaction, Operator,
+    constants::units::{Quantity, atomic_units::Gauss},
     coupling::{AngularBlocks, Asymptote, RedCoupling, WMatrix, masked::Masked, pair::Pair},
 };
 use hilbert_space::{
@@ -34,6 +35,14 @@ pub struct AlkaliHomoDiatomParams<T, S> {
 
     pub triplet: T,
     pub singlet: S,
+}
+
+impl<T, S> AlkaliHomoDiatomParams<T, S> {
+    pub fn with_field(&mut self, field: Quantity<Gauss>) -> &mut Self {
+        self.atom.b_field = field;
+
+        self
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -100,7 +109,7 @@ impl AlkaliHomoDiatomBuilder {
         let basis_sep = self.basis_sep.get_filtered_basis(|x| self.filter_sep(x));
         let basis_sep = AngularBasisElements::new_system(basis_sep, &self.system_sep);
 
-        let transformation = |e: BasisElementsRef<'_>, e_sep: BasisElementsRef<'_>| {
+        let transformation = |e_sep: BasisElementsRef<'_>, e: BasisElementsRef<'_>| {
             operator_transform_mel!(
                 dyn e_sep, [self.system_sep.l, self.atom_a.s, self.atom_a.i, self.atom_b.s, self.atom_b.i],
                 dyn e, [self.system.l, self.combined_structure.s, self.combined_structure.i],
@@ -151,6 +160,7 @@ impl AlkaliHomoDiatomBuilder {
         };
 
         AlkaliHomoDiatom {
+            basis,
             atom: structure,
             triplet,
             singlet,
@@ -188,6 +198,7 @@ fn even_spin(s_max: HalfU32, i_max: HalfU32, s_tot: HalfU32, i_tot: HalfU32) -> 
 
 #[derive(Clone, Debug)]
 pub struct AlkaliHomoDiatom {
+    pub basis: AngularBasisElements,
     atom: AtomStructure,
 
     triplet: Operator,

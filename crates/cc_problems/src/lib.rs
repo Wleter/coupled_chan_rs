@@ -6,9 +6,17 @@ pub mod operator_mel;
 pub mod rotor_structure;
 pub mod system_structure;
 pub mod tram_basis;
-pub use coupled_chan;
 
-use coupled_chan::{Operator, coupling::AngularBlocks};
+pub use anyhow;
+pub use coupled_chan;
+pub use hilbert_space;
+pub use math_utils::{linspace, logspace};
+pub use qol_utils;
+pub use rayon;
+use serde::Serialize;
+pub use spin_algebra;
+
+use coupled_chan::{coupling::AngularBlocks, s_matrix::SMatrix, Operator};
 use hilbert_space::{
     cast_variant,
     dyn_space::{BasisElementIndices, BasisElements, BasisElementsRef, BasisId, DynSubspaceElement},
@@ -19,10 +27,17 @@ use crate::system_structure::SystemStructure;
 #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct AngularMomentum(pub u32);
 
+#[derive(Clone)]
 pub struct AngularBasisElements {
     pub full_basis: BasisElements,
     ls: Vec<AngularMomentum>,
     separated_basis_indices: Vec<Vec<BasisElementIndices>>,
+}
+
+impl std::fmt::Debug for AngularBasisElements {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AngularBasisElements").field("full_basis", &self.full_basis).finish()
+    }
 }
 
 impl AngularBasisElements {
@@ -86,6 +101,36 @@ impl AngularBasisElements {
         AngularBlocks {
             l: self.ls.iter().map(|a| a.0).collect(),
             angular_blocks: blocks,
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub struct SMatrixData<T> {
+    parameter: T,
+    s_length_re: f64,
+    s_length_im: f64,
+    elastic_cross_section: f64,
+    tot_inelastic_cross_section: f64,
+    inelastic_cross_sections: Vec<f64>
+}
+
+impl<T> SMatrixData<T> {
+    pub fn new(parameter: T, s_matrix: SMatrix) -> Self {
+        let s_length = s_matrix.get_scattering_length();
+        let elastic_cross_section = s_matrix.get_elastic_cross_sect();
+        let tot_inelastic_cross_section = s_matrix.get_inelastic_cross_sect();
+        let inelastic_cross_sections = (0..s_matrix.s_matrix().nrows())
+            .map(|i| s_matrix.get_inelastic_cross_sect_to(i))
+            .collect();
+
+        Self {
+            parameter,
+            s_length_re: s_length.re,
+            s_length_im: s_length.im,
+            elastic_cross_section,
+            tot_inelastic_cross_section,
+            inelastic_cross_sections,
         }
     }
 }

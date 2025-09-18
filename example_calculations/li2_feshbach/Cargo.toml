@@ -1,0 +1,7 @@
+[package]
+name = "li2_feshbach"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+cc_problems = { workspace = true }

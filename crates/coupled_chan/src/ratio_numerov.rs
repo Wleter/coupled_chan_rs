@@ -396,7 +396,7 @@ pub fn get_wavelength(red_coupling: &Operator) -> f64 {
     2. * PI / max_g_val.abs().sqrt()
 }
 
-pub fn get_s_matrix<W: WMatrix>(sol: &Solution<Ratio<Operator>>, w_matrix: &W) -> SMatrix {
+pub fn get_s_matrix(sol: &Solution<Ratio<Operator>>, w_matrix: & impl WMatrix) -> SMatrix {
     let size = w_matrix.size();
     let r_last = sol.r;
     let r_prev_last = sol.r - sol.dr;

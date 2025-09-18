@@ -14,7 +14,7 @@ pub struct DataSaver<D: Send> {
 }
 
 impl<D: Send + Sync + 'static> DataSaver<D> {
-    pub fn new<F: Format<D> + 'static>(filename: &str, format: F, file_access: FileAccess) -> Result<Self> {
+    pub fn new<F: Format<D> + 'static>(filename: &str, formatter: F, file_access: FileAccess) -> Result<Self> {
         let (tx, rx) = channel();
 
         let mut path = std::env::current_dir()?;
@@ -33,12 +33,12 @@ impl<D: Send + Sync + 'static> DataSaver<D> {
 
         std::thread::spawn(move || {
             let mut writer = BufWriter::new(file);
-            if let Some(header) = format.header() {
+            if let Some(header) = formatter.header() {
                 writeln!(writer, "{header}").unwrap();
             }
 
             for result in rx.iter() {
-                let formatted = format.format_data(&result);
+                let formatted = formatter.format_data(&result);
                 writeln!(writer, "{formatted}").unwrap();
             }
         });

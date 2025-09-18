@@ -1,0 +1,6 @@
+[package]
+name = "srf_rb_feshbach"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
