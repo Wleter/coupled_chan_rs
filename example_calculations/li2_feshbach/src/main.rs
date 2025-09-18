@@ -1,11 +1,29 @@
 use cc_problems::{
-    alkali_homo_diatom::{AlkaliHomoDiatom, AlkaliHomoDiatomBuilder, AlkaliHomoDiatomParams, AlkaliHomoDiatomRecipe}, anyhow::Result, atom_structure::{AtomStructureParams, AtomStructureRecipe}, coupled_chan::{
-        composite_int::CompositeInt, constants::units::{
-            atomic_units::{AuEnergy, AuMass, Bohr, Dalton, Gauss, Kelvin, MHz}, Quantity
-        }, dispersion::Dispersion, propagator::{step_strategy::LocalWavelengthStep, Direction, Propagator}, ratio_numerov::{get_s_matrix, RatioNumerov}, vanishing_boundary, Interaction
-    }, linspace, qol_utils::{
-        problem_selector::{get_args, ProblemSelector}, problems_impl, saving::{DataSaver, FileAccess, JsonFormat}
-    }, spin_algebra::{hi32, hu32}, system_structure::SystemParams, AngularMomentum, SMatrixData
+    AngularMomentum, LevelsData, SMatrixData,
+    alkali_homo_diatom::{AlkaliHomoDiatom, AlkaliHomoDiatomBuilder, AlkaliHomoDiatomParams, AlkaliHomoDiatomRecipe},
+    anyhow::Result,
+    atom_structure::{AtomStructureParams, AtomStructureRecipe},
+    coupled_chan::{
+        Interaction,
+        composite_int::CompositeInt,
+        constants::units::{
+            Quantity,
+            atomic_units::{AuEnergy, AuMass, Bohr, Dalton, Gauss, Kelvin, MHz},
+        },
+        coupling::WMatrix,
+        dispersion::Dispersion,
+        propagator::{Direction, Propagator, step_strategy::LocalWavelengthStep},
+        ratio_numerov::{RatioNumerov, get_s_matrix},
+        vanishing_boundary,
+    },
+    linspace,
+    qol_utils::{
+        problem_selector::{ProblemSelector, get_args},
+        problems_impl,
+        saving::{DataSaver, FileAccess, JsonFormat},
+    },
+    spin_algebra::{hi32, hu32},
+    system_structure::SystemParams,
 };
 
 use cc_problems::rayon::prelude::*;
@@ -17,10 +35,27 @@ fn main() {
 pub struct Problems;
 
 problems_impl!(Problems, "Li2 collision",
-    "Li2 Feshbach" => |_| Self::li2_feshbach()
+    "Li2 Levels" => |_| Self::li2_levels(),
+    "Li2 Feshbach" => |_| Self::li2_feshbach(),
 );
 
 impl Problems {
+    fn li2_levels() -> Result<()> {
+        let li2_problem = li2_problem(li2_recipe());
+        let li2_params = li2_params();
+
+        let mag_fields = linspace(0., 1000., 1001);
+        let saver = DataSaver::new("data/li2_levels.jsonl", JsonFormat, FileAccess::Create)?;
+
+        mag_fields.par_iter().for_each_with(li2_params, |params, &field| {
+            let w_matrix = li2_problem.with_params(params.with_field(Quantity(field, Gauss)));
+
+            saver.send(LevelsData::new(field, w_matrix.asymptote().levels())).unwrap()
+        });
+
+        Ok(())
+    }
+
     fn li2_feshbach() -> Result<()> {
         let li2_problem = li2_problem(li2_recipe());
         let li2_params = li2_params();
@@ -34,7 +69,7 @@ impl Problems {
             let boundary = vanishing_boundary(Quantity(4., Bohr), Direction::Outwards, &w_matrix);
 
             let mut propagator = RatioNumerov::new(&w_matrix, step_strategy.into(), boundary);
-            let solution = propagator.propagate_to(Quantity(500., Bohr).value());
+            let solution = propagator.propagate_to(Quantity(1500., Bohr).value());
             let s_matrix = get_s_matrix(solution, &w_matrix);
 
             saver.send(SMatrixData::new(field, s_matrix)).unwrap()

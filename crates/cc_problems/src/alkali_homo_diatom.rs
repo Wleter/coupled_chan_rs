@@ -9,9 +9,9 @@ use hilbert_space::{
     operator_diag_mel, operator_transform_mel,
 };
 use spin_algebra::{
-    Spin, get_summed_spin_basis,
+    Spin, clebsch_gordan, get_summed_spin_basis,
     half_integer::{HalfI32, HalfU32},
-    hu32, wigner_3j,
+    hu32,
 };
 
 use crate::{
@@ -117,8 +117,8 @@ impl AlkaliHomoDiatomBuilder {
                     [l: AngularMomentum, s_tot: Spin, i_tot: Spin]|
                 {
                     if l == l_sep {
-                        wigner_3j(s_tot.s, s1.s, s2.s, s_tot.m, s1.m, s2.m)
-                            * wigner_3j(i_tot.s, i1.s, i2.s, i_tot.m, i1.m, i2.m)
+                        clebsch_gordan(s1.s, s1.m, s2.s, s2.m, s_tot.s, s_tot.m)
+                            * clebsch_gordan(i1.s, i1.m, i2.s, i2.m, i_tot.s, i_tot.m)
                     } else {
                         0.
                     }

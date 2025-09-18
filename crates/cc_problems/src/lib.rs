@@ -16,7 +16,11 @@ pub use rayon;
 use serde::Serialize;
 pub use spin_algebra;
 
-use coupled_chan::{coupling::AngularBlocks, s_matrix::SMatrix, Operator};
+use coupled_chan::{
+    Operator,
+    coupling::{AngularBlocks, Levels},
+    s_matrix::SMatrix,
+};
 use hilbert_space::{
     cast_variant,
     dyn_space::{BasisElementIndices, BasisElements, BasisElementsRef, BasisId, DynSubspaceElement},
@@ -36,7 +40,9 @@ pub struct AngularBasisElements {
 
 impl std::fmt::Debug for AngularBasisElements {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AngularBasisElements").field("full_basis", &self.full_basis).finish()
+        f.debug_struct("AngularBasisElements")
+            .field("full_basis", &self.full_basis)
+            .finish()
     }
 }
 
@@ -112,7 +118,7 @@ pub struct SMatrixData<T> {
     s_length_im: f64,
     elastic_cross_section: f64,
     tot_inelastic_cross_section: f64,
-    inelastic_cross_sections: Vec<f64>
+    inelastic_cross_sections: Vec<f64>,
 }
 
 impl<T> SMatrixData<T> {
@@ -131,6 +137,21 @@ impl<T> SMatrixData<T> {
             elastic_cross_section,
             tot_inelastic_cross_section,
             inelastic_cross_sections,
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub struct LevelsData<T> {
+    parameter: T,
+    levels: Vec<f64>,
+}
+
+impl<T> LevelsData<T> {
+    pub fn new(parameter: T, levels: &Levels) -> Self {
+        Self {
+            parameter,
+            levels: levels.asymptote.clone(),
         }
     }
 }
