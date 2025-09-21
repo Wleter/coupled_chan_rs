@@ -12,7 +12,7 @@ use propagator::{
     Boundary, Direction, Propagator, Ratio, Solution, propagator_watcher::PropagatorWatcher, step_strategy::StepStrategy,
 };
 
-use crate::{Operator, coupling::WMatrix, s_matrix::SMatrix};
+use crate::{coupling::WMatrix, s_matrix::{SMatrix, SMatrixGetter}, Operator};
 
 // todo! look whether V(r) is evaluated at correct values
 
@@ -396,101 +396,104 @@ pub fn get_wavelength(red_coupling: &Operator) -> f64 {
     2. * PI / max_g_val.abs().sqrt()
 }
 
-pub fn get_s_matrix(sol: &Solution<Ratio<Operator>>, w_matrix: &impl WMatrix) -> SMatrix {
-    let size = w_matrix.size();
-    let r_last = sol.r;
-    let r_prev_last = sol.r - sol.dr;
-
-    let mut f_last = Operator::zeros(size);
-    w_matrix.value_inplace(r_last, &mut f_last);
-    f_last.0 *= sol.dr * sol.dr / 12.;
-    f_last.0 += &w_matrix.id().0;
-
-    let mut f_prev_last = Operator::zeros(size);
-    w_matrix.value_inplace(r_prev_last, &mut f_prev_last);
-    f_prev_last.0 *= sol.dr * sol.dr / 12.;
-    f_prev_last.0 += &w_matrix.id().0;
-
-    let wave_ratio = f_last.0.partial_piv_lu().inverse() * sol.sol.0.0.as_ref() * f_prev_last.0;
-
-    let asymptote = &w_matrix.asymptote();
-    let levels = asymptote.levels();
-
-    let wave_ratio = if let Some(transformation) = asymptote.transformation() {
-        transformation.0.transpose() * wave_ratio * &transformation.0
-    } else {
-        wave_ratio
-    };
-
-    let is_open_channel = levels
-        .asymptote
-        .iter()
-        .map(|&val| val < asymptote.energy)
-        .collect::<Vec<bool>>();
-    let momenta: Vec<f64> = levels
-        .asymptote
-        .iter()
-        .map(|&val| (2.0 * asymptote.red_mass * (asymptote.energy - val).abs()).sqrt())
-        .collect();
-
-    let mut j_last = Mat::zeros(size, size);
-    let mut j_prev_last = Mat::zeros(size, size);
-    let mut n_last = Mat::zeros(size, size);
-    let mut n_prev_last = Mat::zeros(size, size);
-
-    for i in 0..size {
-        let momentum = momenta[i];
-        let l = levels.l[i];
-        if is_open_channel[i] {
-            j_last[(i, i)] = riccati_j(l, momentum * r_last) / momentum.sqrt();
-            j_prev_last[(i, i)] = riccati_j(l, momentum * r_prev_last) / momentum.sqrt();
-            n_last[(i, i)] = riccati_n(l, momentum * r_last) / momentum.sqrt();
-            n_prev_last[(i, i)] = riccati_n(l, momentum * r_prev_last) / momentum.sqrt();
+impl SMatrixGetter for Solution<Ratio<Operator>> {
+    fn get_s_matrix(&self, w_matrix: &impl WMatrix) -> SMatrix {
+        let size = w_matrix.size();
+        let r_last = self.r;
+        let r_prev_last = self.r - self.dr;
+    
+        let mut f_last = Operator::zeros(size);
+        w_matrix.value_inplace(r_last, &mut f_last);
+        f_last.0 *= self.dr * self.dr / 12.;
+        f_last.0 += &w_matrix.id().0;
+    
+        let mut f_prev_last = Operator::zeros(size);
+        w_matrix.value_inplace(r_prev_last, &mut f_prev_last);
+        f_prev_last.0 *= self.dr * self.dr / 12.;
+        f_prev_last.0 += &w_matrix.id().0;
+    
+        let wave_ratio = f_last.0.partial_piv_lu().inverse() * self.sol.0.0.as_ref() * f_prev_last.0;
+    
+        let asymptote = &w_matrix.asymptote();
+        let levels = asymptote.levels();
+    
+        let wave_ratio = if let Some(transformation) = asymptote.transformation() {
+            transformation.0.transpose() * wave_ratio * &transformation.0
         } else {
-            j_last[(i, i)] = ratio_riccati_i(l, momentum * r_last, momentum * r_prev_last);
-            j_prev_last[(i, i)] = 1.0;
-            n_last[(i, i)] = ratio_riccati_k(l, momentum * r_last, momentum * r_prev_last);
-            n_prev_last[(i, i)] = 1.0;
-        }
-    }
-
-    let denominator = (&wave_ratio * n_prev_last - n_last).partial_piv_lu();
-    let denominator = denominator.inverse();
-
-    let k_matrix = -denominator * (wave_ratio * j_prev_last - j_last);
-
-    let open_channel_count = is_open_channel.iter().filter(|val| **val).count();
-    let mut red_ik_matrix = Mat::<c64>::zeros(open_channel_count, open_channel_count);
-
-    let mut i_full = 0;
-    for i in 0..open_channel_count {
-        while !is_open_channel[i_full] {
-            i_full += 1
-        }
-
-        let mut j_full = 0;
-        for j in 0..open_channel_count {
-            while !is_open_channel[j_full] {
-                j_full += 1
+            wave_ratio
+        };
+    
+        let is_open_channel = levels
+            .asymptote
+            .iter()
+            .map(|&val| val < asymptote.energy)
+            .collect::<Vec<bool>>();
+        let momenta: Vec<f64> = levels
+            .asymptote
+            .iter()
+            .map(|&val| (2.0 * asymptote.red_mass * (asymptote.energy - val).abs()).sqrt())
+            .collect();
+    
+        let mut j_last = Mat::zeros(size, size);
+        let mut j_prev_last = Mat::zeros(size, size);
+        let mut n_last = Mat::zeros(size, size);
+        let mut n_prev_last = Mat::zeros(size, size);
+    
+        for i in 0..size {
+            let momentum = momenta[i];
+            let l = levels.l[i];
+            if is_open_channel[i] {
+                j_last[(i, i)] = riccati_j(l, momentum * r_last) / momentum.sqrt();
+                j_prev_last[(i, i)] = riccati_j(l, momentum * r_prev_last) / momentum.sqrt();
+                n_last[(i, i)] = riccati_n(l, momentum * r_last) / momentum.sqrt();
+                n_prev_last[(i, i)] = riccati_n(l, momentum * r_prev_last) / momentum.sqrt();
+            } else {
+                j_last[(i, i)] = ratio_riccati_i(l, momentum * r_last, momentum * r_prev_last);
+                j_prev_last[(i, i)] = 1.0;
+                n_last[(i, i)] = ratio_riccati_k(l, momentum * r_last, momentum * r_prev_last);
+                n_prev_last[(i, i)] = 1.0;
             }
-
-            red_ik_matrix[(i, j)] = c64::new(0.0, k_matrix[(i_full, j_full)]);
-            j_full += 1;
         }
-        i_full += 1;
+    
+        let denominator = (&wave_ratio * n_prev_last - n_last).partial_piv_lu();
+        let denominator = denominator.inverse();
+    
+        let k_matrix = -denominator * (wave_ratio * j_prev_last - j_last);
+    
+        let open_channel_count = is_open_channel.iter().filter(|val| **val).count();
+        let mut red_ik_matrix = Mat::<c64>::zeros(open_channel_count, open_channel_count);
+    
+        let mut i_full = 0;
+        for i in 0..open_channel_count {
+            while !is_open_channel[i_full] {
+                i_full += 1
+            }
+    
+            let mut j_full = 0;
+            for j in 0..open_channel_count {
+                while !is_open_channel[j_full] {
+                    j_full += 1
+                }
+    
+                red_ik_matrix[(i, j)] = c64::new(0.0, k_matrix[(i_full, j_full)]);
+                j_full += 1;
+            }
+            i_full += 1;
+        }
+        let id = Mat::<c64>::identity(open_channel_count, open_channel_count);
+    
+        let denominator = (&id - &red_ik_matrix).partial_piv_lu();
+        let denominator = denominator.inverse();
+        let s_matrix = denominator * (id + red_ik_matrix);
+        let entrance = is_open_channel
+            .iter()
+            .enumerate()
+            .filter(|(_, x)| **x)
+            .find(|(i, _)| *i == asymptote.entrance_level)
+            .expect("Closed entrance channel")
+            .0;
+    
+        SMatrix::new(s_matrix, momenta[asymptote.entrance_level], entrance)
     }
-    let id = Mat::<c64>::identity(open_channel_count, open_channel_count);
-
-    let denominator = (&id - &red_ik_matrix).partial_piv_lu();
-    let denominator = denominator.inverse();
-    let s_matrix = denominator * (id + red_ik_matrix);
-    let entrance = is_open_channel
-        .iter()
-        .enumerate()
-        .filter(|(_, x)| **x)
-        .find(|(i, _)| *i == asymptote.entrance_level)
-        .expect("Closed entrance channel")
-        .0;
-
-    SMatrix::new(s_matrix, momenta[asymptote.entrance_level], entrance)
 }
+

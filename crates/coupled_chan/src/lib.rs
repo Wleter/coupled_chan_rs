@@ -43,13 +43,9 @@ mod tests {
     use single_chan::interaction::{dispersion::lennard_jones, func_potential::FuncPotential};
 
     use crate::{
-        Operator,
-        coupling::{Asymptote, Levels, RedCoupling, VanishingCoupling, diagonal::Diagonal, masked::Masked, pair::Pair},
-        log_derivative::{
-            self,
+        coupling::{diagonal::Diagonal, masked::Masked, pair::Pair, Asymptote, Levels, RedCoupling, VanishingCoupling}, log_derivative::{
             diabatic::{JohnsonLogDerivative, ManolopoulosLogDerivative},
-        },
-        ratio_numerov::{self, RatioNumerov},
+        }, ratio_numerov::RatioNumerov, s_matrix::SMatrixGetter, Operator
     };
 
     pub fn get_red_coupling() -> RedCoupling<impl VanishingCoupling> {
@@ -97,7 +93,7 @@ mod tests {
         let mut numerov = RatioNumerov::new(&red_coupling, LocalWavelengthStep::default().into(), boundary);
 
         let solution = numerov.propagate_to(1500.0);
-        let s_matrix = ratio_numerov::get_s_matrix(solution, &red_coupling);
+        let s_matrix = solution.get_s_matrix(&red_coupling);
 
         assert_approx_eq!(s_matrix.get_scattering_length().re, SCATTERING_LENGTH_RE, 1e-4);
         assert_approx_eq!(s_matrix.get_elastic_cross_sect(), ELASTIC_CROSS_SECTION, 1e-4);
@@ -116,7 +112,7 @@ mod tests {
         let mut propagator = JohnsonLogDerivative::new(&red_coupling, LocalWavelengthStep::default().into(), boundary);
 
         let solution = propagator.propagate_to(1500.0);
-        let s_matrix = log_derivative::get_s_matrix(solution, &red_coupling);
+        let s_matrix = solution.get_s_matrix(&red_coupling);
 
         assert_approx_eq!(s_matrix.get_scattering_length().re, SCATTERING_LENGTH_RE, 1e-4);
         assert_approx_eq!(s_matrix.get_elastic_cross_sect(), ELASTIC_CROSS_SECTION, 1e-4);
@@ -135,7 +131,7 @@ mod tests {
         let mut propagator = ManolopoulosLogDerivative::new(&red_coupling, LocalWavelengthStep::default().into(), boundary);
 
         let solution = propagator.propagate_to(1500.0);
-        let s_matrix = log_derivative::get_s_matrix(solution, &red_coupling);
+        let s_matrix = solution.get_s_matrix(&red_coupling);
 
         assert_approx_eq!(s_matrix.get_scattering_length().re, SCATTERING_LENGTH_RE, 1e-4);
         assert_approx_eq!(s_matrix.get_elastic_cross_sect(), ELASTIC_CROSS_SECTION, 1e-4);

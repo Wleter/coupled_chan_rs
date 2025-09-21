@@ -3,6 +3,12 @@ use std::f64::consts::PI;
 use faer::{Mat, MatRef, c64};
 use num_complex::Complex64;
 
+use crate::coupling::WMatrix;
+
+pub trait SMatrixGetter {
+    fn get_s_matrix(&self, w_matrix: &impl WMatrix) -> SMatrix;
+}
+
 pub struct SMatrix {
     s_matrix: Mat<c64>,
     momentum: f64,

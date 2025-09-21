@@ -75,6 +75,10 @@ impl Operator<faer::Mat<f64>> {
     pub fn transform(&self, transformation: &Self) -> Self {
         Self(&transformation.0 * &self.0 * transformation.0.transpose())
     }
+
+    pub fn transform_rev(&self, transformation: &Self) -> Self {
+        Self(transformation.0.transpose() * &self.0 * &transformation.0)
+    }
 }
 
 impl<M: MatrixLike + AddAssign> AddAssign for Operator<M> {
