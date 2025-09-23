@@ -1,30 +1,13 @@
 use cc_problems::{
-    AngularMomentum, LevelsData, SMatrixData,
-    alkali_homo_diatom::{AlkaliHomoDiatom, AlkaliHomoDiatomBuilder, AlkaliHomoDiatomParams, AlkaliHomoDiatomRecipe},
-    anyhow::Result,
-    atom_structure::{AtomStructureParams, AtomStructureRecipe},
-    coupled_chan::{
-        Interaction,
-        composite_int::CompositeInt,
-        constants::units::{
-            Quantity,
-            atomic_units::{AuEnergy, AuMass, Bohr, Dalton, Gauss, Kelvin, MHz},
-        },
-        coupling::WMatrix,
-        dispersion::Dispersion,
-        propagator::{Direction, Propagator, step_strategy::LocalWavelengthStep},
-        ratio_numerov::RatioNumerov,
-        s_matrix::SMatrixGetter,
-        vanishing_boundary,
-    },
-    linspace,
-    qol_utils::{
-        problem_selector::{ProblemSelector, get_args},
+    alkali_homo_diatom::{AlkaliHomoDiatom, AlkaliHomoDiatomBuilder, AlkaliHomoDiatomParams, AlkaliHomoDiatomRecipe}, anyhow::Result, atom_structure::{AtomStructureParams, AtomStructureRecipe}, coupled_chan::{
+        composite_int::CompositeInt, constants::units::{
+            atomic_units::{AuEnergy, AuMass, Bohr, Dalton, Gauss, Kelvin, MHz}, Quantity
+        }, coupling::WMatrix, dispersion::Dispersion, propagator::{step_strategy::LocalWavelengthStep, Direction, Propagator}, ratio_numerov::RatioNumerov, s_matrix::SMatrixGetter, vanishing_boundary, Interaction
+    }, linspace, qol_utils::{
+        problem_selector::{get_args, ProblemSelector},
         problems_impl,
         saving::{DataSaver, FileAccess, JsonFormat},
-    },
-    spin_algebra::{hi32, hu32},
-    system_structure::SystemParams,
+    }, spin_algebra::{hi32, hu32}, system_structure::SystemParams, AngularMomentum, LevelsData, SMatrixData
 };
 
 use cc_problems::rayon::prelude::*;

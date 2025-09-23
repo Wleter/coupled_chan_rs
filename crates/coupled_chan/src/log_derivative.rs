@@ -14,7 +14,6 @@ impl SMatrixGetter for Solution<LogDeriv<Operator>> {
     fn get_s_matrix(&self, w_matrix: &impl WMatrix) -> SMatrix {
         let size = w_matrix.size();
         let r = self.r;
-        let log_deriv = self.sol.0.as_ref();
 
         let asymptote = &w_matrix.asymptote();
         let levels = asymptote.levels();
@@ -29,6 +28,12 @@ impl SMatrixGetter for Solution<LogDeriv<Operator>> {
             .iter()
             .map(|&val| (2.0 * asymptote.red_mass * (asymptote.energy - val).abs()).sqrt())
             .collect();
+
+        let log_deriv = if let Some(transformation) = asymptote.transformation() {
+            self.sol.0.transform_rev(transformation)
+        } else {
+            self.sol.0.clone()
+        };
 
         let mut j_last = Mat::zeros(size, size);
         let mut j_deriv_last = Mat::zeros(size, size);
@@ -57,10 +62,10 @@ impl SMatrixGetter for Solution<LogDeriv<Operator>> {
             }
         }
 
-        let denominator = (log_deriv * n_last - n_deriv_last).partial_piv_lu();
+        let denominator = (&log_deriv.0 * n_last - n_deriv_last).partial_piv_lu();
         let denominator = denominator.inverse();
 
-        let k_matrix = -denominator * (log_deriv * j_last - j_deriv_last);
+        let k_matrix = -denominator * (log_deriv.0 * j_last - j_deriv_last);
 
         let open_channel_count = is_open_channel.iter().filter(|val| **val).count();
         let mut red_ik_matrix = Mat::<c64>::zeros(open_channel_count, open_channel_count);
