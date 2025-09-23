@@ -941,6 +941,7 @@ name = "li2_feshbach"
 version = "0.1.0"
 dependencies = [
  "cc_problems",
+ "simple_logger",
 ]
 
 [[package]]

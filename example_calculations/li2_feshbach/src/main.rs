@@ -30,6 +30,7 @@ use cc_problems::{
 use cc_problems::rayon::prelude::*;
 
 fn main() {
+    simple_logger::init().unwrap();
     Problems::select(&mut get_args());
 }
 
@@ -45,7 +46,7 @@ impl Problems {
         let li2_problem = li2_problem(li2_recipe());
         let li2_params = li2_params();
 
-        let mag_fields = linspace(0., 1000., 1001);
+        let mag_fields = linspace(0., 1200., 1001);
         let saver = DataSaver::new("data/li2_levels.jsonl", JsonFormat, FileAccess::Create)?;
 
         mag_fields.par_iter().for_each_with(li2_params, |params, &field| {
@@ -61,7 +62,15 @@ impl Problems {
         let li2_problem = li2_problem(li2_recipe());
         let li2_params = li2_params();
 
-        let mag_fields = linspace(0., 1000., 1001);
+        let mag_fields: Vec<f64> = vec![
+            linspace(0., 600., 601),
+            linspace(600.1, 630., 5000),
+            linspace(631., 1200., 570),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+
         let saver = DataSaver::new("data/li2_feshbach.jsonl", JsonFormat, FileAccess::Create)?;
 
         mag_fields.par_iter().for_each_with(li2_params, |params, &field| {
@@ -81,8 +90,8 @@ impl Problems {
 }
 
 pub fn li2_params() -> AlkaliHomoDiatomParams<impl Interaction + Clone, impl Interaction + Clone> {
-    let triplet = CompositeInt::new(vec![Dispersion::new(-1381., -6), Dispersion::new(1.112e7, -12)]);
-    let singlet = CompositeInt::new(vec![Dispersion::new(-1381., -6), Dispersion::new(2.19348e8, -12)]);
+    let singlet = CompositeInt::new(vec![Dispersion::new(-1381., -6), Dispersion::new(1.112e7, -12)]);
+    let triplet = CompositeInt::new(vec![Dispersion::new(-1381., -6), Dispersion::new(2.19348e8, -12)]);
 
     AlkaliHomoDiatomParams {
         atom: AtomStructureParams {

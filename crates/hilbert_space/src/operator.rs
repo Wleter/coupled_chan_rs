@@ -72,10 +72,12 @@ impl Operator<faer::Mat<f64>> {
         Self(faer::Mat::identity(size, size))
     }
 
+    /// Perform U O U^T
     pub fn transform(&self, transformation: &Self) -> Self {
         Self(&transformation.0 * &self.0 * transformation.0.transpose())
     }
 
+    /// Perform U^T O U
     pub fn transform_rev(&self, transformation: &Self) -> Self {
         Self(transformation.0.transpose() * &self.0 * &transformation.0)
     }

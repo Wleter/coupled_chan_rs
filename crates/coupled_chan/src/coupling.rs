@@ -134,6 +134,7 @@ impl Add for AngularBlocks {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Asymptote {
     levels: Levels,
     transformation: Option<Operator>,
@@ -230,6 +231,7 @@ impl Asymptote {
 }
 
 /// Multichannel centrifugal term L^2 / (2 m r^2)
+#[derive(Clone, Debug)]
 pub struct MultiCentrifugal {
     mask: Operator,
     mass: f64,

@@ -212,15 +212,25 @@ impl AlkaliHomoDiatom {
         S: Interaction + Clone,
     {
         let asymptote = self.atom.with_params(&params.atom);
-        let asymptote = Asymptote::new_angular_blocks(
+        // let asymptote = Asymptote::new_angular_blocks(
+        //     params.system.mass,
+        //     params.system.energy,
+        //     asymptote,
+        //     params.system.entrance_channel,
+        // );
+        // let triplet = Masked::new(params.triplet.clone(), self.triplet.clone());
+        // let singlet = Masked::new(params.singlet.clone(), self.singlet.clone());
+
+        let (levels, transf) = asymptote.diagonalized();
+        let asymptote = Asymptote::new_diagonal(
             params.system.mass,
             params.system.energy,
-            asymptote,
+            levels,
             params.system.entrance_channel,
         );
 
-        let triplet = Masked::new(params.triplet.clone(), self.triplet.clone());
-        let singlet = Masked::new(params.singlet.clone(), self.singlet.clone());
+        let triplet = Masked::new(params.triplet.clone(), self.triplet.transform_rev(&transf));
+        let singlet = Masked::new(params.singlet.clone(), self.singlet.transform_rev(&transf));
 
         RedCoupling::new(Pair::new(triplet, singlet), asymptote)
     }
