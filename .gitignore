@@ -1,3 +1,6 @@
 /target
 /data
 /analysis
+__pycache__/
+.venv
+*.egg-info

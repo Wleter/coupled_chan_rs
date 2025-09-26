@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "coupled_chan_py"
+version = "0.1.0"
+authors = [
+  { name = "Wleter", email = "m.wetler@student.uw.edu.pl" }
+]
+description = "Coupled channel calculation package"
+readme = "README.md"
+keywords = ["quantum physics", "coupled channel"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent",
+]
+dependencies = [
+    "numpy>=2.3",
+    "pandas>=2.3",
+    "matplotlib>=3.10",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.4",
+  "coverage",
+  "flake8",
+  # other dev tools
+]
+
+[tool.setuptools]
+# (optional) extra configuration for package data, etc.
