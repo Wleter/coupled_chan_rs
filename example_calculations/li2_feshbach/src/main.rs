@@ -1,13 +1,32 @@
 use cc_problems::{
-    alkali_homo_diatom::{AlkaliHomoDiatom, AlkaliHomoDiatomBuilder, AlkaliHomoDiatomParams, AlkaliHomoDiatomRecipe}, anyhow::Result, atom_structure::{AtomStructureParams, AtomStructureRecipe}, coupled_chan::{
-        composite_int::CompositeInt, constants::units::{
-            atomic_units::{AuEnergy, AuMass, Bohr, Dalton, Gauss, Kelvin, MHz}, Quantity
-        }, coupling::WMatrix, dispersion::Dispersion, propagator::{step_strategy::LocalWavelengthStep, Direction, Propagator}, ratio_numerov::RatioNumerov, s_matrix::SMatrixGetter, vanishing_boundary, Interaction
-    }, linspace, qol_utils::{
-        problem_selector::{get_args, ProblemSelector},
+    AngularMomentum, BoundStateData, LevelsData, SMatrixData,
+    alkali_homo_diatom::{AlkaliHomoDiatom, AlkaliHomoDiatomBuilder, AlkaliHomoDiatomParams, AlkaliHomoDiatomRecipe},
+    anyhow::Result,
+    atom_structure::{AtomStructureParams, AtomStructureRecipe},
+    bound_states::{BoundState, BoundStatesFinder},
+    coupled_chan::{
+        Interaction,
+        composite_int::CompositeInt,
+        constants::units::{
+            Quantity,
+            atomic_units::{AuEnergy, AuMass, Bohr, Dalton, GHz, Gauss, Kelvin, MHz},
+        },
+        coupling::WMatrix,
+        dispersion::Dispersion,
+        log_derivative::diabatic::JohnsonLogDerivative,
+        propagator::{Direction, Propagator, step_strategy::LocalWavelengthStep},
+        ratio_numerov::RatioNumerov,
+        s_matrix::SMatrixGetter,
+        vanishing_boundary,
+    },
+    linspace,
+    qol_utils::{
+        problem_selector::{ProblemSelector, get_args},
         problems_impl,
         saving::{DataSaver, FileAccess, JsonFormat},
-    }, spin_algebra::{hi32, hu32}, system_structure::SystemParams, AngularMomentum, LevelsData, SMatrixData
+    },
+    spin_algebra::{hi32, hu32},
+    system_structure::SystemParams,
 };
 
 use cc_problems::rayon::prelude::*;
@@ -22,6 +41,8 @@ pub struct Problems;
 problems_impl!(Problems, "Li2 collision",
     "Li2 Levels" => |_| Self::li2_levels(),
     "Li2 Feshbach" => |_| Self::li2_feshbach(),
+    "Li2 Bound" => |_| Self::li2_bound(),
+    "Li2 Field" => |_| Self::li2_field(),
 );
 
 impl Problems {
@@ -66,6 +87,91 @@ impl Problems {
             let s_matrix = solution.get_s_matrix(&w_matrix);
 
             saver.send(SMatrixData::new(field, s_matrix)).unwrap()
+        });
+
+        Ok(())
+    }
+
+    fn li2_bound() -> Result<()> {
+        let li2_problem = li2_problem(li2_recipe());
+        let li2_params = li2_params();
+
+        let mag_fields = linspace(0., 1200., 1201);
+        let e_min = Quantity(-12., GHz);
+        let e_max = Quantity(0., GHz);
+        let err = Quantity(1., MHz);
+        let step_strategy = LocalWavelengthStep::new(1e-4, 10., 400.);
+
+        let saver = DataSaver::new("data/li2_bound.jsonl", JsonFormat, FileAccess::Create)?;
+
+        mag_fields.par_iter().for_each_with(li2_params, |params, &field| {
+            params.with_field(Quantity(field, Gauss));
+
+            let bounds = BoundStatesFinder::default()
+                .set_parameter_range(
+                    [e_min.to(AuEnergy).value(), e_max.to(AuEnergy).value()],
+                    err.to(AuEnergy).value(),
+                )
+                .set_problem(|e| {
+                    let mut params = params.clone();
+                    params.system.energy = Quantity(e, AuEnergy);
+
+                    li2_problem.with_params(&params)
+                })
+                .set_r_range([Quantity(4., Bohr), Quantity(20., Bohr), Quantity(1.5e3, Bohr)])
+                .set_propagator(|b, w| JohnsonLogDerivative::new(w, step_strategy.into(), b));
+
+            let bounds: Result<Vec<BoundState>> = bounds.bound_states().collect();
+
+            for b in bounds.unwrap() {
+                let data = BoundStateData::new(field, b);
+                saver.send(data).unwrap()
+            }
+        });
+
+        Ok(())
+    }
+
+    fn li2_field() -> Result<()> {
+        let li2_problem = li2_problem(li2_recipe());
+        let li2_params = li2_params();
+
+        let energies: Vec<f64> = linspace(
+            Quantity(-2., GHz).to(AuEnergy).value().cbrt(),
+            Quantity(0., GHz).to(AuEnergy).value(),
+            101,
+        )
+        .iter()
+        .map(|&x| x.powi(3))
+        .collect();
+
+        let mag_min = 0.;
+        let mag_max = 1200.;
+        let err = 1e-2;
+        let step_strategy = LocalWavelengthStep::new(1e-4, 10., 400.);
+
+        let saver = DataSaver::new("data/li2_field.jsonl", JsonFormat, FileAccess::Create)?;
+
+        energies.par_iter().for_each_with(li2_params, |params, &energy| {
+            params.system.energy = Quantity(energy, AuEnergy);
+
+            let bounds = BoundStatesFinder::default()
+                .set_parameter_range([mag_min, mag_max], err)
+                .set_problem(|f| {
+                    let mut params = params.clone();
+                    params.with_field(Quantity(f, Gauss));
+
+                    li2_problem.with_params(&params)
+                })
+                .set_r_range([Quantity(4., Bohr), Quantity(20., Bohr), Quantity(1.5e3, Bohr)])
+                .set_propagator(|b, w| JohnsonLogDerivative::new(w, step_strategy.into(), b));
+
+            let bounds: Result<Vec<BoundState>> = bounds.bound_states().collect();
+
+            for b in bounds.unwrap() {
+                let data = BoundStateData::new(energy, b);
+                saver.send(data).unwrap()
+            }
         });
 
         Ok(())

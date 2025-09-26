@@ -2,6 +2,7 @@ pub mod alkali_atom_rotor;
 pub mod alkali_diatom;
 pub mod alkali_homo_diatom;
 pub mod atom_structure;
+pub mod bound_states;
 pub mod operator_mel;
 pub mod rotor_structure;
 pub mod system_structure;
@@ -26,7 +27,7 @@ use hilbert_space::{
     dyn_space::{BasisElementIndices, BasisElements, BasisElementsRef, BasisId, DynSubspaceElement},
 };
 
-use crate::system_structure::SystemStructure;
+use crate::{bound_states::BoundState, system_structure::SystemStructure};
 
 #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct AngularMomentum(pub u32);
@@ -152,6 +153,26 @@ impl<T> LevelsData<T> {
         Self {
             parameter,
             levels: levels.asymptote.clone(),
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub struct BoundStateData<T> {
+    parameter: T,
+
+    bound_parameter: f64,
+    nodes: u64,
+    occupations: Option<Vec<f64>>,
+}
+
+impl<T> BoundStateData<T> {
+    pub fn new(parameter: T, bound_state: BoundState) -> Self {
+        Self {
+            parameter,
+            bound_parameter: bound_state.parameter,
+            nodes: bound_state.node,
+            occupations: bound_state.occupations,
         }
     }
 }

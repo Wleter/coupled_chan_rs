@@ -206,7 +206,7 @@ pub struct AlkaliHomoDiatom {
 }
 
 impl AlkaliHomoDiatom {
-    pub fn with_params<T, S>(&self, params: &AlkaliHomoDiatomParams<T, S>) -> impl WMatrix
+    pub fn with_params<T, S>(&self, params: &AlkaliHomoDiatomParams<T, S>) -> impl WMatrix + use<T, S>
     where
         T: Interaction + Clone,
         S: Interaction + Clone,

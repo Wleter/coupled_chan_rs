@@ -51,6 +51,7 @@ impl From<ShortLongRangeStep> for StepStrategy {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct LocalWavelengthStep {
     pub dr_min: f64,
     pub dr_max: f64,
