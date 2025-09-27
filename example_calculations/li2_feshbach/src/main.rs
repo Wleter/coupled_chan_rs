@@ -32,7 +32,6 @@ use cc_problems::{
 use cc_problems::rayon::prelude::*;
 
 fn main() {
-    simple_logger::init().unwrap();
     Problems::select(&mut get_args());
 }
 

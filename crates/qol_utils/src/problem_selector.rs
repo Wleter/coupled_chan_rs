@@ -1,7 +1,6 @@
 use std::collections::VecDeque;
 
 use anyhow::Result;
-use log::{error, info};
 
 /// Gets the arguments from the command line and returns them as a VecDeque
 pub fn get_args() -> VecDeque<String> {
@@ -32,13 +31,13 @@ pub trait ProblemSelector {
                 select(&arg, args, &Self::list());
             }
             None => {
-                info!("");
-                info!("Provide a problem number:");
-                info!("-1: run all problems");
+                println!("");
+                println!("Provide a problem number:");
+                println!("-1: run all problems");
 
                 let problems = Self::list();
                 for (i, (problem, _)) in problems.iter().enumerate() {
-                    info!("{i}: {problem}");
+                    println!("{i}: {problem}");
                 }
 
                 let mut input = String::new();
@@ -56,22 +55,22 @@ fn select(arg: &str, args: &mut VecDeque<String>, method_list: &[(&'static str, 
         let mut args = VecDeque::from(vec!["-1".to_string()]);
 
         for (name, method) in method_list {
-            info!("Selected: {name}");
+            println!("Selected: {name}");
             let result = method(&mut args);
 
             if let Err(err) = result {
-                error!("{err}")
+                println!("{err}")
             }
         }
     } else {
         let arg = arg.parse::<usize>().expect("Selected problem should be a number");
         assert!(arg < method_list.len(), "Selected problem number exceed problem list");
 
-        info!("Selected: {}", method_list[arg].0);
+        println!("Selected: {}", method_list[arg].0);
         let result = method_list[arg].1(args);
 
         if let Err(err) = result {
-            error!("{err}")
+            println!("{err}")
         }
     }
 }
@@ -117,8 +116,6 @@ mod tests {
 
     #[test]
     fn test_problem_selector() {
-        simple_logger::init().unwrap();
-
         assert!(!*CALLED.lock().unwrap());
         TestProblems::select(&mut VecDeque::from_iter(["-1".to_string()]));
         assert!(*CALLED.lock().unwrap());

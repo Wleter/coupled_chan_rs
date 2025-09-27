@@ -1,16 +1,16 @@
 use anyhow::{Result, anyhow};
-use log::info;
 use serde::Serialize;
 use std::{
     fmt::LowerExp,
-    fs::{File, OpenOptions, create_dir_all},
+    fs::{create_dir_all, File, OpenOptions},
     io::{BufWriter, Write},
     path::Path,
-    sync::mpsc::{Sender, channel},
+    sync::mpsc::{channel, Sender}, thread::JoinHandle,
 };
 
 pub struct DataSaver<D: Send> {
-    tx: Sender<D>,
+    tx: Option<Sender<D>>,
+    handle: Option<JoinHandle<Result<()>>>
 }
 
 impl<D: Send + Sync + 'static> DataSaver<D> {
@@ -23,7 +23,7 @@ impl<D: Send + Sync + 'static> DataSaver<D> {
 
         if !Path::new(&filepath).exists() {
             create_dir_all(filepath)?;
-            info!("created path {}", filepath.display());
+            println!("created path {}", filepath.display());
         }
 
         let file = match file_access {
@@ -31,25 +31,40 @@ impl<D: Send + Sync + 'static> DataSaver<D> {
             FileAccess::Create => File::create(&path)?,
         };
 
-        std::thread::spawn(move || {
+        let filepath = path.to_str().unwrap().to_string();
+        let handle = std::thread::spawn(move || {
             let mut writer = BufWriter::new(file);
             if let Some(header) = formatter.header() {
-                writeln!(writer, "{header}").unwrap();
+                writeln!(writer, "{header}")?;
             }
 
             for result in rx.iter() {
                 let formatted = formatter.format_data(&result);
-                writeln!(writer, "{formatted}").unwrap();
+                writeln!(writer, "{formatted}")?;
             }
+
+            println!("Successfully saved {filepath}");
+
+            Ok(())
         });
 
-        Ok(Self { tx })
+        Ok(Self { tx: Some(tx), handle: Some(handle) })
     }
 
     pub fn send(&self, data: D) -> Result<()> {
-        self.tx.send(data)?;
+        self.tx.as_ref().unwrap().send(data)?;
 
         Ok(())
+    }
+}
+
+impl<D: Send> Drop for DataSaver<D> {
+    fn drop(&mut self) {
+        let tx = self.tx.take().unwrap();
+        drop(tx);
+
+        let handle = self.handle.take().unwrap();
+        handle.join().unwrap().unwrap()
     }
 }
 

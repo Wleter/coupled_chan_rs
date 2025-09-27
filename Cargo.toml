@@ -26,13 +26,11 @@ num-complex = "0.4.6"
 num-traits = "0.2.19"
 
 anyhow = "1.0"
-log = "0.4"
-simple_logger = {version = "5.0.0", default-features = false, features = ["colors"]}
 
 serde = { version = "1.0.219", features = ["derive"]}
 serde_json = "1.0.140"
 
-faer = "0.22.6"
+faer = "0.23"
 nalgebra = "0.34"
 ndarray = "0.16.1"
 
