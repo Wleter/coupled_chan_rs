@@ -1,6 +1,7 @@
 from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
-from .results import SMatrixData, LevelsData, BoundStateData
+import numpy as np
+from .results import SMatrixData, LevelsData, BoundStateData, WaveFunction
 from .units import GHZ
 
 def plot_scattering(ax: Axes, data: SMatrixData, plot_im_part: bool = True, x_units: float = 1., y_units: float = 1., **kwargs):
@@ -21,4 +22,10 @@ def plot_levels(ax: Axes, data: LevelsData, x_units: float = 1., y_units: float 
 # todo! add coloring for data with occupations
 def plot_bound_states(ax: Axes, data: BoundStateData, x_units: float = 1., y_units: float = GHZ, **kwargs):
     for b in data:
-        ax.plot(b.parameters() / x_units, b.bound_parameters() / y_units)
+        ax.plot(b.parameters() / x_units, b.bound_parameters() / y_units, **kwargs)
+
+def plot_wave(ax: Axes, data: WaveFunction, x_units: float = 1., **kwargs):
+    ax.plot(data.distances / x_units, data.values * np.sqrt(x_units), **kwargs)
+    
+def plot_wave_sqr(ax: Axes, data: WaveFunction, x_units: float = 1., **kwargs):
+    ax.plot(data.distances / x_units, data.values**2 * x_units, **kwargs)

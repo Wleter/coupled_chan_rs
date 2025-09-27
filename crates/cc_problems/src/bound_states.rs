@@ -2,12 +2,7 @@ use std::mem::swap;
 
 use anyhow::Result;
 use coupled_chan::{
-    Operator,
-    constants::units::{Quantity, atomic_units::Bohr},
-    coupling::WMatrix,
-    log_derivative::diabatic::{DiabaticLogDerivative, LogDerivativeReference},
-    propagator::{Boundary, Direction, NodeCountPropagator, Propagator},
-    vanishing_boundary,
+    constants::units::{atomic_units::Bohr, Quantity}, coupling::WMatrix, log_derivative::diabatic::{DiabaticLogDerivative, LogDerivativeReference, WaveLogDerivStorage}, propagator::{Boundary, Direction, NodeCountPropagator, Propagator}, vanishing_boundary, Operator
 };
 use hilbert_space::faer::{self, Mat};
 use math_utils::brent_root_method;
@@ -39,11 +34,6 @@ impl WaveFunction {
     pub fn reverse(&mut self) {
         self.distances.reverse();
         self.values.reverse();
-    }
-
-    pub fn extend(&mut self, wave: WaveFunction) {
-        self.distances.extend(wave.distances);
-        self.values.extend(wave.values);
     }
 
     pub fn normalize(mut self) -> Self {
@@ -265,6 +255,59 @@ where
                 occupations: None,
             })
         })
+    }
+
+    pub fn bound_wave(&self, bound: &BoundState) -> WaveFunction {
+        let parameter = bound.parameter;
+        let problem = self.prob.as_ref().expect("Did not set problem via set_problem");
+        let r_range = self.r_range.expect("Did not set r_range via set_r_range");
+        let prop = self.prop.as_ref().expect("Did not set propagator via set_propagator");
+
+        let w_matrix = problem(parameter);
+
+        let boundary_out = vanishing_boundary(r_range[0], Direction::Outwards, &w_matrix);
+        let boundary_in = vanishing_boundary(r_range[2], Direction::Inwards, &w_matrix);
+
+        let mut propagator_in = prop(boundary_in, &w_matrix);
+        propagator_in.with_wave_storage(WaveLogDerivStorage::new(true));
+        let sol_in = propagator_in.propagate_to(r_range[1].value());
+
+        let mut propagator_out = prop(boundary_out, &w_matrix);
+        propagator_out.with_wave_storage(WaveLogDerivStorage::new(true));
+        let sol_out = propagator_out.propagate_to(r_range[1].value());
+
+        let matching_matrix = &sol_out.sol.0.0 - &sol_in.sol.0.0;
+
+        let eigen = matching_matrix
+            .self_adjoint_eigen(faer::Side::Lower)
+            .expect("could not diagonalize matching matrix");
+
+        let index = eigen.S().column_vector().iter()
+            .enumerate()
+            .min_by(|x, y| x.1.abs().partial_cmp(&y.1.abs()).unwrap())
+            .unwrap().0;
+
+        let init_wave = eigen.U().col(index);
+
+        let wave_in = propagator_in.wave_storage().as_ref().unwrap().reconstruct(init_wave);
+        let wave_in = WaveFunction {
+            parameter,
+            distances: wave_in.0,
+            values: wave_in.1,
+        };
+
+        let wave_out = propagator_out.wave_storage().as_ref().unwrap().reconstruct(init_wave);
+        let mut wave_out = WaveFunction {
+            parameter,
+            distances: wave_out.0,
+            values: wave_out.1,
+        };
+
+        wave_out.reverse();
+        wave_out.distances.extend(wave_in.distances);
+        wave_out.values.extend(wave_in.values);
+
+        wave_out.normalize()
     }
 
     fn bisection_search(

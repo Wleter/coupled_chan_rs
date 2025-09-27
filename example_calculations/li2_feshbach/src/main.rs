@@ -43,6 +43,7 @@ problems_impl!(Problems, "Li2 collision",
     "Li2 Feshbach" => |_| Self::li2_feshbach(),
     "Li2 Bound" => |_| Self::li2_bound(),
     "Li2 Field" => |_| Self::li2_field(),
+    "Li2 Wave" => |_| Self::li2_wave(),
 );
 
 impl Problems {
@@ -173,6 +174,41 @@ impl Problems {
                 saver.send(data).unwrap()
             }
         });
+
+        Ok(())
+    }
+
+    fn li2_wave() -> Result<()> {
+        let li2_problem = li2_problem(li2_recipe());
+        let mut li2_params = li2_params();
+        li2_params.with_field(Quantity(600., Gauss));
+
+        let e_min = Quantity(-12., GHz);
+        let e_max = Quantity(0., GHz);
+        let err = Quantity(1., MHz);
+        let step_strategy = LocalWavelengthStep::new(1e-4, 10., 400.);
+
+        let saver = DataSaver::new("data/li2_wave_600G.jsonl", JsonFormat, FileAccess::Create)?;
+
+        let bounds = BoundStatesFinder::default()
+            .set_parameter_range(
+                [e_min.to(AuEnergy).value(), e_max.to(AuEnergy).value()],
+                err.to(AuEnergy).value(),
+            )
+            .set_problem(|e| {
+                let mut params = li2_params.clone();
+                params.system.energy = Quantity(e, AuEnergy);
+
+                li2_problem.with_params(&params)
+            })
+            .set_r_range([Quantity(4., Bohr), Quantity(20., Bohr), Quantity(1.5e3, Bohr)])
+            .set_propagator(|b, w| JohnsonLogDerivative::new(w, step_strategy.into(), b));
+
+        for b in bounds.bound_states() {
+            let wave = bounds.bound_wave(&b.unwrap());
+
+            saver.send(wave).unwrap()
+        }
 
         Ok(())
     }

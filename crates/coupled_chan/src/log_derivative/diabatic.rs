@@ -1,11 +1,7 @@
 use std::marker::PhantomData;
 
 use faer::{
-    Accum::Replace,
-    Par::Seq,
-    dyn_stack::MemBuffer,
-    linalg::{matmul::matmul, solvers::DenseSolveCore},
-    unzip, zip,
+    dyn_stack::MemBuffer, linalg::{matmul::matmul, solvers::DenseSolveCore}, unzip, zip, Accum::Replace, ColRef, Par::Seq
 };
 use matrix_utils::faer::{get_ldlt_inverse_buffer, inverse_ldlt_inplace, inverse_ldlt_inplace_nodes};
 use propagator::{
@@ -159,6 +155,14 @@ impl<'a, R: LogDerivativeReference, W: WMatrix> DiabaticLogDerivative<'a, R, W> 
         }
     }
 
+    pub fn with_wave_storage(&mut self, storage: WaveLogDerivStorage) {
+        self.step.wave_storage = Some(storage)
+    }
+
+    pub fn wave_storage(&self) -> &Option<WaveLogDerivStorage> {
+        &self.step.wave_storage
+    }
+
     pub fn add_watcher(&mut self, watcher: &'a mut impl PropagatorWatcher<LogDeriv<Operator>>) {
         if let Some(watchers) = &mut self.watchers {
             watchers.push(watcher)
@@ -242,7 +246,7 @@ struct LogDerivativeStep<R: LogDerivativeReference> {
     reference: PhantomData<R>,
     w_matrix_buffer: Operator,
 
-    wave_reconstruct_buffer: Option<Operator>,
+    wave_storage: Option<WaveLogDerivStorage>,
 }
 
 impl<R: LogDerivativeReference> LogDerivativeStep<R> {
@@ -259,7 +263,7 @@ impl<R: LogDerivativeReference> LogDerivativeStep<R> {
             w_matrix_buffer: Operator::zeros(size),
 
             reference: PhantomData,
-            wave_reconstruct_buffer: None,
+            wave_storage: None,
         }
     }
 
@@ -341,8 +345,8 @@ impl<R: LogDerivativeReference> LogDerivativeStep<R> {
         matmul(self.buffer1.as_mut(), Replace, sol.sol.0.as_ref(), self.buffer2.as_ref(), 1.0, Seq);
         // buffer1 is now (y + y1(a, b))^-1 * y_2(a, b)
 
-        if let Some(wave_reconstruct_buffer) = &mut self.wave_reconstruct_buffer {
-            wave_reconstruct_buffer.copy_from(self.buffer1.as_ref());
+        if let Some(wave_storage) = &mut self.wave_storage {
+            wave_storage.push(sol.r, &self.buffer1)
         }
 
         R::imbedding3(h, &self.w_ref, &mut self.buffer2);
@@ -386,5 +390,61 @@ impl<R: LogDerivativeReference> LogDerivativeStep<R> {
         nodes.0 += nodes_new;
 
         sol.r += sol.dr;
+    }
+}
+
+pub struct WaveLogDerivStorage {
+    distances: Vec<f64>,
+    connections: Vec<Operator>,
+    last_first: bool,
+    max_size_gb: u64,
+}
+
+impl WaveLogDerivStorage {
+    pub fn new(last_first: bool) -> Self {
+        Self {
+            distances: Vec::new(),
+            connections: Vec::new(),
+            last_first,
+            max_size_gb: 8,
+        }
+    }
+
+    pub fn set_max_size(&mut self, max_size_gb: u64) {
+        self.max_size_gb = max_size_gb;
+    }
+
+    pub fn push(&mut self, r: f64, connection: &Operator) {
+        let byte_size = self.connections.len() * 8 * connection.nrows() * connection.ncols();
+
+        if byte_size as u64 > (self.max_size_gb * 1024 * 1024 * 1024) {
+            panic!("Wavefunction size byte size exceeded allowed byte size {} GB", self.max_size_gb)
+        }
+
+        self.distances.push(r);
+        self.connections.push(connection.clone());
+    }
+
+    pub fn reconstruct(&self, wave_init: ColRef<f64>) -> (Vec<f64>, Vec<Vec<f64>>) {
+        let mut values = Vec::with_capacity(self.connections.len());
+        let mut wave_recent = wave_init.cloned();
+
+        let distances = if self.last_first {
+            for c in self.connections.iter().rev() {
+                wave_recent = &c.0 * &wave_recent;
+                values.push(wave_recent.iter().copied().collect())
+            }
+
+            self.distances.iter().rev().copied().collect()
+        } else {
+            for c in self.connections.iter() {
+                wave_recent = &c.0 * &wave_recent;
+                values.push(wave_recent.iter().copied().collect())
+            }
+
+            self.distances.clone()
+        };
+        
+        (distances, values)
     }
 }

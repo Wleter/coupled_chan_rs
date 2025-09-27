@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from .utility import CFG
 import pandas as pd
 import numpy as np
@@ -111,3 +112,46 @@ class BoundStateData:
     
     def __iter__(self):
         return map(lambda node: BoundStateData(self.df[self.nodes() == node]), self.df["nodes"].unique())
+    
+@dataclass
+class WaveFunction:
+    parameter: float
+    distances: npt.NDArray
+    values: npt.NDArray
+
+WAVE_FUNCTION_DATA = {
+    "parameter", 
+    "distances",
+    "values"
+}
+class WaveFunctionData:
+    df: pd.DataFrame
+
+    def __init__(self, df: pd.DataFrame):
+        self.df = df
+
+    @staticmethod
+    def read_json(filename: str) -> 'WaveFunctionData':
+        df = pd.read_json(CFG.DATA_PATH / filename, lines = True, precise_float=True)
+
+        if set(df.columns) != WAVE_FUNCTION_DATA:
+            raise ValueError(f"Expected columns {WAVE_FUNCTION_DATA}, got {set(df.columns)}")
+
+        df = df.sort_values(by="parameter").reset_index(drop=True)
+
+        return WaveFunctionData(df)
+    
+    def parameters(self) -> npt.NDArray:
+        return np.array(list(self.df["parameter"]))
+    
+    def distances(self) -> npt.NDArray:
+        return np.array(list(self.df["distances"]))
+    
+    def values(self) -> npt.NDArray:
+        return np.array(list(self.df["values"]))
+    
+    def __len__(self) -> int:
+        return self.df.shape[0]
+
+    def __iter__(self):
+        return map(lambda i: WaveFunction(self.parameters()[i], self.distances()[i, :], self.values()[i, :]), range(self.df.shape[0]))
