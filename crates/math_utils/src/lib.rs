@@ -131,7 +131,7 @@ macro_rules! assert_approx_eq {
     (iter => $x:expr, $y:expr, $err:expr) => {
         assert_eq!($x.len(), $y.len());
 
-        for (x, y) in $x.iter().zip(&$y) {
+        for (x, y) in $x.iter().zip($y.iter()) {
             assert_approx_eq!(x, y, $err);
         }
     };
