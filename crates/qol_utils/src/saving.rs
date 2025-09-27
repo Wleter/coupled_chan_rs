@@ -60,11 +60,16 @@ impl<D: Send + Sync + 'static> DataSaver<D> {
 
 impl<D: Send> Drop for DataSaver<D> {
     fn drop(&mut self) {
-        let tx = self.tx.take().unwrap();
-        drop(tx);
-
-        let handle = self.handle.take().unwrap();
-        handle.join().unwrap().unwrap()
+        if let Some(tx) = self.tx.take() {
+            drop(tx);
+        };
+        if let Some(handle) = self.handle.take() {
+            match handle.join() {
+                Ok(Ok(())) => {}
+                Ok(Err(e)) => eprintln!("Thread returned error: {e:?}"),
+                Err(e) => eprintln!("Thread join panicked: {e:?}"),
+            }
+        }
     }
 }
 

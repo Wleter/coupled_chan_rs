@@ -59,7 +59,7 @@ fn select(arg: &str, args: &mut VecDeque<String>, method_list: &[(&'static str, 
             let result = method(&mut args);
 
             if let Err(err) = result {
-                println!("{err}")
+                eprintln!("{err}")
             }
         }
     } else {
@@ -70,7 +70,7 @@ fn select(arg: &str, args: &mut VecDeque<String>, method_list: &[(&'static str, 
         let result = method_list[arg].1(args);
 
         if let Err(err) = result {
-            println!("{err}")
+            eprintln!("{err}")
         }
     }
 }
