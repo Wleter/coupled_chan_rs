@@ -1,7 +1,12 @@
 use std::marker::PhantomData;
 
 use faer::{
-    dyn_stack::MemBuffer, linalg::{matmul::matmul, solvers::DenseSolveCore}, unzip, zip, Accum::Replace, ColRef, Par::Seq
+    Accum::Replace,
+    ColRef,
+    Par::Seq,
+    dyn_stack::MemBuffer,
+    linalg::{matmul::matmul, solvers::DenseSolveCore},
+    unzip, zip,
 };
 use matrix_utils::faer::{get_ldlt_inverse_buffer, inverse_ldlt_inplace, inverse_ldlt_inplace_nodes};
 use propagator::{
@@ -418,7 +423,10 @@ impl WaveLogDerivStorage {
         let byte_size = self.connections.len() * 8 * connection.nrows() * connection.ncols();
 
         if byte_size as u64 > (self.max_size_gb * 1024 * 1024 * 1024) {
-            panic!("Wavefunction size byte size exceeded allowed byte size {} GB", self.max_size_gb)
+            panic!(
+                "Wavefunction size byte size exceeded allowed byte size {} GB",
+                self.max_size_gb
+            )
         }
 
         self.distances.push(r);
@@ -444,7 +452,7 @@ impl WaveLogDerivStorage {
 
             self.distances.clone()
         };
-        
+
         (distances, values)
     }
 }

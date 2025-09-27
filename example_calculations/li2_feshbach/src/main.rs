@@ -246,3 +246,72 @@ pub fn li2_recipe() -> AlkaliHomoDiatomRecipe {
         tot_projection: hi32!(0),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use math_utils::assert_approx_eq;
+
+    use super::*;
+
+    /// Truth table for 0 field asymptote.
+    const ASYMPTOTE_0: [f64; 5] = [
+        -4.6243315181781235e-8,
+        -1.1560828795445314e-8,
+        -1.1560828795445304e-8,
+        2.3121657590890608e-8,
+        2.312165759089062e-8,
+    ];
+
+    /// Truth table for 500 field asymptote.
+    const ASYMPTOTE_500: [f64; 5] = [
+        -2.270294714100955e-7,
+        -2.2987368572154435e-8,
+        -1.3428901873619304e-10,
+        2.312165759089062e-8,
+        2.0390781381920488e-7,
+    ];
+
+    /// Truth table for 1000 field asymptote.
+    const ASYMPTOTE_1000: [f64; 5] = [
+        -4.387466353978883e-7,
+        -2.308771464894053e-8,
+        -3.394294195009041e-11,
+        2.312165759089064e-8,
+        4.15624977806998e-7,
+    ];
+
+    #[test]
+    fn test_li2_levels() {
+        let li2_problem = li2_problem(li2_recipe());
+        let mut params = li2_params();
+
+        let w_matrix = li2_problem.with_params(params.with_field(Quantity(0., Gauss)));
+        let levels = w_matrix.asymptote().levels();
+        assert!(levels.l.iter().all(|&x| x == 0));
+
+        assert_approx_eq!(iter => levels.asymptote, ASYMPTOTE_0, 1e-6);
+
+        let w_matrix = li2_problem.with_params(params.with_field(Quantity(500., Gauss)));
+        let levels = w_matrix.asymptote().levels();
+        assert!(levels.l.iter().all(|&x| x == 0));
+
+        println!("{:?}", levels.asymptote);
+        assert_approx_eq!(iter => levels.asymptote, ASYMPTOTE_500, 1e-6);
+
+        let w_matrix = li2_problem.with_params(params.with_field(Quantity(1000., Gauss)));
+        let levels = w_matrix.asymptote().levels();
+        assert!(levels.l.iter().all(|&x| x == 0));
+
+        println!("{:?}", levels.asymptote);
+        assert_approx_eq!(iter => levels.asymptote, ASYMPTOTE_1000, 1e-6);
+    }
+
+    #[test]
+    fn test_li2_scattering() {}
+
+    #[test]
+    fn test_li2_bound() {}
+
+    #[test]
+    fn test_li2_field_bound() {}
+}

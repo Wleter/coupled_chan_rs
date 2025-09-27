@@ -2,15 +2,16 @@ use anyhow::{Result, anyhow};
 use serde::Serialize;
 use std::{
     fmt::LowerExp,
-    fs::{create_dir_all, File, OpenOptions},
+    fs::{File, OpenOptions, create_dir_all},
     io::{BufWriter, Write},
     path::Path,
-    sync::mpsc::{channel, Sender}, thread::JoinHandle,
+    sync::mpsc::{Sender, channel},
+    thread::JoinHandle,
 };
 
 pub struct DataSaver<D: Send> {
     tx: Option<Sender<D>>,
-    handle: Option<JoinHandle<Result<()>>>
+    handle: Option<JoinHandle<Result<()>>>,
 }
 
 impl<D: Send + Sync + 'static> DataSaver<D> {
@@ -48,7 +49,10 @@ impl<D: Send + Sync + 'static> DataSaver<D> {
             Ok(())
         });
 
-        Ok(Self { tx: Some(tx), handle: Some(handle) })
+        Ok(Self {
+            tx: Some(tx),
+            handle: Some(handle),
+        })
     }
 
     pub fn send(&self, data: D) -> Result<()> {

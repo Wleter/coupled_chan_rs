@@ -31,7 +31,7 @@ pub trait ProblemSelector {
                 select(&arg, args, &Self::list());
             }
             None => {
-                println!("");
+                println!();
                 println!("Provide a problem number:");
                 println!("-1: run all problems");
 

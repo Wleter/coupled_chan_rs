@@ -2,7 +2,12 @@ use std::mem::swap;
 
 use anyhow::Result;
 use coupled_chan::{
-    constants::units::{atomic_units::Bohr, Quantity}, coupling::WMatrix, log_derivative::diabatic::{DiabaticLogDerivative, LogDerivativeReference, WaveLogDerivStorage}, propagator::{Boundary, Direction, NodeCountPropagator, Propagator}, vanishing_boundary, Operator
+    Operator,
+    constants::units::{Quantity, atomic_units::Bohr},
+    coupling::WMatrix,
+    log_derivative::diabatic::{DiabaticLogDerivative, LogDerivativeReference, WaveLogDerivStorage},
+    propagator::{Boundary, Direction, NodeCountPropagator, Propagator},
+    vanishing_boundary,
 };
 use hilbert_space::faer::{self, Mat};
 use math_utils::brent_root_method;
@@ -282,10 +287,14 @@ where
             .self_adjoint_eigen(faer::Side::Lower)
             .expect("could not diagonalize matching matrix");
 
-        let index = eigen.S().column_vector().iter()
+        let index = eigen
+            .S()
+            .column_vector()
+            .iter()
             .enumerate()
             .min_by(|x, y| x.1.abs().partial_cmp(&y.1.abs()).unwrap())
-            .unwrap().0;
+            .unwrap()
+            .0;
 
         let init_wave = eigen.U().col(index);
 
