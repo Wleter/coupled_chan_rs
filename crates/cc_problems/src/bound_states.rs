@@ -81,8 +81,8 @@ impl WaveFunction {
 
 #[derive(Debug, Default, Clone, Copy)]
 pub enum NodeMonotony {
-    #[default]
     Decreasing,
+    #[default]
     Increasing,
 }
 
@@ -264,8 +264,8 @@ where
         mismatch_node[states_no] = Some(upper_mismatch);
 
         let nodes: Vec<u64> = match self.node_monotony {
-            NodeMonotony::Decreasing => (lower_node..upper_node).collect(),
-            NodeMonotony::Increasing => (lower_node..upper_node).rev().collect(),
+            NodeMonotony::Increasing => (lower_node..upper_node).collect(),
+            NodeMonotony::Decreasing => (lower_node..upper_node).rev().collect(),
         };
 
         nodes.into_iter().map(move |target_node| {
