@@ -202,7 +202,7 @@ impl<U: Unit, V: Unit> Div<Quantity<V>> for Quantity<U> {
     type Output = Quantity<Frac<U, V>>;
 
     fn div(self, rhs: Quantity<V>) -> Self::Output {
-        Quantity(self.0 * rhs.0, Frac(self.1, rhs.1))
+        Quantity(self.0 / rhs.0, Frac(self.1, rhs.1))
     }
 }
 
