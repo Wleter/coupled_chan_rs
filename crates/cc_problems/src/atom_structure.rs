@@ -1,13 +1,9 @@
 use coupled_chan::{
-    Operator,
     constants::{
-        BOHR_MAG, G_FACTOR,
         units::{
-            Quantity,
-            atomic_units::{AuEnergy, Gauss},
-        },
-    },
-    coupling::AngularBlocks,
+            atomic_units::{AuEnergy, Gauss}, Frac, Quantity
+        }, BOHR_MAG, G_FACTOR
+    }, coupling::AngularBlocks, Operator
 };
 use hilbert_space::{
     dyn_space::{BasisElementsRef, BasisId, SpaceBasis, SubspaceBasis},
@@ -86,8 +82,8 @@ impl AtomStructure {
 
 #[derive(Clone, Copy, Debug)]
 pub struct AtomStructureParams {
-    pub gamma_e: Quantity<AuEnergy>,
-    pub gamma_n: Quantity<AuEnergy>,
+    pub gamma_e: Quantity<Frac<AuEnergy, Gauss>>,
+    pub gamma_n: Quantity<Frac<AuEnergy, Gauss>>,
     pub a_hifi: Quantity<AuEnergy>,
     pub b_field: Quantity<Gauss>,
 }
@@ -95,7 +91,7 @@ pub struct AtomStructureParams {
 impl Default for AtomStructureParams {
     fn default() -> Self {
         Self {
-            gamma_e: Quantity(-G_FACTOR * BOHR_MAG, AuEnergy),
+            gamma_e: -G_FACTOR * BOHR_MAG,
             gamma_n: Default::default(),
             a_hifi: Default::default(),
             b_field: Default::default(),
