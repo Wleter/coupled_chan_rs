@@ -98,6 +98,13 @@ impl Default for BoundMethod {
     }
 }
 
+#[derive(Clone, Debug, Copy)]
+pub enum NodeRangeConfig {
+    Range(u64, u64),
+    BottomRange(u64),
+    TopRange(u64),
+}
+
 pub type Prop<'a, W, L> = Box<dyn for<'w> Fn(Boundary<Operator>, &'w W) -> DiabaticLogDerivative<'w, L, W> + 'a>;
 
 // todo! currently works only with DiabaticLogDerivative, make it work for all
@@ -111,7 +118,7 @@ where
 
     parameter_range: Option<[f64; 2]>,
     parameter_err: Option<f64>,
-    node_range: Option<[u64; 2]>,
+    node_range: Option<NodeRangeConfig>,
 
     r_range: Option<[Quantity<Bohr>; 3]>,
 
@@ -179,13 +186,16 @@ where
         self
     }
 
-    pub fn set_node_range(mut self, node_range: [u64; 2]) -> Self {
-        assert!(node_range[0] <= node_range[1], "Invalid nodes range");
+    pub fn set_node_range(mut self, node_range: NodeRangeConfig) -> Self {
+        if let NodeRangeConfig::Range(a, b) = node_range {
+            assert!(a <= b, "Invalid nodes range");
+        }
+
         self.node_range = Some(node_range);
         self
     }
 
-    fn bound_mismatch(&self, parameter: f64) -> BoundMismatch {
+    pub fn bound_mismatch(&self, parameter: f64) -> BoundMismatch {
         let problem = self.prob.as_ref().expect("Did not set problem via set_problem");
         let r_range = self.r_range.expect("Did not set r_range via set_r_range");
         let prop = self.prop.as_ref().expect("Did not set propagator via set_propagator");
@@ -234,8 +244,18 @@ where
         let mut lower_node = lower_mismatch.nodes;
 
         if let Some(nodes_range) = self.node_range {
-            upper_node = upper_node.min(nodes_range[1]);
-            lower_node = lower_node.max(nodes_range[0]);
+            match nodes_range {
+                NodeRangeConfig::Range(a, b) => {
+                    lower_node = lower_node.max(a);
+                    upper_node = upper_node.min(b + 1);
+                },
+                NodeRangeConfig::BottomRange(a) => {
+                    upper_node = upper_node.min(lower_node + a)
+                },
+                NodeRangeConfig::TopRange(a) => {
+                    lower_node = lower_node.max(if a < upper_node { upper_node - a } else { 0 })
+                },
+            }
         }
         let states_no = (upper_node - lower_node) as usize;
 
@@ -353,8 +373,10 @@ where
 
             let mid_mismatch = self.bound_mismatch(field_mid);
 
-            let index = if let Some(node_range) = self.node_range {
-                (mid_mismatch.nodes.clamp(node_range[0], node_range[1]) - index_offset) as usize
+            let index = if mid_mismatch.nodes <= index_offset {
+                0
+            } else if mid_mismatch.nodes >= index_offset + mismatch_node.len() as u64 {
+                mismatch_node.len() - 1
             } else {
                 (mid_mismatch.nodes - index_offset) as usize
             };
@@ -418,8 +440,10 @@ where
 
             let mid_mismatch = self.bound_mismatch(field_mid);
 
-            let index = if let Some(node_range) = self.node_range {
-                (mid_mismatch.nodes.clamp(node_range[0], node_range[1]) - index_offset) as usize
+            let index = if mid_mismatch.nodes <= index_offset {
+                0
+            } else if mid_mismatch.nodes >= index_offset + mismatch_node.len() as u64 {
+                mismatch_node.len() - 1
             } else {
                 (mid_mismatch.nodes - index_offset) as usize
             };
