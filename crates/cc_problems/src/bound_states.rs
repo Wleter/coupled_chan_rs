@@ -99,7 +99,7 @@ impl Default for BoundMethod {
 }
 
 #[derive(Clone, Debug, Copy)]
-pub enum NodeRangeConfig {
+pub enum NodeRangeTarget {
     Range(u64, u64),
     BottomRange(u64),
     TopRange(u64),
@@ -118,7 +118,7 @@ where
 
     parameter_range: Option<[f64; 2]>,
     parameter_err: Option<f64>,
-    node_range: Option<NodeRangeConfig>,
+    node_range: Option<NodeRangeTarget>,
 
     r_range: Option<[Quantity<Bohr>; 3]>,
 
@@ -186,8 +186,8 @@ where
         self
     }
 
-    pub fn set_node_range(mut self, node_range: NodeRangeConfig) -> Self {
-        if let NodeRangeConfig::Range(a, b) = node_range {
+    pub fn set_node_range(mut self, node_range: NodeRangeTarget) -> Self {
+        if let NodeRangeTarget::Range(a, b) = node_range {
             assert!(a <= b, "Invalid nodes range");
         }
 
@@ -245,14 +245,14 @@ where
 
         if let Some(nodes_range) = self.node_range {
             match nodes_range {
-                NodeRangeConfig::Range(a, b) => {
+                NodeRangeTarget::Range(a, b) => {
                     lower_node = lower_node.max(a);
                     upper_node = upper_node.min(b + 1);
                 },
-                NodeRangeConfig::BottomRange(a) => {
+                NodeRangeTarget::BottomRange(a) => {
                     upper_node = upper_node.min(lower_node + a)
                 },
-                NodeRangeConfig::TopRange(a) => {
+                NodeRangeTarget::TopRange(a) => {
                     lower_node = lower_node.max(if a < upper_node { upper_node - a } else { 0 })
                 },
             }
