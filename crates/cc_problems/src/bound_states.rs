@@ -248,13 +248,9 @@ where
                 NodeRangeTarget::Range(a, b) => {
                     lower_node = lower_node.max(a);
                     upper_node = upper_node.min(b + 1);
-                },
-                NodeRangeTarget::BottomRange(a) => {
-                    upper_node = upper_node.min(lower_node + a)
-                },
-                NodeRangeTarget::TopRange(a) => {
-                    lower_node = lower_node.max(if a < upper_node { upper_node - a } else { 0 })
-                },
+                }
+                NodeRangeTarget::BottomRange(a) => upper_node = upper_node.min(lower_node + a),
+                NodeRangeTarget::TopRange(a) => lower_node = lower_node.max(upper_node.saturating_sub(a)),
             }
         }
         let states_no = (upper_node - lower_node) as usize;

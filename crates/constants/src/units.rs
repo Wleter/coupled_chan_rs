@@ -13,7 +13,7 @@ pub trait Unit: Copy + Default {
     const TO_BASE: f64;
 }
 
-/// Implements unit group 
+/// Implements unit group
 /// # Syntax
 /// - `impl_unit_group!($unit: ty, $base_unit: ty, $to_base: f64)`
 #[macro_export]
@@ -208,11 +208,10 @@ impl<U: Unit, V: Unit> Div<Quantity<V>> for Quantity<U> {
 
 #[cfg(test)]
 mod tests {
-    use crate::units::{Unit, Quantity, atomic_units::*};
+    use crate::units::{Quantity, Unit, atomic_units::*};
 
     #[test]
     fn test_units() {
-
         let one_kelvin = Quantity(1., Kelvin);
         let two_kelvin = Quantity(2., Kelvin);
 
@@ -237,7 +236,7 @@ mod tests {
 
         let quantity_angstrom = quantity.to(GHz * Gauss / Angstrom);
         assert_eq!(quantity_angstrom.value(), quantity.value() * Angstrom::TO_BASE);
-        
+
         let quantity = quantity_angstrom.to(Kelvin * Gauss / Angstrom);
         assert_eq!(quantity_angstrom.value(), quantity.value() * Kelvin::TO_BASE / GHz::TO_BASE);
     }

@@ -194,10 +194,10 @@ impl<'a, R: LogDerivativeReference, W: WMatrix> DiabaticLogDerivative<'a, R, W> 
         let dr_new = self.step_strat.get_step(self.solution.r, wavelength);
         self.solution.dr = dr_new.clamp(0., 2. * self.solution.dr.abs()) * self.solution.dr.signum();
 
-        if let Some(r) = r {
-            if (self.solution.r - r).abs() < self.solution.dr.abs() {
-                self.solution.dr *= ((self.solution.r - r) / self.solution.dr).abs()
-            }
+        if let Some(r) = r
+            && (self.solution.r - r).abs() < self.solution.dr.abs()
+        {
+            self.solution.dr *= ((self.solution.r - r) / self.solution.dr).abs()
         }
 
         self.step.perform_step(&mut self.solution, &mut self.nodes, self.w_matrix);

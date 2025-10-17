@@ -1,9 +1,13 @@
 use coupled_chan::{
+    Operator,
     constants::{
+        BOHR_MAG, G_FACTOR,
         units::{
-            atomic_units::{AuEnergy, Gauss}, Frac, Quantity
-        }, BOHR_MAG, G_FACTOR
-    }, coupling::AngularBlocks, Operator
+            Frac, Quantity,
+            atomic_units::{AuEnergy, Gauss},
+        },
+    },
+    coupling::AngularBlocks,
 };
 use hilbert_space::{
     dyn_space::{BasisElementsRef, BasisId, SpaceBasis, SubspaceBasis},

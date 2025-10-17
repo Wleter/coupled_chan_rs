@@ -79,7 +79,7 @@ impl AlkaliHomoDiatomBuilder {
         let atom_b = AtomStructureBuilder::new(recipe.atom, &mut basis_sep);
         let system_sep = SystemStructure::new(recipe.l_max, &mut basis_sep);
 
-        let parity = if (recipe.atom.s + recipe.atom.i).double_value() % 2 == 0 {
+        let parity = if (recipe.atom.s + recipe.atom.i).double_value().is_multiple_of(2) {
             Parity::Even
         } else {
             Parity::Odd
