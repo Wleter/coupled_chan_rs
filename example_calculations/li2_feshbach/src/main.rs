@@ -478,7 +478,6 @@ mod tests {
                 b
             })
             .collect();
-        println!("{bound_states:?}");
 
         assert_eq!(bound_states.len(), 2);
         assert_eq!(bound_states[0].node, bound_states_60[0].node);
