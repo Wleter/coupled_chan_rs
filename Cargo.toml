@@ -1,18 +1,22 @@
 [workspace]
 members = [ 
+    "benches", 
+
     "crates/math_utils", 
     "crates/qol_utils", 
     "crates/constants", 
     "crates/hilbert_space", 
     "crates/matrix_utils", 
-    "benches", 
     "crates/spin_algebra", 
     "crates/single_chan", 
     "crates/propagator", 
     "crates/coupled_chan", 
     "crates/cc_problems", 
+
     "example_calculations/li2_feshbach",
-    "example_calculations/srf_rb_feshbach"]
+    "example_calculations/srf_rb_feshbach", 
+    "example_calculations/atom_rotor",
+]
 resolver = "3"
 
 [workspace.package]

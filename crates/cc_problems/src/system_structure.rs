@@ -43,3 +43,9 @@ impl Default for SystemParams {
         }
     }
 }
+
+impl SystemParams {
+    pub fn red_masses(masses: &[Quantity<AuMass>]) -> Quantity<AuMass> {
+        Quantity(1. / masses.iter().fold(0., |acc, x| acc + 1. / x.value()), AuMass)
+    }
+}

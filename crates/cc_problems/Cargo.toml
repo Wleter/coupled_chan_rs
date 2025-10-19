@@ -14,4 +14,6 @@ serde_json = {workspace = true}
 
 qol_utils = { path = "../qol_utils" }
 math_utils = {path = "../math_utils"}
+
 rayon = {workspace = true}
+indicatif = {version = "0.18", features = ["rayon"]}

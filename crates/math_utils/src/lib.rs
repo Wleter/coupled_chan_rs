@@ -3,6 +3,9 @@ use std::{error::Error, fmt::Display};
 pub mod bessel;
 pub mod legendre;
 
+#[cfg(feature = "faer")]
+pub mod interpolations;
+
 /// Creates evenly spaced grid of points [start, end] (including) with n points.
 pub fn linspace(start: f64, end: f64, n: usize) -> Vec<f64> {
     if n == 1 {

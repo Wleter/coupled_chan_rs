@@ -1,5 +1,6 @@
 use coupled_chan::{
     Interaction, Operator,
+    constants::units::{Gauss, Quantity},
     coupling::{Asymptote, RedCoupling, WMatrix, composite::Composite, masked::Masked, pair::Pair},
 };
 use hilbert_space::{
@@ -43,6 +44,16 @@ pub struct AlkaliAtomRotorTRAMParams<S: Interaction, T: Interaction> {
     pub triplet: Interaction2D<T>,
 }
 
+impl<S: Interaction, T: Interaction> AlkaliAtomRotorTRAMParams<S, T> {
+    pub fn with_field(&mut self, field: Quantity<Gauss>) -> &mut Self {
+        self.atom_a.b_field = field;
+        self.atom_b.b_field = field;
+        self.atom_c.b_field = field;
+
+        self
+    }
+}
+
 /// Builder for alkali atom-rotor problem A + B-C,
 /// where A, B are alkali-like
 #[derive(Clone, Debug)]
@@ -58,11 +69,13 @@ pub struct AlkaliAtomRotorTRAMBuilder {
     basis: SpaceBasis,
 }
 
+const ALKALI_SPINS: &str = "Expected alkali problem with s_a = 1/2, s_b = 1/2, s_c = 0";
+
 impl AlkaliAtomRotorTRAMBuilder {
     pub fn new(recipe: AlkaliAtomRotorTRAMRecipe) -> Self {
-        assert!(recipe.atom_a.s == hu32!(1 / 2));
-        assert!(recipe.atom_b.s == hu32!(1 / 2));
-        assert!(recipe.atom_c.s == hu32!(0));
+        assert!(recipe.atom_a.s == hu32!(1 / 2), "{ALKALI_SPINS}");
+        assert!(recipe.atom_b.s == hu32!(1 / 2), "{ALKALI_SPINS}");
+        assert!(recipe.atom_c.s == hu32!(0), "{ALKALI_SPINS}");
 
         let mut basis = SpaceBasis::default();
         let atom_a = AtomStructureBuilder::new(recipe.atom_a, &mut basis);
@@ -99,7 +112,7 @@ impl AlkaliAtomRotorTRAMBuilder {
                     ),
                 )
             })
-            .filter(|a| a.1.0 == zeros.0)
+            .filter(|a| a.1.0 != zeros.0)
             .collect();
 
         let singlet = (0..=self.anisotropy_lambda_max)
@@ -115,7 +128,7 @@ impl AlkaliAtomRotorTRAMBuilder {
                     ),
                 )
             })
-            .filter(|a| a.1.0 == zeros.0)
+            .filter(|a| a.1.0 != zeros.0)
             .collect();
 
         AlkaliAtomRotorTRAM {

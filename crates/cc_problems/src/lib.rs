@@ -4,6 +4,8 @@ pub mod alkali_homo_diatom;
 pub mod atom_structure;
 pub mod bound_states;
 pub mod operator_mel;
+pub mod prelude;
+pub mod problems;
 pub mod rotor_structure;
 pub mod system_structure;
 pub mod tram_basis;

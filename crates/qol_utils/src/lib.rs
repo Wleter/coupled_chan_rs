@@ -1,4 +1,5 @@
 pub mod params;
+pub mod potential_loader;
 pub mod problem_selector;
 pub mod saving;
 
