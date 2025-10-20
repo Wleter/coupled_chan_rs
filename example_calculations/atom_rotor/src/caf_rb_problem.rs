@@ -41,7 +41,7 @@ impl CaFRbProblem {
                 let solution = propagator.propagate_to(Quantity(1.5e3, Bohr).value());
                 let s_matrix = solution.get_s_matrix(&w_matrix);
 
-                saver.send(SMatrixData::new(field, s_matrix)).unwrap()
+                saver.send(SMatrixData::new(field, s_matrix))
             });
 
         Ok(())
@@ -68,7 +68,7 @@ impl CaFRbProblem {
                 let solution = propagator.propagate_to(Quantity(1.5e3, Bohr).value());
                 let s_matrix = solution.get_s_matrix(&w_matrix);
 
-                saver.send(SMatrixData::new(field, s_matrix)).unwrap()
+                saver.send(SMatrixData::new(field, s_matrix))
             });
 
         Ok(())

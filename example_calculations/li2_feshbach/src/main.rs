@@ -56,7 +56,7 @@ impl Problems {
         mag_fields.par_iter().for_each_with(li2_params, |params, &field| {
             let w_matrix = li2_problem.with_params(params.with_field(Quantity(field, Gauss)));
 
-            saver.send(LevelsData::new(field, w_matrix.asymptote().levels())).unwrap()
+            saver.send(LevelsData::new(field, w_matrix.asymptote().levels()))
         });
 
         Ok(())
@@ -86,7 +86,7 @@ impl Problems {
             let solution = propagator.propagate_to(Quantity(1500., Bohr).value());
             let s_matrix = solution.get_s_matrix(&w_matrix);
 
-            saver.send(SMatrixData::new(field, s_matrix)).unwrap()
+            saver.send(SMatrixData::new(field, s_matrix))
         });
 
         Ok(())
@@ -125,7 +125,7 @@ impl Problems {
 
             for b in bounds.unwrap() {
                 let data = BoundStateData::new(field, b);
-                saver.send(data).unwrap()
+                saver.send(data)
             }
         });
 
@@ -170,7 +170,7 @@ impl Problems {
 
             for b in bounds.unwrap() {
                 let data = BoundStateData::new(energy, b);
-                saver.send(data).unwrap()
+                saver.send(data)
             }
         });
 
@@ -206,7 +206,7 @@ impl Problems {
         for b in bounds.bound_states() {
             let wave = bounds.bound_wave(&b.unwrap());
 
-            saver.send(wave).unwrap()
+            saver.send(wave)
         }
 
         Ok(())

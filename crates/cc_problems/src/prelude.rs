@@ -1,10 +1,10 @@
+pub use anyhow::Result;
 pub use indicatif::{ParallelProgressIterator, ProgressIterator, ProgressStyle};
 pub use math_utils::{linspace, logspace};
 pub use rayon::prelude::*;
 
 pub use crate::{
     BoundStateData, LevelsData, SMatrixData,
-    anyhow::Result,
     bound_states::{BoundState, BoundStatesFinder, NodeMonotony, NodeRangeTarget, WaveFunction},
     coupled_chan::{
         Interaction,
@@ -18,6 +18,7 @@ pub use crate::{
     },
     problems::*,
     qol_utils::{
+        problem_selector::{ProblemSelector, get_args},
         problems_impl,
         saving::{DatFormat, DataSaver, FileAccess, JsonFormat},
     },

@@ -55,10 +55,8 @@ impl<D: Send + Sync + 'static> DataSaver<D> {
         })
     }
 
-    pub fn send(&self, data: D) -> Result<()> {
-        self.tx.as_ref().unwrap().send(data)?;
-
-        Ok(())
+    pub fn send(&self, data: D) {
+        self.tx.as_ref().unwrap().send(data).unwrap();
     }
 }
 
@@ -110,19 +108,38 @@ impl DatFormat {
     }
 }
 
-impl<D: LowerExp> Format<[D]> for DatFormat {
+impl<D: LowerExp> Format<Vec<D>> for DatFormat {
     fn header(&self) -> Option<&str> {
         Some(&self.header)
     }
 
-    fn format_data(&self, data: &[D]) -> String {
+    fn format_data(&self, data: &Vec<D>) -> String {
         use std::fmt::Write;
 
         let mut out = String::new();
         for x in data {
-            // write! avoids intermediate String creation from format!
             write!(out, "{x:e},").unwrap();
         }
+        out.pop();
+
+        out
+    }
+}
+
+impl<D: LowerExp, const N: usize> Format<[D; N]> for DatFormat {
+    fn header(&self) -> Option<&str> {
+        Some(&self.header)
+    }
+
+    fn format_data(&self, data: &[D; N]) -> String {
+        use std::fmt::Write;
+
+        let mut out = String::new();
+        for x in data {
+            write!(out, "{x:e},").unwrap();
+        }
+        out.pop();
+
         out
     }
 }
@@ -137,8 +154,7 @@ impl<D: LowerExp> Format<(D, Vec<D>)> for DatFormat {
 
         let mut out = format!("{:e}", data.0);
         for x in &data.1 {
-            // write! avoids intermediate String creation from format!
-            write!(out, "{x:e},").unwrap();
+            write!(out, ",{x:e}").unwrap();
         }
         out
     }

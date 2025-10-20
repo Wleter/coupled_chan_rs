@@ -129,9 +129,7 @@ impl<T> SMatrixData<T> {
         let s_length = s_matrix.get_scattering_length();
         let elastic_cross_section = s_matrix.get_elastic_cross_sect();
         let tot_inelastic_cross_section = s_matrix.get_inelastic_cross_sect();
-        let inelastic_cross_sections = (0..s_matrix.s_matrix().nrows())
-            .map(|i| s_matrix.get_inelastic_cross_sect_to(i))
-            .collect();
+        let inelastic_cross_sections = s_matrix.get_inelastic_cross_sects();
 
         Self {
             parameter,

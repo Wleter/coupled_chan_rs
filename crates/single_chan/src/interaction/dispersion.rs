@@ -14,9 +14,6 @@ pub struct Dispersion {
 
 impl Dispersion {
     pub fn new(d0: f64, n: i32) -> Self {
-        assert!(n != -2, "For centrifugal term use `centrifugal_barier` function");
-        assert!(n < -2, "Only vanishing terms are permissible");
-
         Self { d0, n }
     }
 }

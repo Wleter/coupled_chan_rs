@@ -40,6 +40,14 @@ macro_rules! impl_unit_group {
                 $crate::units::Frac(self, rhs)
             }
         }
+
+        impl std::ops::Mul<$unit> for f64 {
+            type Output = $crate::units::Quantity<$unit>;
+
+            fn mul(self, rhs: $unit) -> Self::Output {
+                $crate::units::Quantity(self, rhs)
+            }
+        }
     };
 }
 

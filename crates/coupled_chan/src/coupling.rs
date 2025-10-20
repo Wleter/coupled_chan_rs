@@ -228,6 +228,10 @@ impl Asymptote {
     pub fn transformation(&self) -> &Option<Operator> {
         &self.transformation
     }
+
+    pub fn set_energy(&mut self, energy: Quantity<AuEnergy>) {
+        self.energy = self.levels.asymptote[self.entrance_level] + energy.value();
+    }
 }
 
 /// Multichannel centrifugal term L^2 / (2 m r^2)
@@ -266,6 +270,7 @@ pub trait WMatrix {
     fn asymptote(&self) -> &Asymptote;
 }
 
+#[derive(Clone)]
 pub struct RedCoupling<P: VanishingCoupling> {
     pub coupling: P,
     pub asymptote: Asymptote,

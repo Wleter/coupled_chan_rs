@@ -51,4 +51,10 @@ impl SMatrix {
 
         PI / self.momentum.powi(2) * s_element.norm_sqr()
     }
+
+    pub fn get_inelastic_cross_sects(&self) -> Vec<f64> {
+        (0..self.s_matrix.nrows())
+            .map(|i| self.get_inelastic_cross_sect_to(i))
+            .collect()
+    }
 }

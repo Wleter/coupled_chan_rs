@@ -434,6 +434,10 @@ where
         {
             let field_mid = (upper_bound.parameter + lower_bound.parameter) / 2.;
 
+            if (upper_bound.parameter - lower_bound.parameter).abs() < p_err.abs() {
+                return Ok(field_mid);
+            }
+
             let mid_mismatch = self.bound_mismatch(field_mid);
 
             let index = if mid_mismatch.nodes <= index_offset {
