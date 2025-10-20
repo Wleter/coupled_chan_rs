@@ -7,11 +7,11 @@ use hilbert_space::dyn_space::{BasisId, SpaceBasis, SubspaceBasis};
 use crate::AngularMomentum;
 
 #[derive(Clone, Debug)]
-pub struct SystemStructure {
+pub struct AngularBasis {
     pub l: BasisId,
 }
 
-impl SystemStructure {
+impl AngularBasis {
     pub fn new_single(l: AngularMomentum, space_basis: &mut SpaceBasis) -> Self {
         let l = space_basis.push_subspace(SubspaceBasis::new(vec![l]));
 

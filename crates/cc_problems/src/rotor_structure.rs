@@ -1,20 +1,19 @@
 use coupled_chan::{
-    Interaction, Operator,
-    constants::units::{Quantity, atomic_units::AuEnergy},
+    constants::units::{atomic_units::AuEnergy, Quantity}, coupling::AngularBlocks, Interaction, Operator
 };
 use hilbert_space::{
     dyn_space::{BasisElementsRef, BasisId, SpaceBasis, SubspaceBasis},
     operator_diag_mel,
 };
 
-use crate::AngularMomentum;
+use crate::{AngularBasisElements, AngularMomentum};
 
 #[derive(Clone, Debug)]
-pub struct RotorStructure {
+pub struct RotorBasis {
     pub n: BasisId,
 }
 
-impl RotorStructure {
+impl RotorBasis {
     pub fn new(n_max: u32, space_basis: &mut SpaceBasis) -> Self {
         let n = (0..=n_max).map(AngularMomentum).collect();
 
@@ -36,10 +35,55 @@ impl RotorStructure {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default)]
-pub struct RotorParams {
+#[derive(Clone, Debug,)]
+pub struct RotationalEnergy {
     pub rot_const: Quantity<AuEnergy>,
+    pub operator: AngularBlocks
+}
+
+impl RotationalEnergy {
+    pub fn new(basis: &AngularBasisElements, rot: &RotorBasis) -> Self {
+        
+        let operator = basis.get_angular_blocks(|basis| {
+            operator_diag_mel!(dyn basis, [rot.n], |[n: AngularMomentum]| {
+                (n.0 * (n.0 + 1)) as f64
+            })
+        });
+
+        Self {
+            rot_const: Default::default(),
+            operator,
+        }
+    }
+    
+    pub fn hamiltonian(&self) -> AngularBlocks {
+        self.operator.scale(self.rot_const.value())
+    }
+}
+
+#[derive(Clone, Debug,)]
+pub struct DistortionEnergy {
     pub distortion: Quantity<AuEnergy>,
+    pub operator: AngularBlocks
+}
+
+impl DistortionEnergy {
+    pub fn new(basis: &AngularBasisElements, rot: &RotorBasis) -> Self {
+        let operator = basis.get_angular_blocks(|basis| {
+            operator_diag_mel!(dyn basis, [rot.n], |[n: AngularMomentum]| {
+                -((n.0 * (n.0 + 1)).pow(2) as f64)
+            })
+        });
+
+        Self {
+            distortion: Default::default(),
+            operator,
+        }
+    }
+    
+    pub fn hamiltonian(&self) -> AngularBlocks {
+        self.operator.scale(self.distortion.value())
+    }
 }
 
 #[derive(Clone, Debug)]

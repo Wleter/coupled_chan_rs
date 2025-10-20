@@ -1,6 +1,6 @@
-pub mod alkali_atom_rotor;
-pub mod alkali_diatom;
-pub mod alkali_homo_diatom;
+pub mod atom_rotor_basis;
+pub mod diatom_structure;
+pub mod homo_diatom_structure;
 pub mod atom_structure;
 pub mod bound_states;
 pub mod operator_mel;
@@ -29,7 +29,7 @@ use hilbert_space::{
     dyn_space::{BasisElementIndices, BasisElements, BasisElementsRef, BasisId, DynSubspaceElement},
 };
 
-use crate::{bound_states::BoundState, system_structure::SystemStructure};
+use crate::{bound_states::BoundState, system_structure::AngularBasis};
 
 #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct AngularMomentum(pub u32);
@@ -50,7 +50,7 @@ impl std::fmt::Debug for AngularBasisElements {
 }
 
 impl AngularBasisElements {
-    pub fn new_system(full_basis: BasisElements, system: &SystemStructure) -> Self {
+    pub fn new_angular(full_basis: BasisElements, system: &AngularBasis) -> Self {
         Self::new(full_basis, system.l, |&a| a)
     }
 

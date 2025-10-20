@@ -1,32 +1,13 @@
 use cc_problems::{
-    AngularMomentum, BoundStateData, LevelsData, SMatrixData,
-    alkali_homo_diatom::{AlkaliHomoDiatom, AlkaliHomoDiatomBuilder, AlkaliHomoDiatomParams, AlkaliHomoDiatomRecipe},
-    anyhow::Result,
-    atom_structure::{AtomStructureParams, AtomStructureRecipe},
-    bound_states::{BoundState, BoundStatesFinder},
-    coupled_chan::{
-        Interaction,
-        composite_int::CompositeInt,
-        constants::units::atomic_units::{AuEnergy, AuMass, Bohr, Dalton, GHz, Gauss, Kelvin, MHz},
-        coupling::WMatrix,
-        dispersion::Dispersion,
-        log_derivative::diabatic::JohnsonLogDerivative,
-        propagator::{Direction, Propagator, step_strategy::LocalWavelengthStep},
-        ratio_numerov::RatioNumerov,
-        s_matrix::SMatrixGetter,
-        vanishing_boundary,
-    },
-    linspace,
-    qol_utils::{
-        problem_selector::{ProblemSelector, get_args},
+    prelude::*,
+    anyhow::Result, atom_structure::AtomBasisRecipe, bound_states::{BoundState, BoundStatesFinder}, coupled_chan::{
+        composite_int::CompositeInt, constants::units::atomic_units::{AuEnergy, AuMass, Bohr, Dalton, GHz, Gauss, Kelvin, MHz}, coupling::WMatrix, dispersion::Dispersion, log_derivative::diabatic::JohnsonLogDerivative, propagator::{step_strategy::LocalWavelengthStep, Direction, Propagator}, ratio_numerov::RatioNumerov, s_matrix::SMatrixGetter, vanishing_boundary, Interaction
+    }, homo_diatom_structure::{AlkaliHomoDiatom, HomoDiatomRecipe}, linspace, prelude::{default_progress, ParallelProgressIterator}, qol_utils::{
+        problem_selector::{get_args, ProblemSelector},
         problems_impl,
         saving::{DataSaver, FileAccess, JsonFormat},
-    },
-    spin_algebra::{hi32, hu32},
-    system_structure::SystemParams,
+    }, spin_algebra::{hi32, hu32}, AngularMomentum, BoundStateData, LevelsData, SMatrixData
 };
-
-use cc_problems::rayon::prelude::*;
 
 fn main() {
     Problems::select(&mut get_args());
@@ -45,13 +26,13 @@ problems_impl!(Problems, "Li2 collision",
 impl Problems {
     fn li2_levels() -> Result<()> {
         let li2_problem = li2_problem(li2_recipe());
-        let li2_params = li2_params();
 
         let mag_fields = linspace(0., 1200., 1001);
         let saver = DataSaver::new("data/li2_levels.jsonl", JsonFormat, FileAccess::Create)?;
 
-        mag_fields.par_iter().for_each_with(li2_params, |params, &field| {
-            let w_matrix = li2_problem.with_params(params.with_field(field * Gauss));
+        mag_fields.par_iter().for_each_with(li2_problem, |problem, &field| {
+            problem.set_b_field(field * Gauss);
+            let w_matrix = problem.w_matrix();
 
             saver.send(LevelsData::new(field, w_matrix.asymptote().levels()))
         });
@@ -61,7 +42,6 @@ impl Problems {
 
     fn li2_feshbach() -> Result<()> {
         let li2_problem = li2_problem(li2_recipe());
-        let li2_params = li2_params();
 
         let mag_fields: Vec<f64> = vec![
             linspace(0., 600., 601),
@@ -74,8 +54,9 @@ impl Problems {
 
         let saver = DataSaver::new("data/li2_feshbach.jsonl", JsonFormat, FileAccess::Create)?;
 
-        mag_fields.par_iter().for_each_with(li2_params, |params, &field| {
-            let w_matrix = li2_problem.with_params(params.with_field(field * Gauss));
+        mag_fields.par_iter().progress_with_style(default_progress()).for_each_with(li2_problem, |problem, &field| {
+            problem.set_b_field(field * Gauss);
+            let w_matrix = problem.w_matrix();
             let step_strategy = LocalWavelengthStep::new(1e-4, 10., 400.);
             let boundary = vanishing_boundary(4. * Bohr, Direction::Outwards, &w_matrix);
 
@@ -91,7 +72,6 @@ impl Problems {
 
     fn li2_bound() -> Result<()> {
         let li2_problem = li2_problem(li2_recipe());
-        let li2_params = li2_params();
 
         let mag_fields = linspace(0., 1200., 1201);
         let e_min = -12. * GHz;
@@ -101,8 +81,8 @@ impl Problems {
 
         let saver = DataSaver::new("data/li2_bound.jsonl", JsonFormat, FileAccess::Create)?;
 
-        mag_fields.par_iter().for_each_with(li2_params, |params, &field| {
-            params.with_field(field * Gauss);
+        mag_fields.par_iter().progress_with_style(default_progress()).for_each_with(li2_problem, |problem, &field| {            
+            problem.set_b_field(field * Gauss);
 
             let bounds = BoundStatesFinder::default()
                 .set_parameter_range(
@@ -110,10 +90,10 @@ impl Problems {
                     err.to(AuEnergy).value(),
                 )
                 .set_problem(|e| {
-                    let mut params = params.clone();
-                    params.system.energy = e * AuEnergy;
+                    let mut problem = problem.clone();
+                    problem.system_params.energy = e * AuEnergy;
 
-                    li2_problem.with_params(&params)
+                    problem.w_matrix()
                 })
                 .set_r_range([4. * Bohr, 20. * Bohr, 1.5e3 * Bohr])
                 .set_propagator(|b, w| JohnsonLogDerivative::new(w, step_strategy.into(), b));
@@ -131,7 +111,6 @@ impl Problems {
 
     fn li2_field() -> Result<()> {
         let li2_problem = li2_problem(li2_recipe());
-        let li2_params = li2_params();
 
         let energies: Vec<f64> = linspace((-2. * GHz).to(AuEnergy).value().cbrt(), (0. * GHz).to(AuEnergy).value(), 101)
             .iter()
@@ -145,16 +124,16 @@ impl Problems {
 
         let saver = DataSaver::new("data/li2_field.jsonl", JsonFormat, FileAccess::Create)?;
 
-        energies.par_iter().for_each_with(li2_params, |params, &energy| {
-            params.system.energy = energy * AuEnergy;
+        energies.par_iter().progress_with_style(default_progress()).for_each_with(li2_problem, |problem, &energy| {
+            problem.system_params.energy = energy * AuEnergy;
 
             let bounds = BoundStatesFinder::default()
                 .set_parameter_range([mag_min, mag_max], err)
                 .set_problem(|f| {
-                    let mut params = params.clone();
-                    params.with_field(f * Gauss);
+                    let mut problem = problem.clone();
+                    problem.set_b_field(f * Gauss);
 
-                    li2_problem.with_params(&params)
+                    problem.w_matrix()
                 })
                 .set_r_range([4. * Bohr, 20. * Bohr, 1.5e3 * Bohr])
                 .set_propagator(|b, w| JohnsonLogDerivative::new(w, step_strategy.into(), b));
@@ -171,9 +150,8 @@ impl Problems {
     }
 
     fn li2_wave() -> Result<()> {
-        let li2_problem = li2_problem(li2_recipe());
-        let mut li2_params = li2_params();
-        li2_params.with_field(600. * Gauss);
+        let mut li2_problem = li2_problem(li2_recipe());
+        li2_problem.set_b_field(600. * Gauss);
 
         let e_min = -12. * GHz;
         let e_max = 0. * GHz;
@@ -188,10 +166,10 @@ impl Problems {
                 err.to(AuEnergy).value(),
             )
             .set_problem(|e| {
-                let mut params = li2_params.clone();
-                params.system.energy = e * AuEnergy;
+                let mut params = li2_problem.clone();
+                params.system_params.energy = e * AuEnergy;
 
-                li2_problem.with_params(&params)
+                params.w_matrix()
             })
             .set_r_range([4. * Bohr, 20. * Bohr, 1.5e3 * Bohr])
             .set_propagator(|b, w| JohnsonLogDerivative::new(w, step_strategy.into(), b));
@@ -206,32 +184,25 @@ impl Problems {
     }
 }
 
-pub fn li2_params() -> AlkaliHomoDiatomParams<impl Interaction + Clone, impl Interaction + Clone> {
+pub fn li2_problem(recipe: HomoDiatomRecipe) -> AlkaliHomoDiatom<impl Interaction + Clone, impl Interaction + Clone> {
     let singlet = CompositeInt::new(vec![Dispersion::new(-1381., -6), Dispersion::new(1.112e7, -12)]);
     let triplet = CompositeInt::new(vec![Dispersion::new(-1381., -6), Dispersion::new(2.19348e8, -12)]);
 
-    AlkaliHomoDiatomParams {
-        atom: AtomStructureParams {
-            a_hifi: (228.2 / 1.5 * MHz).to(AuEnergy),
-            ..Default::default()
-        },
-        system: SystemParams {
-            mass: (6.015122 / 2. * Dalton).to(AuMass),
-            energy: (1e-7 * Kelvin).to(AuEnergy),
-            entrance_channel: 0,
-        },
-        triplet,
-        singlet,
-    }
+    let mut diatom = AlkaliHomoDiatom::new(recipe);
+
+    diatom.atom.hyperfine.a_hifi = (228.2 / 1.5 * MHz).to(AuEnergy);
+    diatom.system_params.energy = (1e-7 * Kelvin).to(AuEnergy);
+    diatom.system_params.mass = (6.015122 / 2. * Dalton).to(AuMass);
+    diatom.system_params.entrance_channel = 0;
+    diatom.triplet.set_triplet(triplet);
+    diatom.singlet.set_singlet(singlet);
+
+    diatom
 }
 
-pub fn li2_problem(recipe: AlkaliHomoDiatomRecipe) -> AlkaliHomoDiatom {
-    AlkaliHomoDiatomBuilder::new(recipe).build()
-}
-
-pub fn li2_recipe() -> AlkaliHomoDiatomRecipe {
-    AlkaliHomoDiatomRecipe {
-        atom: AtomStructureRecipe {
+pub fn li2_recipe() -> HomoDiatomRecipe {
+    HomoDiatomRecipe {
+        atom: AtomBasisRecipe {
             s: hu32!(1 / 2),
             i: hu32!(1),
         },
@@ -274,11 +245,11 @@ mod tests {
 
     #[test]
     fn test_li2_levels() {
-        let li2_problem = li2_problem(li2_recipe());
-        let mut params = li2_params();
+        let mut li2_problem = li2_problem(li2_recipe());
 
         for (field, result) in [(0., ASYMPTOTE_0), (500., ASYMPTOTE_500), (1000., ASYMPTOTE_1000)] {
-            let w_matrix = li2_problem.with_params(params.with_field(field * Gauss));
+            li2_problem.set_b_field(field * Gauss);
+            let w_matrix = li2_problem.w_matrix();
             let levels = w_matrix.asymptote().levels();
 
             assert!(levels.l.iter().all(|&x| x == 0));
@@ -290,11 +261,11 @@ mod tests {
 
     #[test]
     fn test_li2_numerov() {
-        let li2_problem = li2_problem(li2_recipe());
-        let mut params = li2_params();
+        let mut li2_problem = li2_problem(li2_recipe());
 
         for (field, &result) in [0., 500., 1000.].into_iter().zip(&SCATTERING_LENGTHS_NUMEROV) {
-            let w_matrix = li2_problem.with_params(params.with_field(field * Gauss));
+            li2_problem.set_b_field(field * Gauss);
+            let w_matrix = li2_problem.w_matrix();
             let step_strategy = LocalWavelengthStep::new(1e-4, 10., 400.);
             let boundary = vanishing_boundary(4. * Bohr, Direction::Outwards, &w_matrix);
 
@@ -309,11 +280,11 @@ mod tests {
 
     #[test]
     fn test_li2_johnson() {
-        let li2_problem = li2_problem(li2_recipe());
-        let mut params = li2_params();
+        let mut li2_problem = li2_problem(li2_recipe());
 
         for (field, &result) in [0., 500., 1000.].into_iter().zip(&SCATTERING_LENGTHS_JOHNSON) {
-            let w_matrix = li2_problem.with_params(params.with_field(field * Gauss));
+            li2_problem.set_b_field(field * Gauss);
+            let w_matrix = li2_problem.w_matrix();
             let step_strategy = LocalWavelengthStep::new(1e-4, 10., 400.);
             let boundary = vanishing_boundary(4. * Bohr, Direction::Outwards, &w_matrix);
 
@@ -328,11 +299,11 @@ mod tests {
     const SCATTERING_LENGTHS_MANOLOPOULOS: [f64; 3] = [-7.185909206685685, -283.1042109930902, -5280.378031416163];
     #[test]
     fn test_li2_manolopoulos() {
-        let li2_problem = li2_problem(li2_recipe());
-        let mut params = li2_params();
+        let mut li2_problem = li2_problem(li2_recipe());
 
         for (field, &result) in [0., 500., 1000.].into_iter().zip(&SCATTERING_LENGTHS_MANOLOPOULOS) {
-            let w_matrix = li2_problem.with_params(params.with_field(field * Gauss));
+            li2_problem.set_b_field(field * Gauss);
+            let w_matrix = li2_problem.w_matrix();
             let step_strategy = LocalWavelengthStep::new(1e-4, 10., 400.);
             let boundary = vanishing_boundary(4. * Bohr, Direction::Outwards, &w_matrix);
 
@@ -371,9 +342,8 @@ mod tests {
             },
         ];
 
-        let li2_problem = li2_problem(li2_recipe());
-        let mut params = li2_params();
-        params.with_field(600. * Gauss);
+        let mut li2_problem = li2_problem(li2_recipe());
+        li2_problem.set_b_field(600. * Gauss);
 
         let e_min = -12. * GHz;
         let e_max = 0. * GHz;
@@ -386,10 +356,10 @@ mod tests {
                 err.to(AuEnergy).value(),
             )
             .set_problem(|e| {
-                let mut params = params.clone();
-                params.system.energy = e * AuEnergy;
+                let mut problem = li2_problem.clone();
+                problem.system_params.energy = e * AuEnergy;
 
-                li2_problem.with_params(&params)
+                problem.w_matrix()
             })
             .set_r_range([4. * Bohr, 20. * Bohr, 1.5e3 * Bohr])
             .set_propagator(|b, w| JohnsonLogDerivative::new(w, step_strategy.into(), b));
@@ -442,9 +412,8 @@ mod tests {
             },
         ];
 
-        let li2_problem = li2_problem(li2_recipe());
-        let mut params = li2_params();
-        params.system.energy = (-60. * MHz).to(AuEnergy);
+        let mut li2_problem = li2_problem(li2_recipe());
+        li2_problem.system_params.energy = (-60. * MHz).to(AuEnergy);
 
         let mag_min = 0.;
         let mag_max = 1200.;
@@ -454,10 +423,10 @@ mod tests {
         let bounds = BoundStatesFinder::default()
             .set_parameter_range([mag_min, mag_max], err)
             .set_problem(|f| {
-                let mut params = params.clone();
-                params.with_field(f * Gauss);
+                let mut params = li2_problem.clone();
+                params.set_b_field(f * Gauss);
 
-                li2_problem.with_params(&params)
+                li2_problem.w_matrix()
             })
             .set_r_range([4. * Bohr, 20. * Bohr, 1.5e3 * Bohr])
             .set_propagator(|b, w| JohnsonLogDerivative::new(w, step_strategy.into(), b));

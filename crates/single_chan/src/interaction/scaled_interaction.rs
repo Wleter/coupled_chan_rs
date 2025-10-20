@@ -2,7 +2,7 @@ use crate::interaction::Interaction;
 
 #[derive(Debug, Clone)]
 pub struct ScaledInteraction<P: Interaction> {
-    scaling: f64,
+    pub scaling: f64,
     interaction: P,
 }
 

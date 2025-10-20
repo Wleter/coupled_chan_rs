@@ -1,8 +1,8 @@
 use cc_problems::{
-    alkali_atom_rotor::{
+    atom_rotor_basis::{
         AlkaliAtomRotorTRAM, AlkaliAtomRotorTRAMBuilder, AlkaliAtomRotorTRAMParams, AlkaliAtomRotorTRAMRecipe,
     },
-    atom_structure::{AtomStructureParams, AtomStructureRecipe},
+    atom_structure::{AtomStructureParams, AtomBasisRecipe},
     coupled_chan::{composite_int::CompositeInt, dispersion::Dispersion},
     prelude::*,
     rotor_structure::{Interaction2D, RotorParams},
@@ -144,15 +144,15 @@ fn caf_rb_problem(recipe: AlkaliAtomRotorTRAMRecipe) -> AlkaliAtomRotorTRAM {
 
 fn caf_rb_recipe() -> AlkaliAtomRotorTRAMRecipe {
     AlkaliAtomRotorTRAMRecipe {
-        atom_a: AtomStructureRecipe {
+        atom_a: AtomBasisRecipe {
             s: hu32!(1 / 2),
             i: hu32!(3 / 2),
         },
-        atom_b: AtomStructureRecipe {
+        atom_b: AtomBasisRecipe {
             s: hu32!(1 / 2),
             i: hu32!(1 / 2),
         },
-        atom_c: AtomStructureRecipe::default(),
+        atom_c: AtomBasisRecipe::default(),
         tram: TRAMBasisRecipe {
             l_max: 5,
             n_max: 5,
