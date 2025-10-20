@@ -33,10 +33,7 @@ pub fn vanishing_boundary(r_start: Quantity<Bohr>, direction: Direction, w_matri
 
 #[cfg(test)]
 mod tests {
-    use constants::units::{
-        Quantity,
-        atomic_units::{AuEnergy, AuMass, Bohr, Kelvin},
-    };
+    use constants::units::atomic_units::{AuEnergy, AuMass, Bohr, Kelvin};
     use faer::mat;
     use math_utils::assert_approx_eq;
     use propagator::{Boundary, Direction, Propagator, step_strategy::LocalWavelengthStep};
@@ -51,12 +48,12 @@ mod tests {
     };
 
     pub fn get_red_coupling() -> RedCoupling<impl VanishingCoupling> {
-        let potential_lj1 = lennard_jones(Quantity(0.002, AuEnergy), Quantity(9., Bohr));
-        let potential_lj2 = lennard_jones(Quantity(0.0021, AuEnergy), Quantity(8.9, Bohr));
+        let potential_lj1 = lennard_jones(0.002 * AuEnergy, 9. * Bohr);
+        let potential_lj2 = lennard_jones(0.0021 * AuEnergy, 8.9 * Bohr);
 
-        let k = Quantity(10., Kelvin).to(AuEnergy).value();
-        let x0 = Quantity(11., Bohr).value();
-        let sigma = Quantity(2., Bohr).value();
+        let k = (10. * Kelvin).to(AuEnergy).value();
+        let x0 = (11. * Bohr).value();
+        let sigma = (2. * Bohr).value();
 
         let coupling = FuncPotential::new(move |x| k * f64::exp(-0.5 * ((x - x0) / sigma).powi(2)));
 
@@ -66,11 +63,11 @@ mod tests {
         let coupling = Pair::new(potential, coupling);
 
         let asymptote = Asymptote::new_diagonal(
-            Quantity(5903.538543342382, AuMass),
-            Quantity(1e-7, Kelvin).to(AuEnergy),
+            5903.538543342382 * AuMass,
+            (1e-7 * Kelvin).to(AuEnergy),
             Levels {
                 l: vec![0, 0],
-                asymptote: vec![0., Quantity(1., Kelvin).to(AuEnergy).value()],
+                asymptote: vec![0., (1. * Kelvin).to(AuEnergy).value()],
             },
             0,
         );

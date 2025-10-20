@@ -37,7 +37,7 @@ pub struct SystemParams {
 impl Default for SystemParams {
     fn default() -> Self {
         Self {
-            mass: Quantity(1., AuMass),
+            mass: 1. * AuMass,
             energy: Default::default(),
             entrance_channel: 0,
         }
@@ -46,6 +46,6 @@ impl Default for SystemParams {
 
 impl SystemParams {
     pub fn red_masses(masses: &[Quantity<AuMass>]) -> Quantity<AuMass> {
-        Quantity(1. / masses.iter().fold(0., |acc, x| acc + 1. / x.value()), AuMass)
+        1. / masses.iter().fold(0., |acc, x| acc + 1. / x.value()) * AuMass
     }
 }

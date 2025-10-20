@@ -33,12 +33,12 @@ impl CaFRbProblem {
             .par_iter()
             .progress_with_style(default_progress())
             .for_each_with(caf_rb_params, |params, &field| {
-                let w_matrix = caf_rb_problem.with_params(params.with_field(Quantity(field, Gauss)));
+                let w_matrix = caf_rb_problem.with_params(params.with_field(field * Gauss));
                 let step_strategy = LocalWavelengthStep::new(1e-4, f64::INFINITY, 500.);
-                let boundary = vanishing_boundary(Quantity(7.2, Bohr), Direction::Outwards, &w_matrix);
+                let boundary = vanishing_boundary(7.2 * Bohr, Direction::Outwards, &w_matrix);
 
                 let mut propagator = RatioNumerov::new(&w_matrix, step_strategy.into(), boundary);
-                let solution = propagator.propagate_to(Quantity(1.5e3, Bohr).value());
+                let solution = propagator.propagate_to((1.5e3 * Bohr).value());
                 let s_matrix = solution.get_s_matrix(&w_matrix);
 
                 saver.send(SMatrixData::new(field, s_matrix))
@@ -60,12 +60,12 @@ impl CaFRbProblem {
             .par_iter()
             .progress_with_style(default_progress())
             .for_each_with(caf_rb_params, |params, &field| {
-                let w_matrix = caf_rb_problem.with_params(params.with_field(Quantity(field, Gauss)));
+                let w_matrix = caf_rb_problem.with_params(params.with_field(field * Gauss));
                 let step_strategy = LocalWavelengthStep::new(1e-4, f64::INFINITY, 500.);
-                let boundary = vanishing_boundary(Quantity(7.2, Bohr), Direction::Outwards, &w_matrix);
+                let boundary = vanishing_boundary(7.2 * Bohr, Direction::Outwards, &w_matrix);
 
                 let mut propagator = RatioNumerov::new(&w_matrix, step_strategy.into(), boundary);
-                let solution = propagator.propagate_to(Quantity(1.5e3, Bohr).value());
+                let solution = propagator.propagate_to((1.5e3 * Bohr).value());
                 let s_matrix = solution.get_s_matrix(&w_matrix);
 
                 saver.send(SMatrixData::new(field, s_matrix))
@@ -111,25 +111,25 @@ fn caf_rb_params(
 
     AlkaliAtomRotorTRAMParams {
         atom_a: AtomStructureParams {
-            a_hifi: Quantity(6.83 / 2., GHz).to(AuEnergy),
+            a_hifi: (6.83 / 2. * GHz).to(AuEnergy),
             ..Default::default()
         },
         atom_b: AtomStructureParams {
-            a_hifi: Quantity(120., MHz).to(AuEnergy),
+            a_hifi: (120. * MHz).to(AuEnergy),
             ..Default::default()
         },
         atom_c: AtomStructureParams::default(),
         tram: TRAMBasisParams {
             rotor: RotorParams {
-                rot_const: Quantity(10.3, GHz).to(AuEnergy),
+                rot_const: (10.3 * GHz).to(AuEnergy),
                 ..Default::default()
             },
             system: SystemParams {
                 mass: SystemParams::red_masses(&[
                     Quantity(39.962590850 + 18.998403162, Dalton).to(AuMass),
-                    Quantity(86.90918053, Dalton).to(AuMass),
+                    (86.90918053 * Dalton).to(AuMass),
                 ]),
-                energy: Quantity(1e-7, Kelvin).to(AuEnergy),
+                energy: (1e-7 * Kelvin).to(AuEnergy),
                 entrance_channel: 0,
             },
         },

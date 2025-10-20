@@ -214,10 +214,7 @@ fn get_wavelength(red_pot: f64) -> f64 {
 
 #[cfg(test)]
 mod tests {
-    use constants::units::{
-        Quantity,
-        atomic_units::{AuEnergy, AuMass, Bohr, Kelvin},
-    };
+    use constants::units::atomic_units::{AuEnergy, AuMass, Bohr, Kelvin};
     use math_utils::assert_approx_eq;
     use propagator::{Boundary, Direction, Propagator};
 
@@ -229,12 +226,11 @@ mod tests {
 
     #[test]
     pub fn ratio_numerov_scattering() {
-        let energy = Quantity(1e-7, Kelvin);
-        let mass = Quantity(5903.538543342382, AuMass);
+        let energy = 1e-7 * Kelvin;
+        let mass = 5903.538543342382 * AuMass;
 
-        let potential = lennard_jones(Quantity(0.002, AuEnergy), Quantity(9., Bohr));
-        let red_interaction =
-            RedInteraction::new(&potential, mass, energy.to(AuEnergy), Level::new(0, Quantity(0., AuEnergy)));
+        let potential = lennard_jones(0.002 * AuEnergy, 9. * Bohr);
+        let red_interaction = RedInteraction::new(&potential, mass, energy.to(AuEnergy), Level::new(0, 0. * AuEnergy));
 
         let boundary = Boundary {
             r_start: 6.5,

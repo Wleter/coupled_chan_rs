@@ -74,6 +74,14 @@ impl<U: Unit, V: Unit, K: Unit> std::ops::Mul<K> for Prod<U, V> {
     }
 }
 
+impl<U: Unit, V: Unit> std::ops::Mul<Prod<U, V>> for f64 {
+    type Output = Quantity<Prod<U, V>>;
+
+    fn mul(self, rhs: Prod<U, V>) -> Self::Output {
+        Quantity(self, rhs)
+    }
+}
+
 impl<U: Unit, V: Unit, K: Unit> std::ops::Div<K> for Prod<U, V> {
     type Output = Frac<Prod<U, V>, K>;
 
@@ -110,6 +118,14 @@ impl<U: Unit, V: Unit, K: Unit> std::ops::Div<K> for Frac<U, V> {
 
     fn div(self, rhs: K) -> Self::Output {
         Frac(self, rhs)
+    }
+}
+
+impl<U: Unit, V: Unit> std::ops::Mul<Frac<U, V>> for f64 {
+    type Output = Quantity<Frac<U, V>>;
+
+    fn mul(self, rhs: Frac<U, V>) -> Self::Output {
+        Quantity(self, rhs)
     }
 }
 
@@ -216,12 +232,12 @@ impl<U: Unit, V: Unit> Div<Quantity<V>> for Quantity<U> {
 
 #[cfg(test)]
 mod tests {
-    use crate::units::{Quantity, Unit, atomic_units::*};
+    use crate::units::{Unit, atomic_units::*};
 
     #[test]
     fn test_units() {
-        let one_kelvin = Quantity(1., Kelvin);
-        let two_kelvin = Quantity(2., Kelvin);
+        let one_kelvin = 1. * Kelvin;
+        let two_kelvin = 2. * Kelvin;
 
         let result = one_kelvin + two_kelvin;
         assert_eq!(result.value(), 3.);
@@ -237,9 +253,9 @@ mod tests {
 
     #[test]
     fn test_complex_units() {
-        use crate::units::{Quantity, atomic_units::*};
+        use crate::units::atomic_units::*;
 
-        let quantity = Quantity(1., GHz * Gauss / Bohr);
+        let quantity = 1. * (GHz * Gauss / Bohr);
         assert_eq!(&format!("{quantity}"), "1 GHz * Gauss / Bohr", "Wrong format");
 
         let quantity_angstrom = quantity.to(GHz * Gauss / Angstrom);
