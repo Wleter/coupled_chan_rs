@@ -1,5 +1,10 @@
 use coupled_chan::{
-    constants::{units::{atomic_units::Gauss, Quantity}, BOHR_MAG, G_FACTOR}, coupling::{pair::Pair, AngularBlocks, Asymptote, RedCoupling, WMatrix}, Interaction
+    Interaction,
+    constants::{
+        BOHR_MAG, G_FACTOR,
+        units::{Quantity, atomic_units::Gauss},
+    },
+    coupling::{AngularBlocks, Asymptote, RedCoupling, VanishingCoupling, WMatrix, pair::Pair},
 };
 use hilbert_space::{
     Parity, cast_variant,
@@ -12,7 +17,10 @@ use spin_algebra::{
 };
 
 use crate::{
-    atom_structure::{AtomBasis, AtomBasisRecipe, AtomStructure, HyperfineStructure, ZeemanSplitting}, diatom_structure::{Singlet, Triplet}, system_structure::{AngularBasis, SystemParams}, AngularBasisElements, AngularMomentum
+    AngularBasisElements, AngularMomentum,
+    atom_structure::{AtomBasis, AtomBasisRecipe, AtomStructure, HyperfineStructure, ZeemanSplitting},
+    diatom_basis::{Singlet, Triplet},
+    system_structure::{AngularBasis, SystemParams},
 };
 
 #[derive(Clone, Debug, Default)]
@@ -34,7 +42,7 @@ pub struct HomoDiatomBasis {
     atom_b: AtomBasis,
     basis_sep: AngularBasisElements,
 
-    transformation: AngularBlocks
+    transformation: AngularBlocks,
 }
 
 impl HomoDiatomBasis {
@@ -49,10 +57,7 @@ impl HomoDiatomBasis {
         let s_max = recipe.atom.s + recipe.atom.s;
         let i_max = recipe.atom.i + recipe.atom.i;
 
-        let combined_atom_basis = AtomBasis {
-            s: s_tot,
-            i: i_tot
-        };
+        let combined_atom_basis = AtomBasis { s: s_tot, i: i_tot };
         let angular = AngularBasis::new(recipe.l_max, &mut basis);
 
         let parity = if (recipe.atom.s + recipe.atom.i).double_value().is_multiple_of(2) {
@@ -81,7 +86,7 @@ impl HomoDiatomBasis {
         let atom_a = AtomBasis::new(recipe.atom, &mut basis_sep);
         let atom_b = AtomBasis::new(recipe.atom, &mut basis_sep);
         let angular_sep = AngularBasis::new(recipe.l_max, &mut basis_sep);
-        
+
         let basis_sep = basis_sep.get_filtered_basis(|element| {
             let s_a = cast_variant!(dyn element[atom_a.s.0 as usize], Spin);
             let i_a = cast_variant!(dyn element[atom_a.i.0 as usize], Spin);
@@ -124,7 +129,7 @@ impl HomoDiatomBasis {
                 .map(|(e, e_sep)| transformation(e_sep, e))
                 .collect(),
         };
-        
+
         Self {
             combined_atom_basis,
             angular,
@@ -143,9 +148,9 @@ fn even_spin(s_max: HalfU32, i_max: HalfU32, s_tot: HalfU32, i_tot: HalfU32) -> 
 
 #[derive(Clone, Debug)]
 pub struct AlkaliHomoDiatom<T, S>
-where 
+where
     T: Interaction,
-    S: Interaction
+    S: Interaction,
 {
     pub system_params: SystemParams,
     pub atom: AtomStructure,
@@ -153,13 +158,13 @@ where
     pub triplet: Triplet<T>,
     pub singlet: Singlet<S>,
 
-    pub basis: HomoDiatomBasis
+    pub basis: HomoDiatomBasis,
 }
 
-impl<T, S> AlkaliHomoDiatom<T, S>  
-where 
+impl<T, S> AlkaliHomoDiatom<T, S>
+where
     T: Interaction + Clone,
-    S: Interaction + Clone
+    S: Interaction + Clone,
 {
     pub fn new(recipe: HomoDiatomRecipe) -> Self {
         let basis = HomoDiatomBasis::new(recipe);
@@ -193,18 +198,22 @@ where
         self.atom.set_b_field(b_field);
     }
 
-    pub fn w_matrix(&self) -> impl WMatrix + use<T, S> {
+    pub fn asymptote(&self) -> Asymptote {
         let angular_blocks = self.atom.hamiltonian();
 
-        let asymptote = Asymptote::new_angular_blocks(
-            self.system_params.mass, 
-            self.system_params.energy, 
-            angular_blocks, 
-            self.system_params.entrance_channel
-        );
+        Asymptote::new_angular_blocks(
+            self.system_params.mass,
+            self.system_params.energy,
+            angular_blocks,
+            self.system_params.entrance_channel,
+        )
+    }
 
-        let potential = Pair::new(self.triplet.hamiltonian(), self.singlet.hamiltonian());
-        
-        RedCoupling::new(potential, asymptote)
+    pub fn coupling(&self) -> impl VanishingCoupling + use<T, S> {
+        Pair::new(self.triplet.hamiltonian(), self.singlet.hamiltonian())
+    }
+
+    pub fn w_matrix(&self) -> impl WMatrix + use<T, S> {
+        RedCoupling::new(self.coupling(), self.asymptote())
     }
 }

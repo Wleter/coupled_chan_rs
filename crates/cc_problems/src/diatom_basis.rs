@@ -1,13 +1,17 @@
 use coupled_chan::{
-    constants::{Gauss, Quantity}, coupling::{masked::Masked, pair::Pair, Asymptote, RedCoupling, WMatrix}, scaled_interaction::ScaledInteraction, Interaction, Operator
+    Interaction, Operator,
+    constants::{Gauss, Quantity},
+    coupling::{Asymptote, RedCoupling, VanishingCoupling, WMatrix, masked::Masked, pair::Pair},
+    scaled_interaction::ScaledInteraction,
 };
-use hilbert_space::{
-    cast_variant, dyn_space::SpaceBasis, operator_diag_mel, operator_mel
-};
-use spin_algebra::{half_integer::HalfI32, hu32, Spin};
+use hilbert_space::{cast_variant, dyn_space::SpaceBasis, operator_diag_mel, operator_mel};
+use spin_algebra::{Spin, half_integer::HalfI32, hu32};
 
 use crate::{
-    atom_structure::{AtomBasis, AtomBasisRecipe, AtomStructure}, operator_mel::{singlet_projection_uncoupled, triplet_projection_uncoupled}, system_structure::{AngularBasis, SystemParams}, AngularBasisElements, AngularMomentum
+    AngularBasisElements, AngularMomentum,
+    atom_structure::{AtomBasis, AtomBasisRecipe, AtomStructure},
+    operator_mel::{singlet_projection_uncoupled, triplet_projection_uncoupled},
+    system_structure::{AngularBasis, SystemParams},
 };
 
 #[derive(Clone, Debug, Default)]
@@ -58,7 +62,7 @@ impl DiatomBasis {
 #[derive(Debug, Clone)]
 pub struct Triplet<P: Interaction> {
     pub triplet: Option<ScaledInteraction<P>>,
-    pub operator: Operator
+    pub operator: Operator,
 }
 
 impl<P: Interaction + Clone> Triplet<P> {
@@ -67,10 +71,7 @@ impl<P: Interaction + Clone> Triplet<P> {
             triplet_projection_uncoupled(s1, s2)
         });
 
-        Self {
-            triplet: None,
-            operator,
-        }
+        Self { triplet: None, operator }
     }
 
     pub fn new_coupled(elements: &AngularBasisElements, atom_pair: &AtomBasis) -> Self {
@@ -78,10 +79,7 @@ impl<P: Interaction + Clone> Triplet<P> {
             if s.s == hu32!(1) { 1. } else { 0. }
         });
 
-        Self {
-            triplet: None,
-            operator,
-        }
+        Self { triplet: None, operator }
     }
 
     pub fn set_triplet(&mut self, triplet: P) {
@@ -98,7 +96,7 @@ impl<P: Interaction + Clone> Triplet<P> {
 #[derive(Debug, Clone)]
 pub struct Singlet<P: Interaction> {
     pub singlet: Option<ScaledInteraction<P>>,
-    pub operator: Operator
+    pub operator: Operator,
 }
 
 impl<P: Interaction + Clone> Singlet<P> {
@@ -107,10 +105,7 @@ impl<P: Interaction + Clone> Singlet<P> {
             singlet_projection_uncoupled(s1, s2)
         });
 
-        Self {
-            singlet: None,
-            operator,
-        }
+        Self { singlet: None, operator }
     }
 
     pub fn new_coupled(elements: &AngularBasisElements, atom_pair: &AtomBasis) -> Self {
@@ -118,10 +113,7 @@ impl<P: Interaction + Clone> Singlet<P> {
             if s.s == hu32!(0) { 1. } else { 0. }
         });
 
-        Self {
-            singlet: None,
-            operator,
-        }
+        Self { singlet: None, operator }
     }
 
     pub fn set_singlet(&mut self, singlet: P) {
@@ -136,10 +128,10 @@ impl<P: Interaction + Clone> Singlet<P> {
 }
 
 #[derive(Clone, Debug)]
-pub struct AlkaliDiatom<T, S> 
-where 
+pub struct AlkaliDiatom<T, S>
+where
     T: Interaction,
-    S: Interaction
+    S: Interaction,
 {
     pub system_params: SystemParams,
     pub atom_a: AtomStructure,
@@ -151,10 +143,10 @@ where
     pub basis: DiatomBasis,
 }
 
-impl<T, S> AlkaliDiatom<T, S>  
-where 
+impl<T, S> AlkaliDiatom<T, S>
+where
     T: Interaction + Clone,
-    S: Interaction + Clone
+    S: Interaction + Clone,
 {
     pub fn new(recipe: DiatomBasisRecipe) -> Self {
         let basis = DiatomBasis::new(recipe);
@@ -174,18 +166,22 @@ where
         self.atom_b.set_b_field(b_field);
     }
 
-    pub fn w_matrix(&self) -> impl WMatrix {
+    pub fn asymptote(&self) -> Asymptote {
         let angular_blocks = self.atom_a.hamiltonian() + self.atom_b.hamiltonian();
 
-        let asymptote = Asymptote::new_angular_blocks(
-            self.system_params.mass, 
-            self.system_params.energy, 
-            angular_blocks, 
-            self.system_params.entrance_channel
-        );
+        Asymptote::new_angular_blocks(
+            self.system_params.mass,
+            self.system_params.energy,
+            angular_blocks,
+            self.system_params.entrance_channel,
+        )
+    }
 
-        let potential = Pair::new(self.triplet.hamiltonian(), self.singlet.hamiltonian());
-        
-        RedCoupling::new(potential, asymptote)
+    pub fn coupling(&self) -> impl VanishingCoupling {
+        Pair::new(self.triplet.hamiltonian(), self.singlet.hamiltonian())
+    }
+
+    pub fn w_matrix(&self) -> impl WMatrix {
+        RedCoupling::new(self.coupling(), self.asymptote())
     }
 }

@@ -1,8 +1,8 @@
 pub mod atom_rotor_basis;
-pub mod diatom_structure;
-pub mod homo_diatom_structure;
 pub mod atom_structure;
 pub mod bound_states;
+pub mod diatom_basis;
+pub mod homo_diatom_basis;
 pub mod operator_mel;
 pub mod prelude;
 pub mod problems;

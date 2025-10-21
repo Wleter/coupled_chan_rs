@@ -4,11 +4,7 @@ use hilbert_space::{
 };
 use spin_algebra::{Spin, get_spin_basis};
 
-use crate::{
-    AngularMomentum,
-    rotor_structure::RotorBasis,
-    system_structure::AngularBasis,
-};
+use crate::{AngularMomentum, rotor_structure::RotorBasis, system_structure::AngularBasis};
 
 #[derive(Clone, Debug, Default)]
 pub struct TRAMBasisRecipe {

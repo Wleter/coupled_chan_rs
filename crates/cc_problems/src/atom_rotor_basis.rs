@@ -1,15 +1,19 @@
 use coupled_chan::{
-    constants::units::{Gauss, Quantity}, coupling::{composite::Composite, masked::Masked, pair::Pair, Asymptote, RedCoupling, WMatrix}, scaled_interaction::ScaledInteraction, Interaction, Operator
+    Interaction, Operator,
+    constants::units::{Gauss, Quantity},
+    coupling::{Asymptote, RedCoupling, VanishingCoupling, WMatrix, composite::Composite, masked::Masked, pair::Pair},
+    scaled_interaction::ScaledInteraction,
 };
-use hilbert_space::{
-    cast_variant,
-    dyn_space::SpaceBasis,
-    operator_mel,
-};
+use hilbert_space::{cast_variant, dyn_space::SpaceBasis, operator_mel};
 use spin_algebra::{Spin, half_integer::HalfI32, hu32};
 
 use crate::{
-    atom_structure::{AtomBasis, AtomBasisRecipe, AtomStructure}, operator_mel::{percival_coef_tram_mel, singlet_projection_uncoupled, triplet_projection_uncoupled}, rotor_structure::{Interaction2D, RotationalEnergy}, system_structure::SystemParams, tram_basis::{TRAMBasis, TRAMBasisRecipe}, AngularBasisElements, AngularMomentum
+    AngularBasisElements, AngularMomentum,
+    atom_structure::{AtomBasis, AtomBasisRecipe, AtomStructure},
+    operator_mel::{percival_coef_tram_mel, singlet_projection_uncoupled, triplet_projection_uncoupled},
+    rotor_structure::{Interaction2D, RotationalEnergy},
+    system_structure::SystemParams,
+    tram_basis::{TRAMBasis, TRAMBasisRecipe},
 };
 
 /// Recipe for alkali atom-rotor problem A + B-C,
@@ -28,7 +32,7 @@ pub struct AtomRotorTRAMRecipe {
 /// Builder for alkali atom-rotor problem A + B-C,
 /// where A, B are alkali-like
 #[derive(Clone, Debug)]
-pub struct AlkaliAtomRotorTRAMBasis {
+pub struct AtomRotorTRAMBasis {
     pub atom_a: AtomBasis,
     pub atom_b: AtomBasis,
     pub atom_c: AtomBasis,
@@ -37,14 +41,8 @@ pub struct AlkaliAtomRotorTRAMBasis {
     basis: AngularBasisElements,
 }
 
-const ALKALI_SPINS: &str = "Expected alkali problem with s_a = 1/2, s_b = 1/2, s_c = 0";
-
-impl AlkaliAtomRotorTRAMBasis {
+impl AtomRotorTRAMBasis {
     pub fn new(recipe: AtomRotorTRAMRecipe) -> Self {
-        assert!(recipe.atom_a.s == hu32!(1 / 2), "{ALKALI_SPINS}");
-        assert!(recipe.atom_b.s == hu32!(1 / 2), "{ALKALI_SPINS}");
-        assert!(recipe.atom_c.s == hu32!(0), "{ALKALI_SPINS}");
-
         let mut basis = SpaceBasis::default();
         let atom_a = AtomBasis::new(recipe.atom_a, &mut basis);
         let atom_b = AtomBasis::new(recipe.atom_b, &mut basis);
@@ -81,41 +79,53 @@ impl AlkaliAtomRotorTRAMBasis {
 #[derive(Debug, Clone)]
 pub struct TripletSurface<P: Interaction> {
     pub triplet: Interaction2D<ScaledInteraction<P>>,
-    pub operator: Vec<Operator>
+    pub operator: Vec<Operator>,
 }
 
 impl<P: Interaction + Clone> TripletSurface<P> {
-    pub fn new(surface: Interaction2D<P>, elements: &AngularBasisElements, atom: &AtomBasis, rotor: &AtomBasis, tram: &TRAMBasis) -> Self {
+    pub fn new(
+        surface: Interaction2D<P>,
+        elements: &AngularBasisElements,
+        atom: &AtomBasis,
+        rotor: &AtomBasis,
+        tram: &TRAMBasis,
+    ) -> Self {
         let zeros = Operator::zeros(elements.full_basis.basis.size());
 
-        let operator = surface.0.iter().map(|x| {
-            operator_mel!(
-                dyn elements.full_basis,
-                [atom.s, rotor.s, tram.l.l, tram.n.n, tram.n_tot],
-                |[s1: Spin, s2: Spin, l: AngularMomentum, n: AngularMomentum, n_tot: Spin]| {
-                    percival_coef_tram_mel(x.0, l, n, n_tot) * triplet_projection_uncoupled(s1, s2)
-                }
-            )
-        })
-        .filter(|a: &Operator| a.0 != zeros.0)
-        .collect();
+        let operator = surface
+            .0
+            .iter()
+            .map(|x| {
+                operator_mel!(
+                    dyn elements.full_basis,
+                    [atom.s, rotor.s, tram.l.l, tram.n.n, tram.n_tot],
+                    |[s1: Spin, s2: Spin, l: AngularMomentum, n: AngularMomentum, n_tot: Spin]| {
+                        percival_coef_tram_mel(x.0, l, n, n_tot) * triplet_projection_uncoupled(s1, s2)
+                    }
+                )
+            })
+            .filter(|a: &Operator| a.0 != zeros.0)
+            .collect();
 
-        let triplet = Interaction2D(surface.0.into_iter()
-            .map(|x| (x.0, ScaledInteraction::new(x.1, 1.)))
-            .collect()
+        let triplet = Interaction2D(
+            surface
+                .0
+                .into_iter()
+                .map(|x| (x.0, ScaledInteraction::new(x.1, 1.)))
+                .collect(),
         );
 
-        Self {
-            triplet,
-            operator,
-        }
+        Self { triplet, operator }
     }
 
     pub fn hamiltonian(&self) -> Composite<Masked<ScaledInteraction<P>>> {
-        let composite = self.triplet.0.iter().zip(self.operator.iter()).map(|(t, o)| {
-            Masked::new(t.1.clone(), o.clone())
-        })
-        .collect();
+        let composite = self
+            .triplet
+            .0
+            .iter()
+            .zip(self.operator.iter())
+            .map(|(t, o)| Masked::new(t.1.clone(), o.clone()))
+            .collect();
 
         Composite::new(composite)
     }
@@ -124,51 +134,63 @@ impl<P: Interaction + Clone> TripletSurface<P> {
 #[derive(Debug, Clone)]
 pub struct SingletSurface<P: Interaction> {
     pub singlet: Interaction2D<ScaledInteraction<P>>,
-    pub operator: Vec<Operator>
+    pub operator: Vec<Operator>,
 }
 
 impl<P: Interaction + Clone> SingletSurface<P> {
-    pub fn new(surface: Interaction2D<P>, elements: &AngularBasisElements, atom: &AtomBasis, rotor: &AtomBasis, tram: &TRAMBasis) -> Self {
+    pub fn new(
+        surface: Interaction2D<P>,
+        elements: &AngularBasisElements,
+        atom: &AtomBasis,
+        rotor: &AtomBasis,
+        tram: &TRAMBasis,
+    ) -> Self {
         let zeros = Operator::zeros(elements.full_basis.basis.size());
 
-        let operator = surface.0.iter().map(|x| {
-            operator_mel!(
-                dyn elements.full_basis,
-                [atom.s, rotor.s, tram.l.l, tram.n.n, tram.n_tot],
-                |[s1: Spin, s2: Spin, l: AngularMomentum, n: AngularMomentum, n_tot: Spin]| {
-                    percival_coef_tram_mel(x.0, l, n, n_tot) * singlet_projection_uncoupled(s1, s2)
-                }
-            )
-        })
-        .filter(|a: &Operator| a.0 != zeros.0)
-        .collect();
+        let operator = surface
+            .0
+            .iter()
+            .map(|x| {
+                operator_mel!(
+                    dyn elements.full_basis,
+                    [atom.s, rotor.s, tram.l.l, tram.n.n, tram.n_tot],
+                    |[s1: Spin, s2: Spin, l: AngularMomentum, n: AngularMomentum, n_tot: Spin]| {
+                        percival_coef_tram_mel(x.0, l, n, n_tot) * singlet_projection_uncoupled(s1, s2)
+                    }
+                )
+            })
+            .filter(|a: &Operator| a.0 != zeros.0)
+            .collect();
 
-        let singlet = Interaction2D(surface.0.into_iter()
-            .map(|x| (x.0, ScaledInteraction::new(x.1, 1.)))
-            .collect()
+        let singlet = Interaction2D(
+            surface
+                .0
+                .into_iter()
+                .map(|x| (x.0, ScaledInteraction::new(x.1, 1.)))
+                .collect(),
         );
 
-        Self {
-            singlet,
-            operator,
-        }
+        Self { singlet, operator }
     }
 
     pub fn hamiltonian(&self) -> Composite<Masked<ScaledInteraction<P>>> {
-        let composite = self.singlet.0.iter().zip(self.operator.iter()).map(|(s, o)| {
-            Masked::new(s.1.clone(), o.clone())
-        })
-        .collect();
+        let composite = self
+            .singlet
+            .0
+            .iter()
+            .zip(self.operator.iter())
+            .map(|(s, o)| Masked::new(s.1.clone(), o.clone()))
+            .collect();
 
         Composite::new(composite)
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct AlkaliAtomRotorTRAM<T, S> 
-where 
+pub struct AlkaliAtomRotorTRAM<T, S>
+where
     T: Interaction,
-    S: Interaction
+    S: Interaction,
 {
     pub system_params: SystemParams,
     pub atom_a: AtomStructure,
@@ -180,16 +202,22 @@ where
     pub triplet: TripletSurface<T>,
     pub singlet: SingletSurface<S>,
 
-    pub basis: AlkaliAtomRotorTRAMBasis,
+    pub basis: AtomRotorTRAMBasis,
 }
 
-impl<T, S> AlkaliAtomRotorTRAM<T, S>  
-where 
+const ALKALI_SPINS: &str = "Expected alkali problem with s_a = 1/2, s_b = 1/2, s_c = 0";
+
+impl<T, S> AlkaliAtomRotorTRAM<T, S>
+where
     T: Interaction + Clone,
-    S: Interaction + Clone
+    S: Interaction + Clone,
 {
     pub fn new(triplet: Interaction2D<T>, singlet: Interaction2D<S>, recipe: AtomRotorTRAMRecipe) -> Self {
-        let basis = AlkaliAtomRotorTRAMBasis::new(recipe);
+        assert!(recipe.atom_a.s == hu32!(1 / 2), "{ALKALI_SPINS}");
+        assert!(recipe.atom_b.s == hu32!(1 / 2), "{ALKALI_SPINS}");
+        assert!(recipe.atom_c.s == hu32!(0), "{ALKALI_SPINS}");
+
+        let basis = AtomRotorTRAMBasis::new(recipe);
 
         Self {
             system_params: SystemParams::default(),
@@ -209,21 +237,25 @@ where
         self.atom_c.set_b_field(b_field);
     }
 
-    pub fn w_matrix(&self) -> impl WMatrix {
-        let angular_blocks = self.atom_a.hamiltonian() 
-            + self.atom_b.hamiltonian() 
+    pub fn asymptote(&self) -> Asymptote {
+        let angular_blocks = self.atom_a.hamiltonian()
+            + self.atom_b.hamiltonian()
             + self.atom_c.hamiltonian()
             + self.rotational.hamiltonian();
 
-        let asymptote = Asymptote::new_angular_blocks(
-            self.system_params.mass, 
-            self.system_params.energy, 
-            angular_blocks, 
-            self.system_params.entrance_channel
-        );
+        Asymptote::new_angular_blocks(
+            self.system_params.mass,
+            self.system_params.energy,
+            angular_blocks,
+            self.system_params.entrance_channel,
+        )
+    }
 
-        let potential = Pair::new(self.triplet.hamiltonian(), self.singlet.hamiltonian());
-        
-        RedCoupling::new(potential, asymptote)
+    pub fn coupling(&self) -> impl VanishingCoupling {
+        Pair::new(self.triplet.hamiltonian(), self.singlet.hamiltonian())
+    }
+
+    pub fn w_matrix(&self) -> impl WMatrix {
+        RedCoupling::new(self.coupling(), self.asymptote())
     }
 }

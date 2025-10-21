@@ -1,12 +1,30 @@
 use cc_problems::{
+    AngularMomentum, BoundStateData, LevelsData, SMatrixData,
+    anyhow::Result,
+    atom_structure::AtomBasisRecipe,
+    bound_states::{BoundState, BoundStatesFinder},
+    coupled_chan::{
+        Interaction,
+        composite_int::CompositeInt,
+        constants::units::atomic_units::{AuEnergy, AuMass, Bohr, Dalton, GHz, Gauss, Kelvin, MHz},
+        coupling::WMatrix,
+        dispersion::Dispersion,
+        log_derivative::diabatic::JohnsonLogDerivative,
+        propagator::{Direction, Propagator, step_strategy::LocalWavelengthStep},
+        ratio_numerov::RatioNumerov,
+        s_matrix::SMatrixGetter,
+        vanishing_boundary,
+    },
+    homo_diatom_basis::{AlkaliHomoDiatom, HomoDiatomRecipe},
+    linspace,
     prelude::*,
-    anyhow::Result, atom_structure::AtomBasisRecipe, bound_states::{BoundState, BoundStatesFinder}, coupled_chan::{
-        composite_int::CompositeInt, constants::units::atomic_units::{AuEnergy, AuMass, Bohr, Dalton, GHz, Gauss, Kelvin, MHz}, coupling::WMatrix, dispersion::Dispersion, log_derivative::diabatic::JohnsonLogDerivative, propagator::{step_strategy::LocalWavelengthStep, Direction, Propagator}, ratio_numerov::RatioNumerov, s_matrix::SMatrixGetter, vanishing_boundary, Interaction
-    }, homo_diatom_structure::{AlkaliHomoDiatom, HomoDiatomRecipe}, linspace, prelude::{default_progress, ParallelProgressIterator}, qol_utils::{
-        problem_selector::{get_args, ProblemSelector},
+    prelude::{ParallelProgressIterator, default_progress},
+    qol_utils::{
+        problem_selector::{ProblemSelector, get_args},
         problems_impl,
         saving::{DataSaver, FileAccess, JsonFormat},
-    }, spin_algebra::{hi32, hu32}, AngularMomentum, BoundStateData, LevelsData, SMatrixData
+    },
+    spin_algebra::{hi32, hu32},
 };
 
 fn main() {
@@ -54,18 +72,21 @@ impl Problems {
 
         let saver = DataSaver::new("data/li2_feshbach.jsonl", JsonFormat, FileAccess::Create)?;
 
-        mag_fields.par_iter().progress_with_style(default_progress()).for_each_with(li2_problem, |problem, &field| {
-            problem.set_b_field(field * Gauss);
-            let w_matrix = problem.w_matrix();
-            let step_strategy = LocalWavelengthStep::new(1e-4, 10., 400.);
-            let boundary = vanishing_boundary(4. * Bohr, Direction::Outwards, &w_matrix);
+        mag_fields
+            .par_iter()
+            .progress_with_style(default_progress())
+            .for_each_with(li2_problem, |problem, &field| {
+                problem.set_b_field(field * Gauss);
+                let w_matrix = problem.w_matrix();
+                let step_strategy = LocalWavelengthStep::new(1e-4, 10., 400.);
+                let boundary = vanishing_boundary(4. * Bohr, Direction::Outwards, &w_matrix);
 
-            let mut propagator = RatioNumerov::new(&w_matrix, step_strategy.into(), boundary);
-            let solution = propagator.propagate_to((1500. * Bohr).value());
-            let s_matrix = solution.get_s_matrix(&w_matrix);
+                let mut propagator = RatioNumerov::new(&w_matrix, step_strategy.into(), boundary);
+                let solution = propagator.propagate_to((1500. * Bohr).value());
+                let s_matrix = solution.get_s_matrix(&w_matrix);
 
-            saver.send(SMatrixData::new(field, s_matrix))
-        });
+                saver.send(SMatrixData::new(field, s_matrix))
+            });
 
         Ok(())
     }
@@ -81,30 +102,33 @@ impl Problems {
 
         let saver = DataSaver::new("data/li2_bound.jsonl", JsonFormat, FileAccess::Create)?;
 
-        mag_fields.par_iter().progress_with_style(default_progress()).for_each_with(li2_problem, |problem, &field| {            
-            problem.set_b_field(field * Gauss);
+        mag_fields
+            .par_iter()
+            .progress_with_style(default_progress())
+            .for_each_with(li2_problem, |problem, &field| {
+                problem.set_b_field(field * Gauss);
 
-            let bounds = BoundStatesFinder::default()
-                .set_parameter_range(
-                    [e_min.to(AuEnergy).value(), e_max.to(AuEnergy).value()],
-                    err.to(AuEnergy).value(),
-                )
-                .set_problem(|e| {
-                    let mut problem = problem.clone();
-                    problem.system_params.energy = e * AuEnergy;
+                let bounds = BoundStatesFinder::default()
+                    .set_parameter_range(
+                        [e_min.to(AuEnergy).value(), e_max.to(AuEnergy).value()],
+                        err.to(AuEnergy).value(),
+                    )
+                    .set_problem(|e| {
+                        let mut problem = problem.clone();
+                        problem.system_params.energy = e * AuEnergy;
 
-                    problem.w_matrix()
-                })
-                .set_r_range([4. * Bohr, 20. * Bohr, 1.5e3 * Bohr])
-                .set_propagator(|b, w| JohnsonLogDerivative::new(w, step_strategy.into(), b));
+                        problem.w_matrix()
+                    })
+                    .set_r_range([4. * Bohr, 20. * Bohr, 1.5e3 * Bohr])
+                    .set_propagator(|b, w| JohnsonLogDerivative::new(w, step_strategy.into(), b));
 
-            let bounds: Result<Vec<BoundState>> = bounds.bound_states().collect();
+                let bounds: Result<Vec<BoundState>> = bounds.bound_states().collect();
 
-            for b in bounds.unwrap() {
-                let data = BoundStateData::new(field, b);
-                saver.send(data)
-            }
-        });
+                for b in bounds.unwrap() {
+                    let data = BoundStateData::new(field, b);
+                    saver.send(data)
+                }
+            });
 
         Ok(())
     }
@@ -124,27 +148,30 @@ impl Problems {
 
         let saver = DataSaver::new("data/li2_field.jsonl", JsonFormat, FileAccess::Create)?;
 
-        energies.par_iter().progress_with_style(default_progress()).for_each_with(li2_problem, |problem, &energy| {
-            problem.system_params.energy = energy * AuEnergy;
+        energies
+            .par_iter()
+            .progress_with_style(default_progress())
+            .for_each_with(li2_problem, |problem, &energy| {
+                problem.system_params.energy = energy * AuEnergy;
 
-            let bounds = BoundStatesFinder::default()
-                .set_parameter_range([mag_min, mag_max], err)
-                .set_problem(|f| {
-                    let mut problem = problem.clone();
-                    problem.set_b_field(f * Gauss);
+                let bounds = BoundStatesFinder::default()
+                    .set_parameter_range([mag_min, mag_max], err)
+                    .set_problem(|f| {
+                        let mut problem = problem.clone();
+                        problem.set_b_field(f * Gauss);
 
-                    problem.w_matrix()
-                })
-                .set_r_range([4. * Bohr, 20. * Bohr, 1.5e3 * Bohr])
-                .set_propagator(|b, w| JohnsonLogDerivative::new(w, step_strategy.into(), b));
+                        problem.w_matrix()
+                    })
+                    .set_r_range([4. * Bohr, 20. * Bohr, 1.5e3 * Bohr])
+                    .set_propagator(|b, w| JohnsonLogDerivative::new(w, step_strategy.into(), b));
 
-            let bounds: Result<Vec<BoundState>> = bounds.bound_states().collect();
+                let bounds: Result<Vec<BoundState>> = bounds.bound_states().collect();
 
-            for b in bounds.unwrap() {
-                let data = BoundStateData::new(energy, b);
-                saver.send(data)
-            }
-        });
+                for b in bounds.unwrap() {
+                    let data = BoundStateData::new(energy, b);
+                    saver.send(data)
+                }
+            });
 
         Ok(())
     }

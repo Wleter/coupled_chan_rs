@@ -1,9 +1,12 @@
 use coupled_chan::{
     constants::{
+        BOHR_MAG, G_FACTOR,
         units::{
-            atomic_units::{AuEnergy, Gauss}, Frac, Quantity
-        }, BOHR_MAG, G_FACTOR
-    }, coupling::AngularBlocks
+            Frac, Quantity,
+            atomic_units::{AuEnergy, Gauss},
+        },
+    },
+    coupling::AngularBlocks,
 };
 use hilbert_space::{
     dyn_space::{BasisId, SpaceBasis, SubspaceBasis},
@@ -41,7 +44,7 @@ impl AtomBasis {
 pub struct AtomStructure {
     pub zeeman_e: ZeemanSplitting,
     pub zeeman_n: ZeemanSplitting,
-    pub hyperfine: HyperfineStructure
+    pub hyperfine: HyperfineStructure,
 }
 
 impl AtomStructure {
@@ -52,7 +55,7 @@ impl AtomStructure {
         Self {
             zeeman_e,
             zeeman_n: ZeemanSplitting::new(elements, atom_basis.i),
-            hyperfine: HyperfineStructure::new(elements, &atom_basis),
+            hyperfine: HyperfineStructure::new(elements, atom_basis),
         }
     }
 
@@ -69,7 +72,7 @@ impl AtomStructure {
 #[derive(Clone, Debug)]
 pub struct HyperfineStructure {
     pub a_hifi: Quantity<AuEnergy>,
-    pub operator: AngularBlocks
+    pub operator: AngularBlocks,
 }
 
 impl HyperfineStructure {
@@ -91,11 +94,11 @@ impl HyperfineStructure {
     }
 }
 
-#[derive(Clone, Debug,)]
+#[derive(Clone, Debug)]
 pub struct ZeemanSplitting {
     pub b_field: Quantity<Gauss>,
     pub gamma: Quantity<Frac<AuEnergy, Gauss>>,
-    pub operator: AngularBlocks
+    pub operator: AngularBlocks,
 }
 
 impl ZeemanSplitting {

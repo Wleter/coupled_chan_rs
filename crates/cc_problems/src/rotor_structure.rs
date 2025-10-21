@@ -1,5 +1,7 @@
 use coupled_chan::{
-    constants::units::{atomic_units::AuEnergy, Quantity}, coupling::AngularBlocks, Interaction, Operator
+    Interaction, Operator,
+    constants::units::{Quantity, atomic_units::AuEnergy},
+    coupling::AngularBlocks,
 };
 use hilbert_space::{
     dyn_space::{BasisElementsRef, BasisId, SpaceBasis, SubspaceBasis},
@@ -35,15 +37,14 @@ impl RotorBasis {
     }
 }
 
-#[derive(Clone, Debug,)]
+#[derive(Clone, Debug)]
 pub struct RotationalEnergy {
     pub rot_const: Quantity<AuEnergy>,
-    pub operator: AngularBlocks
+    pub operator: AngularBlocks,
 }
 
 impl RotationalEnergy {
     pub fn new(basis: &AngularBasisElements, rot: &RotorBasis) -> Self {
-        
         let operator = basis.get_angular_blocks(|basis| {
             operator_diag_mel!(dyn basis, [rot.n], |[n: AngularMomentum]| {
                 (n.0 * (n.0 + 1)) as f64
@@ -55,16 +56,16 @@ impl RotationalEnergy {
             operator,
         }
     }
-    
+
     pub fn hamiltonian(&self) -> AngularBlocks {
         self.operator.scale(self.rot_const.value())
     }
 }
 
-#[derive(Clone, Debug,)]
+#[derive(Clone, Debug)]
 pub struct DistortionEnergy {
     pub distortion: Quantity<AuEnergy>,
-    pub operator: AngularBlocks
+    pub operator: AngularBlocks,
 }
 
 impl DistortionEnergy {
@@ -80,7 +81,7 @@ impl DistortionEnergy {
             operator,
         }
     }
-    
+
     pub fn hamiltonian(&self) -> AngularBlocks {
         self.operator.scale(self.distortion.value())
     }
