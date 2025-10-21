@@ -5,7 +5,7 @@ use cc_problems::{
     prelude::*,
     rotor_structure::Interaction2D,
     system_structure::SystemParams,
-    tram_basis::TRAMBasisRecipe,
+    tram_basis::TRAMBasisRecipe, ScatteringProblem,
 };
 
 pub struct CaFRbProblem;
@@ -22,6 +22,7 @@ impl CaFRbProblem {
         recipe.tram.n_max = 0;
 
         let caf_rb_problem = caf_rb_problem(0, 0, recipe);
+        let caf_rb_scattering = caf_rb_scattering();
 
         let mag_fields = linspace(0., 1000., 4001);
         let saver = DataSaver::new("data/caf_rb_iso_feshbach.jsonl", JsonFormat, FileAccess::Create)?;
@@ -32,12 +33,7 @@ impl CaFRbProblem {
             .for_each_with(caf_rb_problem, |problem, &field| {
                 problem.set_b_field(field * Gauss);
                 let w_matrix = problem.w_matrix();
-                let step_strategy = LocalWavelengthStep::new(1e-4, f64::INFINITY, 500.);
-                let boundary = vanishing_boundary(7.2 * Bohr, Direction::Outwards, &w_matrix);
-
-                let mut propagator = RatioNumerov::new(&w_matrix, step_strategy.into(), boundary);
-                let solution = propagator.propagate_to((1.5e3 * Bohr).value());
-                let s_matrix = solution.get_s_matrix(&w_matrix);
+                let s_matrix = caf_rb_scattering.get_s_matrix(&w_matrix, RatioNumerov::new);
 
                 saver.send(SMatrixData::new(field, s_matrix))
             });
@@ -48,6 +44,7 @@ impl CaFRbProblem {
     fn caf_rb_feshbach() -> Result<()> {
         let recipe = caf_rb_recipe();
         let caf_rb_problem = caf_rb_problem(0, 0, recipe);
+        let caf_rb_scattering = caf_rb_scattering();
 
         let mag_fields = linspace(0., 1000., 4001);
         let saver = DataSaver::new("data/caf_rb_feshbach.jsonl", JsonFormat, FileAccess::Create)?;
@@ -63,12 +60,7 @@ impl CaFRbProblem {
             .for_each_with(caf_rb_problem, |problem, &field| {
                 problem.set_b_field(field * Gauss);
                 let w_matrix = problem.w_matrix();
-                let step_strategy = LocalWavelengthStep::new(1e-4, f64::INFINITY, 500.);
-                let boundary = vanishing_boundary(7.2 * Bohr, Direction::Outwards, &w_matrix);
-
-                let mut propagator = RatioNumerov::new(&w_matrix, step_strategy.into(), boundary);
-                let solution = propagator.propagate_to((1.5e3 * Bohr).value());
-                let s_matrix = solution.get_s_matrix(&w_matrix);
+                let s_matrix = caf_rb_scattering.get_s_matrix(&w_matrix, RatioNumerov::new);
 
                 saver.send(SMatrixData::new(field, s_matrix))
             });
@@ -137,5 +129,13 @@ fn caf_rb_recipe() -> AtomRotorTRAMRecipe {
         },
         tot_projection: hi32!(1),
         anisotropy_lambda_max: 2,
+    }
+}
+
+fn caf_rb_scattering() -> ScatteringProblem {
+    ScatteringProblem { 
+        r_min: 7.2 * Bohr, 
+        r_max: 1.5e3 * Bohr, 
+        step_strat: LocalWavelengthStep::new(1e-4, f64::INFINITY, 500.).into(),
     }
 }

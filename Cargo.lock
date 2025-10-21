@@ -1561,6 +1561,9 @@ dependencies = [
 [[package]]
 name = "propagator"
 version = "0.1.0"
+dependencies = [
+ "dyn-clone",
+]
 
 [[package]]
 name = "pulp"

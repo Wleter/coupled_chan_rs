@@ -1,3 +1,6 @@
+use dyn_clone::DynClone;
+
+#[derive(Clone, Debug)]
 pub enum StepStrategy {
     Fixed(f64),
     ShortLongRange(ShortLongRangeStep),
@@ -11,18 +14,23 @@ impl StepStrategy {
             StepStrategy::Fixed(x) => *x,
             StepStrategy::ShortLongRange(s) => s.get_step(local_wavelength),
             StepStrategy::LocalWaveLength(s) => s.get_step(r),
-            StepStrategy::Custom(custom_step) => (custom_step.step)(r, local_wavelength),
+            StepStrategy::Custom(custom_step) => custom_step.step.get_step(r, local_wavelength),
         }
     }
 }
 
+pub trait Step: DynClone + std::fmt::Debug + Send + Sync {
+    fn get_step(&self, r: f64, local_wavelength: f64) -> f64;
+}
+dyn_clone::clone_trait_object!(Step);
+
+#[derive(Clone, Debug)]
 pub struct CustomStep {
-    step: Box<dyn Fn(f64, f64) -> f64>,
+    step: Box<dyn Step>,
 }
 
 impl CustomStep {
-    /// Creates custom step from function f(r, local_wavelength)
-    pub fn new(step: impl Fn(f64, f64) -> f64 + 'static) -> Self {
+    pub fn new(step: impl Step + 'static) -> Self {
         Self { step: Box::new(step) }
     }
 }
@@ -33,6 +41,7 @@ impl From<CustomStep> for StepStrategy {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
 pub struct ShortLongRangeStep {
     pub r_switch: f64,
     pub dr_short: f64,
@@ -51,7 +60,7 @@ impl From<ShortLongRangeStep> for StepStrategy {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct LocalWavelengthStep {
     pub dr_min: f64,
     pub dr_max: f64,

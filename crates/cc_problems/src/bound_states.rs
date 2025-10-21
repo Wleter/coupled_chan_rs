@@ -202,8 +202,8 @@ where
 
         let w_matrix = problem(parameter);
 
-        let boundary_out = vanishing_boundary(r_range[0], Direction::Outwards, &w_matrix);
-        let boundary_in = vanishing_boundary(r_range[2], Direction::Inwards, &w_matrix);
+        let boundary_out = vanishing_boundary(r_range[0].value(), Direction::Outwards, &w_matrix);
+        let boundary_in = vanishing_boundary(r_range[2].value(), Direction::Inwards, &w_matrix);
 
         let mut propagator_in = prop(boundary_in, &w_matrix);
         let sol_in = propagator_in.propagate_to(r_range[1].value());
@@ -286,8 +286,8 @@ where
 
         let w_matrix = problem(parameter);
 
-        let boundary_out = vanishing_boundary(r_range[0], Direction::Outwards, &w_matrix);
-        let boundary_in = vanishing_boundary(r_range[2], Direction::Inwards, &w_matrix);
+        let boundary_out = vanishing_boundary(r_range[0].value(), Direction::Outwards, &w_matrix);
+        let boundary_in = vanishing_boundary(r_range[2].value(), Direction::Inwards, &w_matrix);
 
         let mut propagator_in = prop(boundary_in, &w_matrix);
         propagator_in.with_wave_storage(WaveLogDerivStorage::new(true));

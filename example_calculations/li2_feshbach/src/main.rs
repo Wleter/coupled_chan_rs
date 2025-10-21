@@ -1,8 +1,8 @@
 use cc_problems::{
-    AngularMomentum, BoundStateData, LevelsData, SMatrixData,
+    AngularMomentum, BoundProblem, BoundStateData, LevelsData, SMatrixData, ScatteringProblem,
     anyhow::Result,
     atom_structure::AtomBasisRecipe,
-    bound_states::{BoundState, BoundStatesFinder},
+    bound_states::BoundState,
     coupled_chan::{
         Interaction,
         composite_int::CompositeInt,
@@ -10,15 +10,12 @@ use cc_problems::{
         coupling::WMatrix,
         dispersion::Dispersion,
         log_derivative::diabatic::JohnsonLogDerivative,
-        propagator::{Direction, Propagator, step_strategy::LocalWavelengthStep},
+        propagator::step_strategy::LocalWavelengthStep,
         ratio_numerov::RatioNumerov,
-        s_matrix::SMatrixGetter,
-        vanishing_boundary,
     },
     homo_diatom_basis::{AlkaliHomoDiatom, HomoDiatomRecipe},
     linspace,
-    prelude::*,
-    prelude::{ParallelProgressIterator, default_progress},
+    prelude::{ParallelProgressIterator, default_progress, *},
     qol_utils::{
         problem_selector::{ProblemSelector, get_args},
         problems_impl,
@@ -70,6 +67,7 @@ impl Problems {
         .flatten()
         .collect();
 
+        let li2_scattering = li2_scattering();
         let saver = DataSaver::new("data/li2_feshbach.jsonl", JsonFormat, FileAccess::Create)?;
 
         mag_fields
@@ -78,12 +76,8 @@ impl Problems {
             .for_each_with(li2_problem, |problem, &field| {
                 problem.set_b_field(field * Gauss);
                 let w_matrix = problem.w_matrix();
-                let step_strategy = LocalWavelengthStep::new(1e-4, 10., 400.);
-                let boundary = vanishing_boundary(4. * Bohr, Direction::Outwards, &w_matrix);
 
-                let mut propagator = RatioNumerov::new(&w_matrix, step_strategy.into(), boundary);
-                let solution = propagator.propagate_to((1500. * Bohr).value());
-                let s_matrix = solution.get_s_matrix(&w_matrix);
+                let s_matrix = li2_scattering.get_s_matrix(&w_matrix, RatioNumerov::new);
 
                 saver.send(SMatrixData::new(field, s_matrix))
             });
@@ -98,7 +92,7 @@ impl Problems {
         let e_min = -12. * GHz;
         let e_max = 0. * GHz;
         let err = 1. * MHz;
-        let step_strategy = LocalWavelengthStep::new(1e-4, 10., 400.);
+        let li2_bound = li2_bound();
 
         let saver = DataSaver::new("data/li2_bound.jsonl", JsonFormat, FileAccess::Create)?;
 
@@ -108,21 +102,19 @@ impl Problems {
             .for_each_with(li2_problem, |problem, &field| {
                 problem.set_b_field(field * Gauss);
 
-                let bounds = BoundStatesFinder::default()
-                    .set_parameter_range(
-                        [e_min.to(AuEnergy).value(), e_max.to(AuEnergy).value()],
-                        err.to(AuEnergy).value(),
-                    )
-                    .set_problem(|e| {
+                let bound_finder = li2_bound.get_bound_finder(
+                    (e_min.to(AuEnergy).value(), e_max.to(AuEnergy).value()),
+                    err.to(AuEnergy).value(),
+                    |e| {
                         let mut problem = problem.clone();
                         problem.system_params.energy = e * AuEnergy;
 
                         problem.w_matrix()
-                    })
-                    .set_r_range([4. * Bohr, 20. * Bohr, 1.5e3 * Bohr])
-                    .set_propagator(|b, w| JohnsonLogDerivative::new(w, step_strategy.into(), b));
+                    },
+                    |w, s, b| JohnsonLogDerivative::new(w, s, b),
+                );
 
-                let bounds: Result<Vec<BoundState>> = bounds.bound_states().collect();
+                let bounds: Result<Vec<BoundState>> = bound_finder.bound_states().collect();
 
                 for b in bounds.unwrap() {
                     let data = BoundStateData::new(field, b);
@@ -144,7 +136,7 @@ impl Problems {
         let mag_min = 0.;
         let mag_max = 1200.;
         let err = 1e-2;
-        let step_strategy = LocalWavelengthStep::new(1e-4, 10., 400.);
+        let li2_bound = li2_bound();
 
         let saver = DataSaver::new("data/li2_field.jsonl", JsonFormat, FileAccess::Create)?;
 
@@ -154,18 +146,19 @@ impl Problems {
             .for_each_with(li2_problem, |problem, &energy| {
                 problem.system_params.energy = energy * AuEnergy;
 
-                let bounds = BoundStatesFinder::default()
-                    .set_parameter_range([mag_min, mag_max], err)
-                    .set_problem(|f| {
+                let bound_finder = li2_bound.get_bound_finder(
+                    (mag_min, mag_max),
+                    err,
+                    |f| {
                         let mut problem = problem.clone();
                         problem.set_b_field(f * Gauss);
 
                         problem.w_matrix()
-                    })
-                    .set_r_range([4. * Bohr, 20. * Bohr, 1.5e3 * Bohr])
-                    .set_propagator(|b, w| JohnsonLogDerivative::new(w, step_strategy.into(), b));
+                    },
+                    |w, s, b| JohnsonLogDerivative::new(w, s, b),
+                );
 
-                let bounds: Result<Vec<BoundState>> = bounds.bound_states().collect();
+                let bounds: Result<Vec<BoundState>> = bound_finder.bound_states().collect();
 
                 for b in bounds.unwrap() {
                     let data = BoundStateData::new(energy, b);
@@ -183,26 +176,24 @@ impl Problems {
         let e_min = -12. * GHz;
         let e_max = 0. * GHz;
         let err = 1. * MHz;
-        let step_strategy = LocalWavelengthStep::new(1e-4, 10., 400.);
+        let li2_bound = li2_bound();
 
         let saver = DataSaver::new("data/li2_wave_600G.jsonl", JsonFormat, FileAccess::Create)?;
 
-        let bounds = BoundStatesFinder::default()
-            .set_parameter_range(
-                [e_min.to(AuEnergy).value(), e_max.to(AuEnergy).value()],
-                err.to(AuEnergy).value(),
-            )
-            .set_problem(|e| {
-                let mut params = li2_problem.clone();
-                params.system_params.energy = e * AuEnergy;
+        let bound_finder = li2_bound.get_bound_finder(
+            (e_min.to(AuEnergy).value(), e_max.to(AuEnergy).value()),
+            err.to(AuEnergy).value(),
+            |e| {
+                let mut problem = li2_problem.clone();
+                problem.system_params.energy = e * AuEnergy;
 
-                params.w_matrix()
-            })
-            .set_r_range([4. * Bohr, 20. * Bohr, 1.5e3 * Bohr])
-            .set_propagator(|b, w| JohnsonLogDerivative::new(w, step_strategy.into(), b));
+                problem.w_matrix()
+            },
+            |w, s, b| JohnsonLogDerivative::new(w, s, b),
+        );
 
-        for b in bounds.bound_states() {
-            let wave = bounds.bound_wave(&b.unwrap());
+        for b in bound_finder.bound_states() {
+            let wave = bound_finder.bound_wave(&b.unwrap());
 
             saver.send(wave)
         }
@@ -235,6 +226,25 @@ pub fn li2_recipe() -> HomoDiatomRecipe {
         },
         l_max: AngularMomentum(0),
         tot_projection: hi32!(0),
+    }
+}
+
+pub fn li2_scattering() -> ScatteringProblem {
+    ScatteringProblem {
+        r_min: 4. * Bohr,
+        r_max: 1.5e3 * Bohr,
+        step_strat: LocalWavelengthStep::new(1e-4, f64::INFINITY, 400.).into(),
+    }
+}
+
+pub fn li2_bound() -> BoundProblem {
+    BoundProblem {
+        r_min: 4. * Bohr,
+        r_match: 20. * Bohr,
+        r_max: 1.5e3 * Bohr,
+        step_strat: LocalWavelengthStep::new(1e-4, 10., 400.).into(),
+        node_range: None,
+        node_monotony: NodeMonotony::Increasing,
     }
 }
 
@@ -289,16 +299,13 @@ mod tests {
     #[test]
     fn test_li2_numerov() {
         let mut li2_problem = li2_problem(li2_recipe());
+        let li2_scattering = li2_scattering();
 
         for (field, &result) in [0., 500., 1000.].into_iter().zip(&SCATTERING_LENGTHS_NUMEROV) {
             li2_problem.set_b_field(field * Gauss);
             let w_matrix = li2_problem.w_matrix();
-            let step_strategy = LocalWavelengthStep::new(1e-4, 10., 400.);
-            let boundary = vanishing_boundary(4. * Bohr, Direction::Outwards, &w_matrix);
+            let s_matrix = li2_scattering.get_s_matrix(&w_matrix, |w, s, b| RatioNumerov::new(w, s, b));
 
-            let mut propagator = RatioNumerov::new(&w_matrix, step_strategy.into(), boundary);
-            let solution = propagator.propagate_to((1500. * Bohr).value());
-            let s_matrix = solution.get_s_matrix(&w_matrix);
             assert_approx_eq!(s_matrix.get_scattering_length().re, result, 1e-6);
         }
     }
@@ -308,16 +315,12 @@ mod tests {
     #[test]
     fn test_li2_johnson() {
         let mut li2_problem = li2_problem(li2_recipe());
+        let li2_scattering = li2_scattering();
 
         for (field, &result) in [0., 500., 1000.].into_iter().zip(&SCATTERING_LENGTHS_JOHNSON) {
             li2_problem.set_b_field(field * Gauss);
             let w_matrix = li2_problem.w_matrix();
-            let step_strategy = LocalWavelengthStep::new(1e-4, 10., 400.);
-            let boundary = vanishing_boundary(4. * Bohr, Direction::Outwards, &w_matrix);
-
-            let mut propagator = JohnsonLogDerivative::new(&w_matrix, step_strategy.into(), boundary);
-            let solution = propagator.propagate_to((1500. * Bohr).value());
-            let s_matrix = solution.get_s_matrix(&w_matrix);
+            let s_matrix = li2_scattering.get_s_matrix(&w_matrix, |w, s, b| JohnsonLogDerivative::new(w, s, b));
 
             assert_approx_eq!(s_matrix.get_scattering_length().re, result, 1e-6);
         }
@@ -327,16 +330,12 @@ mod tests {
     #[test]
     fn test_li2_manolopoulos() {
         let mut li2_problem = li2_problem(li2_recipe());
+        let li2_scattering = li2_scattering();
 
         for (field, &result) in [0., 500., 1000.].into_iter().zip(&SCATTERING_LENGTHS_MANOLOPOULOS) {
             li2_problem.set_b_field(field * Gauss);
             let w_matrix = li2_problem.w_matrix();
-            let step_strategy = LocalWavelengthStep::new(1e-4, 10., 400.);
-            let boundary = vanishing_boundary(4. * Bohr, Direction::Outwards, &w_matrix);
-
-            let mut propagator = ManolopoulosLogDerivative::new(&w_matrix, step_strategy.into(), boundary);
-            let solution = propagator.propagate_to((1500. * Bohr).value());
-            let s_matrix = solution.get_s_matrix(&w_matrix);
+            let s_matrix = li2_scattering.get_s_matrix(&w_matrix, |w, s, b| ManolopoulosLogDerivative::new(w, s, b));
 
             assert_approx_eq!(s_matrix.get_scattering_length().re, result, 1e-6);
         }
@@ -375,28 +374,26 @@ mod tests {
         let e_min = -12. * GHz;
         let e_max = 0. * GHz;
         let err = 1. * MHz;
-        let step_strategy = LocalWavelengthStep::new(1e-4, 10., 400.);
+        let li2_bound = li2_bound();
 
-        let bounds = BoundStatesFinder::default()
-            .set_parameter_range(
-                [e_min.to(AuEnergy).value(), e_max.to(AuEnergy).value()],
-                err.to(AuEnergy).value(),
-            )
-            .set_problem(|e| {
+        let bound_finder = li2_bound.get_bound_finder(
+            (e_min.to(AuEnergy).value(), e_max.to(AuEnergy).value()),
+            err.to(AuEnergy).value(),
+            |e| {
                 let mut problem = li2_problem.clone();
                 problem.system_params.energy = e * AuEnergy;
 
                 problem.w_matrix()
-            })
-            .set_r_range([4. * Bohr, 20. * Bohr, 1.5e3 * Bohr])
-            .set_propagator(|b, w| JohnsonLogDerivative::new(w, step_strategy.into(), b));
+            },
+            |w, s, b| JohnsonLogDerivative::new(w, s, b),
+        );
 
-        let bound_states: Result<Vec<BoundState>> = bounds.bound_states().collect();
+        let bound_states: Result<Vec<BoundState>> = bound_finder.bound_states().collect();
         let bound_states: Vec<BoundState> = bound_states
             .unwrap()
             .into_iter()
             .map(|mut b| {
-                b.occupations = Some(bounds.bound_wave(&b).occupations());
+                b.occupations = Some(bound_finder.bound_wave(&b).occupations());
                 b
             })
             .collect();
@@ -445,25 +442,26 @@ mod tests {
         let mag_min = 0.;
         let mag_max = 1200.;
         let err = 1e-2;
-        let step_strategy = LocalWavelengthStep::new(1e-4, 10., 400.);
+        let li2_bound = li2_bound();
 
-        let bounds = BoundStatesFinder::default()
-            .set_parameter_range([mag_min, mag_max], err)
-            .set_problem(|f| {
-                let mut params = li2_problem.clone();
-                params.set_b_field(f * Gauss);
+        let bound_finder = li2_bound.get_bound_finder(
+            (mag_min, mag_max),
+            err,
+            |f| {
+                let mut problem = li2_problem.clone();
+                problem.set_b_field(f * Gauss);
 
-                li2_problem.w_matrix()
-            })
-            .set_r_range([4. * Bohr, 20. * Bohr, 1.5e3 * Bohr])
-            .set_propagator(|b, w| JohnsonLogDerivative::new(w, step_strategy.into(), b));
+                problem.w_matrix()
+            },
+            |w, s, b| JohnsonLogDerivative::new(w, s, b),
+        );
 
-        let bound_states: Result<Vec<BoundState>> = bounds.bound_states().collect();
+        let bound_states: Result<Vec<BoundState>> = bound_finder.bound_states().collect();
         let bound_states: Vec<BoundState> = bound_states
             .unwrap()
             .into_iter()
             .map(|mut b| {
-                b.occupations = Some(bounds.bound_wave(&b).occupations());
+                b.occupations = Some(bound_finder.bound_wave(&b).occupations());
                 b
             })
             .collect();

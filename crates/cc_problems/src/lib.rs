@@ -21,15 +21,23 @@ pub use spin_algebra;
 
 use coupled_chan::{
     Operator,
-    coupling::{AngularBlocks, Levels},
-    s_matrix::SMatrix,
+    constants::{Bohr, Quantity},
+    coupling::{AngularBlocks, Levels, WMatrix},
+    log_derivative::diabatic::{DiabaticLogDerivative, LogDerivativeReference},
+    propagator::{Boundary, Direction, Propagator, Repr, Solution, step_strategy::StepStrategy},
+    s_matrix::{SMatrix, SMatrixGetter},
+    vanishing_boundary,
 };
 use hilbert_space::{
     cast_variant,
     dyn_space::{BasisElementIndices, BasisElements, BasisElementsRef, BasisId, DynSubspaceElement},
 };
 
-use crate::{bound_states::BoundState, system_structure::AngularBasis};
+use crate::{
+    bound_states::BoundState,
+    prelude::{BoundStatesFinder, NodeMonotony, NodeRangeTarget},
+    system_structure::AngularBasis,
+};
 
 #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct AngularMomentum(pub u32);
@@ -111,6 +119,72 @@ impl AngularBasisElements {
             l: self.ls.iter().map(|a| a.0).collect(),
             angular_blocks: blocks,
         }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ScatteringProblem {
+    pub r_min: Quantity<Bohr>,
+    pub r_max: Quantity<Bohr>,
+    pub step_strat: StepStrategy,
+}
+
+impl ScatteringProblem {
+    pub fn get_s_matrix<'a, W, R, P>(
+        &self,
+        w_matrix: &'a W,
+        prop: impl Fn(&'a W, StepStrategy, Boundary<Operator>) -> P,
+    ) -> SMatrix
+    where
+        W: WMatrix,
+        R: Repr,
+        P: Propagator<R> + 'a,
+        Solution<R>: SMatrixGetter,
+    {
+        let boundary = vanishing_boundary(self.r_min.value(), Direction::Outwards, w_matrix);
+
+        let mut propagator = prop(w_matrix, self.step_strat.clone(), boundary);
+        let solution = propagator.propagate_to(self.r_max.value());
+
+        solution.get_s_matrix(w_matrix)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct BoundProblem {
+    pub r_min: Quantity<Bohr>,
+    pub r_match: Quantity<Bohr>,
+    pub r_max: Quantity<Bohr>,
+    pub step_strat: StepStrategy,
+
+    pub node_range: Option<NodeRangeTarget>,
+    pub node_monotony: NodeMonotony,
+}
+
+impl BoundProblem {
+    pub fn get_bound_finder<'a, W, L>(
+        &'a self,
+        parameter_range: (f64, f64),
+        parameter_err: f64,
+        problem: impl Fn(f64) -> W + 'a,
+        prop: impl for<'w> Fn(&'w W, StepStrategy, Boundary<Operator>) -> DiabaticLogDerivative<'w, L, W> + 'a,
+    ) -> BoundStatesFinder<'a, W, L>
+    where
+        W: WMatrix,
+        L: LogDerivativeReference,
+    {
+        let mut b = BoundStatesFinder::default()
+            .set_parameter_range([parameter_range.0, parameter_range.1], parameter_err)
+            .set_problem(problem)
+            .set_r_range([self.r_min, self.r_match, self.r_max])
+            .set_propagator(move |b, w| prop(w, self.step_strat.clone(), b))
+            .set_node_monotony(self.node_monotony);
+
+        if let Some(node_range) = self.node_range {
+            b = b.set_node_range(node_range);
+        }
+
+        b
     }
 }
 
