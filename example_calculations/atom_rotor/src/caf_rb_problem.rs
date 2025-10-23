@@ -5,7 +5,7 @@ use cc_problems::{
     prelude::*,
     rotor_structure::Interaction2D,
     system_structure::SystemParams,
-    tram_basis::TRAMBasisRecipe, ScatteringProblem,
+    tram_basis::TRAMBasisRecipe,
 };
 
 pub struct CaFRbProblem;
@@ -133,9 +133,9 @@ fn caf_rb_recipe() -> AtomRotorTRAMRecipe {
 }
 
 fn caf_rb_scattering() -> ScatteringProblem {
-    ScatteringProblem { 
-        r_min: 7.2 * Bohr, 
-        r_max: 1.5e3 * Bohr, 
+    ScatteringProblem {
+        r_min: 7.2 * Bohr,
+        r_max: 1.5e3 * Bohr,
         step_strat: LocalWavelengthStep::new(1e-4, f64::INFINITY, 500.).into(),
     }
 }
