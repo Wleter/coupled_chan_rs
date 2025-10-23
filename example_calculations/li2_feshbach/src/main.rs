@@ -15,7 +15,7 @@ use cc_problems::{
     },
     homo_diatom_basis::{AlkaliHomoDiatom, HomoDiatomRecipe},
     linspace,
-    prelude::{ParallelProgressIterator, default_progress, *},
+    prelude::*,
     qol_utils::{
         problem_selector::{ProblemSelector, get_args},
         problems_impl,
