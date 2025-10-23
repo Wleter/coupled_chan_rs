@@ -280,7 +280,7 @@ impl Display for BasisElements {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for indices in &self.elements_indices {
             for (index, b) in indices.iter().zip(self.basis.0.iter()) {
-                write!(f, "|{:?} ⟩ ", b.basis[*index])?
+                write!(f, "|{:?} > ", b.basis[*index])?
             }
             writeln!(f)?
         }
@@ -293,7 +293,7 @@ impl Debug for BasisElements {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for indices in &self.elements_indices {
             for (index, b) in indices.iter().zip(self.basis.0.iter()) {
-                write!(f, "|{:?} ⟩ ", b.basis[*index])?
+                write!(f, "|{:?} > ", b.basis[*index])?
             }
             writeln!(f)?
         }

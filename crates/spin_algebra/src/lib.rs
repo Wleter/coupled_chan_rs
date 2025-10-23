@@ -42,6 +42,8 @@ impl Spin {
     }
 }
 
+/// Creates vector containing spin basis |s m_s >
+/// for given `s`
 pub fn get_spin_basis(s: HalfU32) -> Vec<Spin> {
     let ds = s.double_value() as i32;
 
@@ -51,6 +53,8 @@ pub fn get_spin_basis(s: HalfU32) -> Vec<Spin> {
         .collect()
 }
 
+/// Creates vector containing combined spin basis |S M_S >
+/// from given `s1` and `s2` spins
 pub fn get_summed_spin_basis(s1: HalfU32, s2: HalfU32) -> Vec<Spin> {
     let dspin_max = (s1 + s2).double_value();
     let dspin_min = (s1.double_value() as i32 - s2.double_value() as i32).unsigned_abs();

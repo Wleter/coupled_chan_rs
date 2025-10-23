@@ -9,6 +9,9 @@ use std::{
     thread::JoinHandle,
 };
 
+/// Struct for saving data of type `D`.
+/// It creates a new thread dedicated for saving
+/// data as soon as send via [`Self::send`].
 pub struct DataSaver<D: Send> {
     tx: Option<Sender<D>>,
     handle: Option<JoinHandle<Result<()>>>,
