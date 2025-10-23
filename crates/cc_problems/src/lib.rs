@@ -39,8 +39,14 @@ use crate::{
     system_structure::AngularBasis,
 };
 
-#[derive(Clone, Copy, Hash, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct AngularMomentum(pub u32);
+
+impl std::fmt::Debug for AngularMomentum {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 #[derive(Clone)]
 pub struct AngularBasisElements {

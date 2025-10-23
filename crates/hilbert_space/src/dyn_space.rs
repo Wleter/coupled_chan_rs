@@ -12,8 +12,14 @@ dyn_clone::clone_trait_object!(DynSubspaceElement);
 
 impl<T: Clone + Debug + Send + Sync + 'static> DynSubspaceElement for T {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct SubspaceElement(Box<dyn DynSubspaceElement>);
+
+impl Debug for SubspaceElement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.0)
+    }
+}
 
 impl Deref for SubspaceElement {
     type Target = Box<dyn DynSubspaceElement>;
