@@ -21,7 +21,6 @@ impl<P: Interaction> Masked<P> {
 
 impl<P: Interaction> VanishingCoupling for Masked<P> {
     fn value_inplace(&self, r: f64, channels: &mut Operator) {
-        channels.fill(0.);
         let value = self.interaction.value(r);
 
         zip!(channels.as_mut(), self.masking.as_ref()).for_each(|unzip!(v, m)| {

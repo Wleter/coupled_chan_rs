@@ -42,9 +42,13 @@ impl<P: VanishingCoupling> Composite<P> {
 
 impl<P: VanishingCoupling> VanishingCoupling for Composite<P> {
     fn value_inplace(&self, r: f64, channels: &mut crate::Operator) {
-        channels.0.fill(0.);
+        let mut couplings = self.couplings.iter();
 
-        for c in self.couplings.iter() {
+        if let Some(c) = couplings.next() {
+            c.value_inplace(r, channels);
+        }
+
+        for c in couplings {
             c.value_inplace_add(r, channels);
         }
     }

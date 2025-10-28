@@ -49,11 +49,6 @@ impl CaFRbProblem {
         let mag_fields = linspace(0., 1000., 4001);
         let saver = DataSaver::new("data/caf_rb_feshbach.jsonl", JsonFormat, FileAccess::Create)?;
 
-        let mut problem = caf_rb_problem.clone();
-        problem.set_b_field(100. * Gauss);
-        let w_matrix = problem.w_matrix();
-        println!("{:?}", w_matrix.asymptote());
-
         mag_fields
             .par_iter()
             .progress_with_style(default_progress())
@@ -78,7 +73,7 @@ fn caf_rb_problem(
     singlet_scaling_no: usize,
     triplet_scaling_no: usize,
     recipe: AtomRotorTRAMRecipe,
-) -> AlkaliAtomRotorTRAM<impl Interaction + Clone, impl Interaction + Clone> {
+) -> AlkaliAtomRotorTRAM<impl Interaction + Clone + std::fmt::Debug, impl Interaction + Clone + std::fmt::Debug> {
     let factors_singlet = [1.0196, 0.9815, 1.0037];
     let factors_triplet = [1.0286, 0.9717, 1.00268];
     let c12_0_singlet = factors_singlet[singlet_scaling_no] * C12_0_SINGLET;
@@ -137,5 +132,19 @@ fn caf_rb_scattering() -> ScatteringProblem {
         r_min: 7.2 * Bohr,
         r_max: 1.5e3 * Bohr,
         step_strat: LocalWavelengthStep::new(1e-4, f64::INFINITY, 500.).into(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn test_caf_rb_scattering() {
+
+    }
+
+    #[test]
+    fn test_caf_rb_bound() {
+
     }
 }
