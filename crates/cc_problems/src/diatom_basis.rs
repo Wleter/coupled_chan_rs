@@ -40,10 +40,10 @@ impl DiatomBasis {
         let angular = AngularBasis::new(recipe.l_max, &mut basis);
 
         let basis = basis.get_filtered_basis(|element| {
-            let s_a = cast_variant!(dyn element[atom_a.s.0 as usize], Spin);
-            let i_a = cast_variant!(dyn element[atom_a.i.0 as usize], Spin);
-            let s_b = cast_variant!(dyn element[atom_b.s.0 as usize], Spin);
-            let i_b = cast_variant!(dyn element[atom_b.i.0 as usize], Spin);
+            let s_a = cast_variant!(dyn element[atom_a.s], Spin);
+            let i_a = cast_variant!(dyn element[atom_a.i], Spin);
+            let s_b = cast_variant!(dyn element[atom_b.s], Spin);
+            let i_b = cast_variant!(dyn element[atom_b.i], Spin);
 
             s_a.m + i_a.m + s_b.m + i_b.m == recipe.tot_projection
         });

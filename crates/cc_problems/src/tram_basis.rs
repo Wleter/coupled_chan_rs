@@ -1,6 +1,6 @@
 use hilbert_space::{
     Parity, cast_variant,
-    dyn_space::{BasisId, SpaceBasis, SubspaceBasis, SubspaceElement},
+    dyn_space::{BasisId, SpaceBasis, SpaceElement, SubspaceBasis},
 };
 use spin_algebra::{Spin, get_spin_basis};
 
@@ -41,10 +41,10 @@ impl TRAMBasis {
         }
     }
 
-    pub fn filter(&self, element: &[&SubspaceElement]) -> bool {
-        let l = cast_variant!(dyn element[self.l.l.0 as usize], AngularMomentum);
-        let n = cast_variant!(dyn element[self.n.n.0 as usize], AngularMomentum);
-        let n_tot_spin = cast_variant!(dyn element[self.n_tot.0 as usize], Spin);
+    pub fn filter(&self, element: SpaceElement) -> bool {
+        let l = cast_variant!(dyn element[self.l.l], AngularMomentum);
+        let n = cast_variant!(dyn element[self.n.n], AngularMomentum);
+        let n_tot_spin = cast_variant!(dyn element[self.n_tot], Spin);
         let n_tot = n_tot_spin.s.double_value() / 2;
 
         (l.0 + n.0) >= n_tot

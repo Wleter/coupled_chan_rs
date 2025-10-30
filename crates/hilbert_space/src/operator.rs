@@ -161,7 +161,7 @@ macro_rules! filter_space {
         $basis.get_filtered_basis(|x| {
             let mut i: usize = 0;
             $(
-                let $basis_id = $crate::cast_variant!(dyn x[$basis_id.0 as usize], $subspaces);
+                let $basis_id = $crate::cast_variant!(dyn x[$basis_id], $subspaces);
                 i += 1;
             )*
             assert_eq!(i, x.len(), "Not whole space for space filtering is defined");

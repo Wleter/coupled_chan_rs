@@ -98,7 +98,7 @@ impl SpaceBasis {
         id
     }
 
-    pub fn get_filtered_basis(&self, f: impl Fn(&[&SubspaceElement]) -> bool) -> BasisElements {
+    pub fn get_filtered_basis(&self, f: impl Fn(SpaceElement) -> bool) -> BasisElements {
         let iter = BasisElementIter {
             size: self.size(),
             basis_sizes: self.0.iter().map(|x| x.size()).collect(),
@@ -118,7 +118,7 @@ impl SpaceBasis {
                     .zip(indices.iter().zip(self.0.iter()))
                     .for_each(|(s, (i, b))| *s = &b.basis[*i]);
 
-                f(&subspaces_elements)
+                f(SpaceElement(&subspaces_elements))
             })
             .collect();
 
@@ -140,6 +140,25 @@ impl SpaceBasis {
             basis: self.clone(),
             elements_indices: iter.collect(),
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct SpaceElement<'a>(&'a [&'a SubspaceElement]);
+
+impl<'a> Index<BasisId> for SpaceElement<'a> {
+    type Output = SubspaceElement;
+
+    fn index(&self, index: BasisId) -> &Self::Output {
+        self.0[index.0 as usize]
+    }
+}
+
+impl<'a> Deref for SpaceElement<'a> {
+    type Target = [&'a SubspaceElement];
+
+    fn deref(&self) -> &'a Self::Target {
+        self.0
     }
 }
 
@@ -210,7 +229,7 @@ pub struct BasisElements {
     pub elements_indices: Vec<BasisElementIndices>,
 }
 
-// todo! duplicate code
+// todo! duplicate code for BasisElements and BassiElementsRef
 impl BasisElements {
     pub fn as_ref<'a>(&'a self) -> BasisElementsRef<'a> {
         BasisElementsRef {

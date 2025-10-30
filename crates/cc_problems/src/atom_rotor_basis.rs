@@ -54,13 +54,13 @@ impl AtomRotorTRAMBasis {
                 return false;
             }
 
-            let n_tot = cast_variant!(dyn element[tram.n_tot.0 as usize], Spin);
-            let s_a = cast_variant!(dyn element[atom_a.s.0 as usize], Spin);
-            let i_a = cast_variant!(dyn element[atom_a.i.0 as usize], Spin);
-            let s_b = cast_variant!(dyn element[atom_b.s.0 as usize], Spin);
-            let i_b = cast_variant!(dyn element[atom_b.i.0 as usize], Spin);
-            let s_c = cast_variant!(dyn element[atom_c.s.0 as usize], Spin);
-            let i_c = cast_variant!(dyn element[atom_c.i.0 as usize], Spin);
+            let n_tot = cast_variant!(dyn element[tram.n_tot], Spin);
+            let s_a = cast_variant!(dyn element[atom_a.s], Spin);
+            let i_a = cast_variant!(dyn element[atom_a.i], Spin);
+            let s_b = cast_variant!(dyn element[atom_b.s], Spin);
+            let i_b = cast_variant!(dyn element[atom_b.i], Spin);
+            let s_c = cast_variant!(dyn element[atom_c.s], Spin);
+            let i_c = cast_variant!(dyn element[atom_c.i], Spin);
 
             s_a.m + i_a.m + s_b.m + i_b.m + s_c.m + i_c.m + n_tot.m == recipe.tot_projection
         });

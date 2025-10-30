@@ -68,9 +68,9 @@ impl HomoDiatomBasis {
         };
 
         let basis = basis.get_filtered_basis(|element| {
-            let s_tot = cast_variant!(dyn element[combined_atom_basis.s.0 as usize], Spin);
-            let i_tot = cast_variant!(dyn element[combined_atom_basis.i.0 as usize], Spin);
-            let l = cast_variant!(dyn element[angular.l.0 as usize], AngularMomentum);
+            let s_tot = cast_variant!(dyn element[combined_atom_basis.s], Spin);
+            let i_tot = cast_variant!(dyn element[combined_atom_basis.i], Spin);
+            let l = cast_variant!(dyn element[angular.l], AngularMomentum);
 
             let even_spin = even_spin(s_max, i_max, s_tot.s, i_tot.s);
             let parity = match parity {
@@ -89,10 +89,10 @@ impl HomoDiatomBasis {
         let angular_sep = AngularBasis::new(recipe.l_max, &mut basis_sep);
 
         let basis_sep = basis_sep.get_filtered_basis(|element| {
-            let s_a = cast_variant!(dyn element[atom_a.s.0 as usize], Spin);
-            let i_a = cast_variant!(dyn element[atom_a.i.0 as usize], Spin);
-            let s_b = cast_variant!(dyn element[atom_b.s.0 as usize], Spin);
-            let i_b = cast_variant!(dyn element[atom_b.i.0 as usize], Spin);
+            let s_a = cast_variant!(dyn element[atom_a.s], Spin);
+            let i_a = cast_variant!(dyn element[atom_a.i], Spin);
+            let s_b = cast_variant!(dyn element[atom_b.s], Spin);
+            let i_b = cast_variant!(dyn element[atom_b.i], Spin);
 
             s_a.m + i_a.m + s_b.m + i_b.m == recipe.tot_projection
         });
