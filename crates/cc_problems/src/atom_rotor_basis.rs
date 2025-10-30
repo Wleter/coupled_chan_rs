@@ -82,6 +82,39 @@ pub struct PotentialSurface<P: Interaction> {
 }
 
 impl<P: Interaction + Clone> PotentialSurface<P> {
+    pub fn new(
+        surface: Interaction2D<P>,
+        elements: &AngularBasisElements,
+        tram: &TRAMBasis,
+    ) -> Self {
+        let zeros = Operator::zeros(elements.full_basis.basis.size());
+
+        let operator = surface
+            .0
+            .iter()
+            .map(|x| {
+                operator_mel!(
+                    dyn elements.full_basis,
+                    [tram.l.l, tram.n.n, tram.n_tot],
+                    |[l: AngularMomentum, n: AngularMomentum, n_tot: Spin]| {
+                        percival_coef_tram_mel(x.0, l, n, n_tot)
+                    }
+                )
+            })
+            .filter(|a: &Operator| a.0 != zeros.0)
+            .collect();
+
+        let surface = Interaction2D(
+            surface
+                .0
+                .into_iter()
+                .map(|x| (x.0, ScaledInteraction::new(x.1, 1.)))
+                .collect(),
+        );
+
+        Self { surface, operator }
+    }
+
     pub fn new_triplet(
         surface: Interaction2D<P>,
         elements: &AngularBasisElements,
@@ -232,6 +265,77 @@ where
 
     pub fn coupling(&self) -> impl VanishingCoupling {
         Pair::new(self.triplet.hamiltonian(), self.singlet.hamiltonian())
+    }
+
+    pub fn w_matrix(&self) -> impl WMatrix {
+        RedCoupling::new(self.coupling(), self.asymptote())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct SinglePESAtomRotorTRAM<P>
+where
+    P: Interaction,
+{
+    pub system_params: SystemParams,
+    pub atom_a: AtomStructure,
+    pub atom_b: AtomStructure,
+    pub atom_c: AtomStructure,
+
+    pub rotational: RotationalEnergy,
+    pub pes: PotentialSurface<P>,
+
+    pub basis: AtomRotorTRAMBasis,
+}
+
+impl<P> SinglePESAtomRotorTRAM<P>
+where
+    P: Interaction + Clone,
+{
+    pub fn new(pes: Interaction2D<P>, recipe: AtomRotorTRAMRecipe) -> Self {
+        assert!(recipe.atom_a.s + recipe.atom_b.s + recipe.atom_c.s <= hu32!(1 / 2), 
+            "Expected problem with single PES"
+        );
+
+        assert!(recipe.atom_a.s == hu32!(1 / 2), "{ALKALI_SPINS}");
+        assert!(recipe.atom_b.s == hu32!(1 / 2), "{ALKALI_SPINS}");
+        assert!(recipe.atom_c.s == hu32!(0), "{ALKALI_SPINS}");
+
+        let basis = AtomRotorTRAMBasis::new(recipe);
+
+        Self {
+            system_params: SystemParams::default(),
+            atom_a: AtomStructure::new(&basis.basis, &basis.atom_a),
+            atom_b: AtomStructure::new(&basis.basis, &basis.atom_b),
+            atom_c: AtomStructure::new(&basis.basis, &basis.atom_c),
+            rotational: RotationalEnergy::new(&basis.basis, &basis.tram.n),
+            pes: PotentialSurface::new(pes, &basis.basis, &basis.tram),
+            basis,
+        }
+    }
+
+    pub fn set_b_field(&mut self, b_field: Quantity<Gauss>) {
+        self.atom_a.set_b_field(b_field);
+        self.atom_b.set_b_field(b_field);
+        self.atom_c.set_b_field(b_field);
+    }
+
+    pub fn asymptote(&self) -> Asymptote {
+        let angular_blocks = self.atom_a.hamiltonian()
+            + self.atom_b.hamiltonian()
+            + self.atom_c.hamiltonian()
+            + self.rotational.hamiltonian();
+
+        Asymptote::new_angular_blocks(
+            self.system_params.mass,
+            self.system_params.energy,
+            angular_blocks,
+            self.system_params.entrance_channel,
+        )
+    }
+
+    pub fn coupling(&self) -> impl VanishingCoupling {
+        self.pes.hamiltonian()
     }
 
     pub fn w_matrix(&self) -> impl WMatrix {

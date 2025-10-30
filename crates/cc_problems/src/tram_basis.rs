@@ -41,6 +41,21 @@ impl TRAMBasis {
         }
     }
 
+    pub fn new_single_n_tot(recipe: TRAMBasisRecipe, space_basis: &mut SpaceBasis) -> Self {
+        let n = RotorBasis::new(recipe.n_max, space_basis);
+        let l = AngularBasis::new(AngularMomentum(recipe.l_max), space_basis);
+
+        let n_tot = get_spin_basis(recipe.n_tot_max.into());
+        let n_tot = space_basis.push_subspace(SubspaceBasis::new(n_tot));
+
+        Self {
+            n,
+            l,
+            n_tot,
+            parity: recipe.parity,
+        }
+    }
+
     pub fn filter(&self, element: SpaceElement) -> bool {
         let l = cast_variant!(dyn element[self.l.l], AngularMomentum);
         let n = cast_variant!(dyn element[self.n.n], AngularMomentum);
