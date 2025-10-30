@@ -82,11 +82,7 @@ pub struct PotentialSurface<P: Interaction> {
 }
 
 impl<P: Interaction + Clone> PotentialSurface<P> {
-    pub fn new(
-        surface: Interaction2D<P>,
-        elements: &AngularBasisElements,
-        tram: &TRAMBasis,
-    ) -> Self {
+    pub fn new(surface: Interaction2D<P>, elements: &AngularBasisElements, tram: &TRAMBasis) -> Self {
         let zeros = Operator::zeros(elements.full_basis.basis.size());
 
         let operator = surface
@@ -293,7 +289,8 @@ where
     P: Interaction + Clone,
 {
     pub fn new(pes: Interaction2D<P>, recipe: AtomRotorTRAMRecipe) -> Self {
-        assert!(recipe.atom_a.s + recipe.atom_b.s + recipe.atom_c.s <= hu32!(1 / 2), 
+        assert!(
+            recipe.atom_a.s + recipe.atom_b.s + recipe.atom_c.s <= hu32!(1 / 2),
             "Expected problem with single PES"
         );
 
