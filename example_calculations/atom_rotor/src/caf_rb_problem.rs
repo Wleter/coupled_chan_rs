@@ -139,12 +139,8 @@ fn caf_rb_scattering() -> ScatteringProblem {
 mod tests {
 
     #[test]
-    fn test_caf_rb_scattering() {
-
-    }
+    fn test_caf_rb_scattering() {}
 
     #[test]
-    fn test_caf_rb_bound() {
-
-    }
+    fn test_caf_rb_bound() {}
 }

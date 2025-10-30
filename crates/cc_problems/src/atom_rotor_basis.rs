@@ -75,15 +75,14 @@ impl AtomRotorTRAMBasis {
         }
     }
 }
-
 #[derive(Debug, Clone)]
-pub struct TripletSurface<P: Interaction> {
-    pub triplet: Interaction2D<ScaledInteraction<P>>,
+pub struct PotentialSurface<P: Interaction> {
+    pub surface: Interaction2D<ScaledInteraction<P>>,
     pub operator: Vec<Operator>,
 }
 
-impl<P: Interaction + Clone> TripletSurface<P> {
-    pub fn new(
+impl<P: Interaction + Clone> PotentialSurface<P> {
+    pub fn new_triplet(
         surface: Interaction2D<P>,
         elements: &AngularBasisElements,
         atom: &AtomBasis,
@@ -107,7 +106,7 @@ impl<P: Interaction + Clone> TripletSurface<P> {
             .filter(|a: &Operator| a.0 != zeros.0)
             .collect();
 
-        let triplet = Interaction2D(
+        let surface = Interaction2D(
             surface
                 .0
                 .into_iter()
@@ -115,30 +114,10 @@ impl<P: Interaction + Clone> TripletSurface<P> {
                 .collect(),
         );
 
-        Self { triplet, operator }
+        Self { surface, operator }
     }
 
-    pub fn hamiltonian(&self) -> Composite<Masked<ScaledInteraction<P>>> {
-        let composite = self
-            .triplet
-            .0
-            .iter()
-            .zip(self.operator.iter())
-            .map(|(t, o)| Masked::new(t.1.clone(), o.clone()))
-            .collect();
-
-        Composite::new(composite)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct SingletSurface<P: Interaction> {
-    pub singlet: Interaction2D<ScaledInteraction<P>>,
-    pub operator: Vec<Operator>,
-}
-
-impl<P: Interaction + Clone> SingletSurface<P> {
-    pub fn new(
+    pub fn new_singlet(
         surface: Interaction2D<P>,
         elements: &AngularBasisElements,
         atom: &AtomBasis,
@@ -162,7 +141,7 @@ impl<P: Interaction + Clone> SingletSurface<P> {
             .filter(|a: &Operator| a.0 != zeros.0)
             .collect();
 
-        let singlet = Interaction2D(
+        let surface = Interaction2D(
             surface
                 .0
                 .into_iter()
@@ -170,16 +149,16 @@ impl<P: Interaction + Clone> SingletSurface<P> {
                 .collect(),
         );
 
-        Self { singlet, operator }
+        Self { surface, operator }
     }
 
     pub fn hamiltonian(&self) -> Composite<Masked<ScaledInteraction<P>>> {
         let composite = self
-            .singlet
+            .surface
             .0
             .iter()
             .zip(self.operator.iter())
-            .map(|(s, o)| Masked::new(s.1.clone(), o.clone()))
+            .map(|(t, o)| Masked::new(t.1.clone(), o.clone()))
             .collect();
 
         Composite::new(composite)
@@ -199,8 +178,8 @@ where
 
     pub rotational: RotationalEnergy,
 
-    pub triplet: TripletSurface<T>,
-    pub singlet: SingletSurface<S>,
+    pub triplet: PotentialSurface<T>,
+    pub singlet: PotentialSurface<S>,
 
     pub basis: AtomRotorTRAMBasis,
 }
@@ -225,8 +204,8 @@ where
             atom_b: AtomStructure::new(&basis.basis, &basis.atom_b),
             atom_c: AtomStructure::new(&basis.basis, &basis.atom_c),
             rotational: RotationalEnergy::new(&basis.basis, &basis.tram.n),
-            triplet: TripletSurface::new(triplet, &basis.basis, &basis.atom_a, &basis.atom_b, &basis.tram),
-            singlet: SingletSurface::new(singlet, &basis.basis, &basis.atom_a, &basis.atom_b, &basis.tram),
+            triplet: PotentialSurface::new_triplet(triplet, &basis.basis, &basis.atom_a, &basis.atom_b, &basis.tram),
+            singlet: PotentialSurface::new_singlet(singlet, &basis.basis, &basis.atom_a, &basis.atom_b, &basis.tram),
             basis,
         }
     }

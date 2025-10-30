@@ -14,12 +14,13 @@ use hilbert_space::{
 use spin_algebra::{
     Spin, clebsch_gordan, get_summed_spin_basis,
     half_integer::{HalfI32, HalfU32},
+    hu32,
 };
 
 use crate::{
     AngularBasisElements, AngularMomentum,
     atom_structure::{AtomBasis, AtomBasisRecipe, AtomStructure, HyperfineStructure, ZeemanSplitting},
-    diatom_basis::{Singlet, Triplet},
+    diatom_basis::PotentialCurve,
     system_structure::{AngularBasis, SystemParams},
 };
 
@@ -155,8 +156,8 @@ where
     pub system_params: SystemParams,
     pub atom: AtomStructure,
 
-    pub triplet: Triplet<T>,
-    pub singlet: Singlet<S>,
+    pub triplet: PotentialCurve<T>,
+    pub singlet: PotentialCurve<S>,
 
     pub basis: HomoDiatomBasis,
 }
@@ -167,6 +168,7 @@ where
     S: Interaction + Clone,
 {
     pub fn new(recipe: HomoDiatomRecipe) -> Self {
+        assert!(recipe.atom.s == hu32!(1 / 2), "Expected open shell atom");
         let basis = HomoDiatomBasis::new(recipe);
 
         let hifi_a = HyperfineStructure::new(&basis.basis_sep, &basis.atom_a);
@@ -188,8 +190,8 @@ where
         Self {
             system_params: SystemParams::default(),
             atom,
-            triplet: Triplet::new_coupled(&basis.basis, &basis.combined_atom_basis),
-            singlet: Singlet::new_coupled(&basis.basis, &basis.combined_atom_basis),
+            triplet: PotentialCurve::new_triplet_coupled(&basis.basis, &basis.combined_atom_basis),
+            singlet: PotentialCurve::new_singlet_coupled(&basis.basis, &basis.combined_atom_basis),
             basis,
         }
     }

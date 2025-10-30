@@ -60,70 +60,64 @@ impl DiatomBasis {
 }
 
 #[derive(Debug, Clone)]
-pub struct Triplet<P: Interaction> {
-    pub triplet: Option<ScaledInteraction<P>>,
+pub struct PotentialCurve<P: Interaction> {
+    pub potential: Option<ScaledInteraction<P>>,
     pub operator: Operator,
 }
 
-impl<P: Interaction + Clone> Triplet<P> {
-    pub fn new(elements: &AngularBasisElements, atom_a: &AtomBasis, atom_b: &AtomBasis) -> Self {
+impl<P: Interaction + Clone> PotentialCurve<P> {
+    pub fn new_triplet(elements: &AngularBasisElements, atom_a: &AtomBasis, atom_b: &AtomBasis) -> Self {
         let operator = operator_mel!(dyn elements.full_basis, [atom_a.s, atom_b.s], |[s1: Spin, s2: Spin]| {
             triplet_projection_uncoupled(s1, s2)
         });
 
-        Self { triplet: None, operator }
+        Self {
+            potential: None,
+            operator,
+        }
     }
 
-    pub fn new_coupled(elements: &AngularBasisElements, atom_pair: &AtomBasis) -> Self {
-        let operator = operator_diag_mel!(dyn elements.full_basis, [atom_pair.s], |[s: Spin]| {
-            if s.s == hu32!(1) { 1. } else { 0. }
-        });
-
-        Self { triplet: None, operator }
-    }
-
-    pub fn set_triplet(&mut self, triplet: P) {
-        self.triplet = Some(ScaledInteraction::new(triplet, 1.))
-    }
-
-    pub fn hamiltonian(&self) -> Masked<ScaledInteraction<P>> {
-        let triplet = self.triplet.as_ref().expect("Did not set triplet potential");
-
-        Masked::new(triplet.clone(), self.operator.clone())
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Singlet<P: Interaction> {
-    pub singlet: Option<ScaledInteraction<P>>,
-    pub operator: Operator,
-}
-
-impl<P: Interaction + Clone> Singlet<P> {
-    pub fn new(elements: &AngularBasisElements, atom_a: &AtomBasis, atom_b: &AtomBasis) -> Self {
+    pub fn new_singlet(elements: &AngularBasisElements, atom_a: &AtomBasis, atom_b: &AtomBasis) -> Self {
         let operator = operator_mel!(dyn elements.full_basis, [atom_a.s, atom_b.s], |[s1: Spin, s2: Spin]| {
             singlet_projection_uncoupled(s1, s2)
         });
 
-        Self { singlet: None, operator }
+        Self {
+            potential: None,
+            operator,
+        }
     }
 
-    pub fn new_coupled(elements: &AngularBasisElements, atom_pair: &AtomBasis) -> Self {
+    pub fn new_triplet_coupled(elements: &AngularBasisElements, atom_pair: &AtomBasis) -> Self {
+        let operator = operator_diag_mel!(dyn elements.full_basis, [atom_pair.s], |[s: Spin]| {
+            if s.s == hu32!(1) { 1. } else { 0. }
+        });
+
+        Self {
+            potential: None,
+            operator,
+        }
+    }
+
+    pub fn new_singlet_coupled(elements: &AngularBasisElements, atom_pair: &AtomBasis) -> Self {
         let operator = operator_diag_mel!(dyn elements.full_basis, [atom_pair.s], |[s: Spin]| {
             if s.s == hu32!(0) { 1. } else { 0. }
         });
 
-        Self { singlet: None, operator }
+        Self {
+            potential: None,
+            operator,
+        }
     }
 
-    pub fn set_singlet(&mut self, singlet: P) {
-        self.singlet = Some(ScaledInteraction::new(singlet, 1.))
+    pub fn set_potential(&mut self, potential: P) {
+        self.potential = Some(ScaledInteraction::new(potential, 1.))
     }
 
     pub fn hamiltonian(&self) -> Masked<ScaledInteraction<P>> {
-        let singlet = self.singlet.as_ref().expect("Did not set triplet potential");
+        let potential = self.potential.as_ref().expect("Did not set the potential");
 
-        Masked::new(singlet.clone(), self.operator.clone())
+        Masked::new(potential.clone(), self.operator.clone())
     }
 }
 
@@ -137,8 +131,8 @@ where
     pub atom_a: AtomStructure,
     pub atom_b: AtomStructure,
 
-    pub triplet: Triplet<T>,
-    pub singlet: Singlet<S>,
+    pub triplet: PotentialCurve<T>,
+    pub singlet: PotentialCurve<S>,
 
     pub basis: DiatomBasis,
 }
@@ -149,14 +143,17 @@ where
     S: Interaction + Clone,
 {
     pub fn new(recipe: DiatomBasisRecipe) -> Self {
+        assert!(recipe.atom_a.s == hu32!(1 / 2), "Expected open shell A atom");
+        assert!(recipe.atom_b.s == hu32!(1 / 2), "Expected open shell B atom");
+
         let basis = DiatomBasis::new(recipe);
 
         Self {
             system_params: SystemParams::default(),
             atom_a: AtomStructure::new(&basis.basis, &basis.atom_a),
             atom_b: AtomStructure::new(&basis.basis, &basis.atom_b),
-            triplet: Triplet::new(&basis.basis, &basis.atom_a, &basis.atom_b),
-            singlet: Singlet::new(&basis.basis, &basis.atom_a, &basis.atom_b),
+            triplet: PotentialCurve::new_triplet(&basis.basis, &basis.atom_a, &basis.atom_b),
+            singlet: PotentialCurve::new_singlet(&basis.basis, &basis.atom_a, &basis.atom_b),
             basis,
         }
     }

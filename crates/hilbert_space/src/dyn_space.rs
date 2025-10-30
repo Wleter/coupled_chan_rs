@@ -97,9 +97,7 @@ impl SpaceBasis {
         self.0.push(state);
         id
     }
-}
 
-impl SpaceBasis {
     pub fn get_filtered_basis(&self, f: impl Fn(&[&SubspaceElement]) -> bool) -> BasisElements {
         let iter = BasisElementIter {
             size: self.size(),
