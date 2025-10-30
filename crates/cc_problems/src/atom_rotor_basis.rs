@@ -88,12 +88,12 @@ impl<P: Interaction + Clone> PotentialSurface<P> {
         let operator = surface
             .0
             .iter()
-            .map(|x| {
+            .map(|lambda| {
                 operator_mel!(
                     dyn elements.full_basis,
                     [tram.l.l, tram.n.n, tram.n_tot],
                     |[l: AngularMomentum, n: AngularMomentum, n_tot: Spin]| {
-                        percival_coef_tram_mel(x.0, l, n, n_tot)
+                        percival_coef_tram_mel(lambda.0, l, n, n_tot)
                     }
                 )
             })
@@ -123,12 +123,12 @@ impl<P: Interaction + Clone> PotentialSurface<P> {
         let operator = surface
             .0
             .iter()
-            .map(|x| {
+            .map(|lambda| {
                 operator_mel!(
                     dyn elements.full_basis,
                     [atom.s, rotor.s, tram.l.l, tram.n.n, tram.n_tot],
                     |[s1: Spin, s2: Spin, l: AngularMomentum, n: AngularMomentum, n_tot: Spin]| {
-                        percival_coef_tram_mel(x.0, l, n, n_tot) * triplet_projection_uncoupled(s1, s2)
+                        percival_coef_tram_mel(lambda.0, l, n, n_tot) * triplet_projection_uncoupled(s1, s2)
                     }
                 )
             })
@@ -158,12 +158,12 @@ impl<P: Interaction + Clone> PotentialSurface<P> {
         let operator = surface
             .0
             .iter()
-            .map(|x| {
+            .map(|lambda| {
                 operator_mel!(
                     dyn elements.full_basis,
                     [atom.s, rotor.s, tram.l.l, tram.n.n, tram.n_tot],
                     |[s1: Spin, s2: Spin, l: AngularMomentum, n: AngularMomentum, n_tot: Spin]| {
-                        percival_coef_tram_mel(x.0, l, n, n_tot) * singlet_projection_uncoupled(s1, s2)
+                        percival_coef_tram_mel(lambda.0, l, n, n_tot) * singlet_projection_uncoupled(s1, s2)
                     }
                 )
             })
