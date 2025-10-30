@@ -39,12 +39,6 @@ use crate::{
     system_structure::AngularBasis,
 };
 
-#[derive(Clone, Copy, Debug)]
-pub enum PotentialConfiguration {
-    Triplet,
-    Singlet,
-}
-
 #[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct AngularMomentum(pub u32);
 
