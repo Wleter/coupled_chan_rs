@@ -26,7 +26,6 @@ pub struct AtomRotorTRAMRecipe {
     pub tram: TRAMBasisRecipe,
 
     pub tot_projection: HalfI32,
-    pub anisotropy_lambda_max: u32,
 }
 
 /// Builder for alkali atom-rotor problem A + B-C,
@@ -259,11 +258,11 @@ where
         )
     }
 
-    pub fn coupling(&self) -> impl VanishingCoupling {
+    pub fn coupling(&self) -> impl VanishingCoupling + use<T, S> {
         Pair::new(self.triplet.hamiltonian(), self.singlet.hamiltonian())
     }
 
-    pub fn w_matrix(&self) -> impl WMatrix {
+    pub fn w_matrix(&self) -> impl WMatrix + use<T, S> {
         RedCoupling::new(self.coupling(), self.asymptote())
     }
 }
@@ -331,11 +330,11 @@ where
         )
     }
 
-    pub fn coupling(&self) -> impl VanishingCoupling {
+    pub fn coupling(&self) -> impl VanishingCoupling + use<P> {
         self.pes.hamiltonian()
     }
 
-    pub fn w_matrix(&self) -> impl WMatrix {
+    pub fn w_matrix(&self) -> impl WMatrix + use<P> {
         RedCoupling::new(self.coupling(), self.asymptote())
     }
 }
