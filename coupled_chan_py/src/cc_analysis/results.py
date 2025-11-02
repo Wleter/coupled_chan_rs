@@ -107,8 +107,8 @@ class BoundStateData:
     def nodes(self) -> npt.NDArray:
         return np.array(self.df["nodes"])
     
-    def occupations(self) -> npt.NDArray:
-        return np.array(list(self.df["occupations"]))
+    def occupations(self) -> npt.NDArray | None:
+        return None if self.df["occupations"] is None else np.array(list(self.df["occupations"]))
     
     def __iter__(self):
         return map(lambda node: BoundStateData(self.df[self.nodes() == node]), self.df["nodes"].unique())

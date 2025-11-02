@@ -214,6 +214,14 @@ impl<U: Unit> Mul<Quantity<U>> for f64 {
     }
 }
 
+impl<U: Unit> Div<f64> for Quantity<U> {
+    type Output = Quantity<U>;
+
+    fn div(self, rhs: f64) -> Self::Output {
+        Quantity(self.0 / rhs, self.1)
+    }
+}
+
 impl<U: Unit, V: Unit> Mul<Quantity<V>> for Quantity<U> {
     type Output = Quantity<Prod<U, V>>;
 

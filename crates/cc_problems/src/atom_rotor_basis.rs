@@ -293,10 +293,6 @@ where
             "Expected problem with single PES"
         );
 
-        assert!(recipe.atom_a.s == hu32!(1 / 2), "{ALKALI_SPINS}");
-        assert!(recipe.atom_b.s == hu32!(1 / 2), "{ALKALI_SPINS}");
-        assert!(recipe.atom_c.s == hu32!(0), "{ALKALI_SPINS}");
-
         let basis = AtomRotorTRAMBasis::new(recipe);
 
         Self {

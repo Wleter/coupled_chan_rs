@@ -196,12 +196,12 @@ impl BoundProblem {
 
 #[derive(Serialize)]
 pub struct SMatrixData<T> {
-    parameter: T,
-    s_length_re: f64,
-    s_length_im: f64,
-    elastic_cross_section: f64,
-    tot_inelastic_cross_section: f64,
-    inelastic_cross_sections: Vec<f64>,
+    pub parameter: T,
+    pub s_length_re: f64,
+    pub s_length_im: f64,
+    pub elastic_cross_section: f64,
+    pub tot_inelastic_cross_section: f64,
+    pub inelastic_cross_sections: Vec<f64>,
 }
 
 impl<T> SMatrixData<T> {
@@ -224,8 +224,8 @@ impl<T> SMatrixData<T> {
 
 #[derive(Serialize)]
 pub struct LevelsData<T> {
-    parameter: T,
-    levels: Vec<f64>,
+    pub parameter: T,
+    pub levels: Vec<f64>,
 }
 
 impl<T> LevelsData<T> {
@@ -239,11 +239,11 @@ impl<T> LevelsData<T> {
 
 #[derive(Serialize)]
 pub struct BoundStateData<T> {
-    parameter: T,
+    pub parameter: T,
 
-    bound_parameter: f64,
-    nodes: u64,
-    occupations: Option<Vec<f64>>,
+    pub bound_parameter: f64,
+    pub nodes: u64,
+    pub occupations: Option<Vec<f64>>,
 }
 
 impl<T> BoundStateData<T> {

@@ -2,6 +2,7 @@ use coupled_chan::{
     Interaction, Operator,
     constants::units::{Quantity, atomic_units::AuEnergy},
     coupling::AngularBlocks,
+    scaled_interaction::ScaledInteraction,
 };
 use hilbert_space::{
     dyn_space::{BasisElementsRef, BasisId, SpaceBasis, SubspaceBasis},
@@ -89,3 +90,47 @@ impl DistortionEnergy {
 
 #[derive(Clone, Debug)]
 pub struct Interaction2D<I: Interaction>(pub Vec<(u32, I)>);
+
+impl<I: Interaction> Interaction2D<ScaledInteraction<I>> {
+    pub fn scale(&mut self, scaling: PESScaling) {
+        match scaling {
+            PESScaling::Composite(scalings) => {
+                for scaling in scalings {
+                    self.scale(scaling);
+                }
+            }
+            PESScaling::Scaling(scaling) => {
+                for (_, p) in &mut self.0 {
+                    p.scaling *= scaling
+                }
+            }
+            PESScaling::LegendreScaling(n, scaling) => {
+                if let Some((_, p)) = self.0.iter_mut().find(|x| x.0 == n) {
+                    p.scaling *= scaling
+                }
+            }
+            PESScaling::AnisotropicScaling(scaling) => {
+                for (n, p) in &mut self.0 {
+                    if *n != 0 {
+                        p.scaling *= scaling
+                    }
+                }
+            }
+            PESScaling::LegendreMorphing(_, _) => todo!("Morphing not yet implemented"),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum PESScaling {
+    /// Perform composite scaling in the given order
+    Composite(Vec<PESScaling>),
+    /// Perform scaling of V(r, theta) -> lambda * V(r, theta)
+    Scaling(f64),
+    /// Perform scaling of legendre component V_n(r) -> lambda * V_n(r)
+    LegendreScaling(u32, f64),
+    /// Perform scaling of anisotropic legendre components V_n(r) -> lambda * V_n(r)
+    AnisotropicScaling(f64),
+    /// Perform morphing of legendre component V(r, theta) -> (1 + lambda * P_n) V(r, theta)
+    LegendreMorphing(u32, f64),
+}

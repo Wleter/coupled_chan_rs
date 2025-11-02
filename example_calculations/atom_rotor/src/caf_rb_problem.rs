@@ -123,7 +123,6 @@ fn caf_rb_recipe() -> AtomRotorTRAMRecipe {
             ..Default::default()
         },
         tot_projection: hi32!(1),
-        anisotropy_lambda_max: 2,
     }
 }
 
