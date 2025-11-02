@@ -33,7 +33,9 @@ impl Problems {
             problem.set_b_field(field * Gauss);
             let w_matrix = problem.w_matrix();
 
-            saver.send(LevelsData::new(field, w_matrix.asymptote().levels()))
+            saver.send(LevelsData::new(field, w_matrix.asymptote().levels()));
+
+            Ok(())
         })?;
 
         Ok(())
@@ -61,7 +63,9 @@ impl Problems {
 
                 let s_matrix = li2_scattering.get_s_matrix(&w_matrix, RatioNumerov::new);
 
-                saver.send(SMatrixData::new(field, s_matrix))
+                saver.send(SMatrixData::new(field, s_matrix));
+
+                Ok(())
             })?;
 
         Ok(())
@@ -96,10 +100,12 @@ impl Problems {
 
                 let bounds: Result<Vec<BoundState>> = bound_finder.bound_states().collect();
 
-                for b in bounds.unwrap() {
+                for b in bounds? {
                     let data = BoundStateData::new(field, b);
                     saver.send(data)
                 }
+
+                Ok(())
             })?;
 
         Ok(())
@@ -138,10 +144,12 @@ impl Problems {
 
                 let bounds: Result<Vec<BoundState>> = bound_finder.bound_states().collect();
 
-                for b in bounds.unwrap() {
+                for b in bounds? {
                     let data = BoundStateData::new(energy, b);
                     saver.send(data)
                 }
+
+                Ok(())
             })?;
 
         Ok(())

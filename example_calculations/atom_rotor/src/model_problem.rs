@@ -54,7 +54,7 @@ impl ModelRotorAtomProblem {
 
                 let bounds: Result<Vec<BoundState>> = bound_finder.bound_states().collect();
 
-                for b in bounds.unwrap() {
+                for b in bounds? {
                     let occupations = bound_finder.bound_wave(&b).occupations();
 
                     let mut data = BoundStateData::new(energy.value(), b);
@@ -62,6 +62,8 @@ impl ModelRotorAtomProblem {
 
                     saver.send(data)
                 }
+
+                Ok(())
             })?;
 
         Ok(())

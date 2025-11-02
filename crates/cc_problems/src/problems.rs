@@ -36,8 +36,8 @@ impl<T: Send + Clone> DependenceProblem<T> {
 
     pub fn dependence<D, F>(mut self, data: Vec<D>, op: F) -> Result<()> 
     where 
-        D: Send + Sync,
-        F: Fn(&mut T, &D) + Sync + Send,
+        D: Send + Sync + std::fmt::Display,
+        F: Fn(&mut T, &D) -> Result<()> + Sync + Send,
     {
         let bar = match self.indicator {
             Indicator::Progress(style) => Some(ProgressBar::new(data.len() as u64).with_style(style)),
@@ -49,11 +49,13 @@ impl<T: Send + Clone> DependenceProblem<T> {
                 let pool = rayon::ThreadPoolBuilder::new().num_threads(n).build()?;
                 pool.install(|| {
                     data.par_iter()
-                        .for_each_with(self.problem, |x, y| {
+                        .for_each_with(self.problem, |p, d| {
                             if let Some(b) = &bar {
                                 b.inc(1);
                             }
-                            op(x, y)
+                            if let Err(e) = op(p, d) {
+                                eprintln!("error {e} encountered on data {d}")
+                            }
                         });
                 });
             },
@@ -62,7 +64,10 @@ impl<T: Send + Clone> DependenceProblem<T> {
                     if let Some(b) = &bar {
                         b.inc(1);
                     }
-                    op(&mut self.problem, d)
+
+                    if let Err(e) = op(&mut self.problem, d) {
+                        eprintln!("error {e} encountered on data {d}")
+                    }
                 }
             },
         }

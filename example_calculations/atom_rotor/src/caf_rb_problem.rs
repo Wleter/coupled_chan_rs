@@ -33,7 +33,9 @@ impl CaFRbProblem {
                 let w_matrix = problem.w_matrix();
                 let s_matrix = caf_rb_scattering.get_s_matrix(&w_matrix, RatioNumerov::new);
 
-                saver.send(SMatrixData::new(field, s_matrix))
+                saver.send(SMatrixData::new(field, s_matrix));
+
+                Ok(())
             })?;
 
         Ok(())
@@ -53,7 +55,9 @@ impl CaFRbProblem {
                 let w_matrix = problem.w_matrix();
                 let s_matrix = caf_rb_scattering.get_s_matrix(&w_matrix, RatioNumerov::new);
 
-                saver.send(SMatrixData::new(field, s_matrix))
+                saver.send(SMatrixData::new(field, s_matrix));
+
+                Ok(())
             })?;
 
         Ok(())
