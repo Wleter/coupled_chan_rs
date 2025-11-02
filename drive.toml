@@ -1,0 +1,7 @@
+[[paths]]
+remote_path = "coupled_chan/analysis"
+local_path = "analysis"
+
+[[paths]]
+remote_path = "coupled_chan/data"
+local_path = "data"
