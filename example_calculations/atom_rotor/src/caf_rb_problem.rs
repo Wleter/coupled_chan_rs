@@ -27,16 +27,14 @@ impl CaFRbProblem {
         let mag_fields = linspace(0., 1000., 4001);
         let saver = DataSaver::new("data/caf_rb_iso_feshbach.jsonl", JsonFormat, FileAccess::Create)?;
 
-        mag_fields
-            .par_iter()
-            .progress_with_style(default_progress())
-            .for_each_with(caf_rb_problem, |problem, &field| {
+        DependenceProblem::new(caf_rb_problem)
+            .dependence(mag_fields, |problem, &field| {
                 problem.set_b_field(field * Gauss);
                 let w_matrix = problem.w_matrix();
                 let s_matrix = caf_rb_scattering.get_s_matrix(&w_matrix, RatioNumerov::new);
 
                 saver.send(SMatrixData::new(field, s_matrix))
-            });
+            })?;
 
         Ok(())
     }
@@ -49,16 +47,14 @@ impl CaFRbProblem {
         let mag_fields = linspace(0., 1000., 4001);
         let saver = DataSaver::new("data/caf_rb_feshbach.jsonl", JsonFormat, FileAccess::Create)?;
 
-        mag_fields
-            .par_iter()
-            .progress_with_style(default_progress())
-            .for_each_with(caf_rb_problem, |problem, &field| {
+        DependenceProblem::new(caf_rb_problem)
+            .dependence(mag_fields, |problem, &field| {
                 problem.set_b_field(field * Gauss);
                 let w_matrix = problem.w_matrix();
                 let s_matrix = caf_rb_scattering.get_s_matrix(&w_matrix, RatioNumerov::new);
 
                 saver.send(SMatrixData::new(field, s_matrix))
-            });
+            })?;
 
         Ok(())
     }

@@ -16,7 +16,7 @@ pub use crate::{
         s_matrix::*,
         vanishing_boundary,
     },
-    problems::*,
+    problems::DependenceProblem,
     qol_utils::{
         problem_selector::{ProblemSelector, get_args},
         problems_impl,

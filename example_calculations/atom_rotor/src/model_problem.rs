@@ -35,10 +35,9 @@ impl ModelRotorAtomProblem {
         let energies: Vec<Quantity<GHz>> = linspace(-2., 0., 201).iter().map(|x| x.powi(3) * GHz).collect();
 
         let saver = DataSaver::new(&save_file, JsonFormat, FileAccess::Create)?;
-        energies
-            .par_iter()
-            .progress_with_style(default_progress())
-            .for_each_with(problem, |problem, &energy| {
+
+        DependenceProblem::new(problem)
+            .dependence(energies, |problem, &energy| {
                 problem.system_params.energy = energy.to(AuEnergy);
 
                 let bound_finder = bound.get_bound_finder(
@@ -63,7 +62,7 @@ impl ModelRotorAtomProblem {
 
                     saver.send(data)
                 }
-            });
+            })?;
 
         Ok(())
     }

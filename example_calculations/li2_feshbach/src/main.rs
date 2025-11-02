@@ -28,12 +28,13 @@ impl Problems {
         let mag_fields = linspace(0., 1200., 1001);
         let saver = DataSaver::new("data/li2_levels.jsonl", JsonFormat, FileAccess::Create)?;
 
-        mag_fields.par_iter().for_each_with(li2_problem, |problem, &field| {
+        DependenceProblem::new(li2_problem)
+            .dependence(mag_fields, |problem, &field| {
             problem.set_b_field(field * Gauss);
             let w_matrix = problem.w_matrix();
 
             saver.send(LevelsData::new(field, w_matrix.asymptote().levels()))
-        });
+        })?;
 
         Ok(())
     }
@@ -53,17 +54,15 @@ impl Problems {
         let li2_scattering = li2_scattering();
         let saver = DataSaver::new("data/li2_feshbach.jsonl", JsonFormat, FileAccess::Create)?;
 
-        mag_fields
-            .par_iter()
-            .progress_with_style(default_progress())
-            .for_each_with(li2_problem, |problem, &field| {
+        DependenceProblem::new(li2_problem)
+            .dependence(mag_fields, |problem, &field| {
                 problem.set_b_field(field * Gauss);
                 let w_matrix = problem.w_matrix();
 
                 let s_matrix = li2_scattering.get_s_matrix(&w_matrix, RatioNumerov::new);
 
                 saver.send(SMatrixData::new(field, s_matrix))
-            });
+            })?;
 
         Ok(())
     }
@@ -79,10 +78,8 @@ impl Problems {
 
         let saver = DataSaver::new("data/li2_bound.jsonl", JsonFormat, FileAccess::Create)?;
 
-        mag_fields
-            .par_iter()
-            .progress_with_style(default_progress())
-            .for_each_with(li2_problem, |problem, &field| {
+        DependenceProblem::new(li2_problem)
+            .dependence(mag_fields, |problem, &field| {
                 problem.set_b_field(field * Gauss);
 
                 let bound_finder = li2_bound.get_bound_finder(
@@ -103,7 +100,7 @@ impl Problems {
                     let data = BoundStateData::new(field, b);
                     saver.send(data)
                 }
-            });
+            })?;
 
         Ok(())
     }
@@ -123,10 +120,8 @@ impl Problems {
 
         let saver = DataSaver::new("data/li2_field.jsonl", JsonFormat, FileAccess::Create)?;
 
-        energies
-            .par_iter()
-            .progress_with_style(default_progress())
-            .for_each_with(li2_problem, |problem, &energy| {
+        DependenceProblem::new(li2_problem)
+            .dependence(energies, |problem, &energy| {
                 problem.system_params.energy = energy * AuEnergy;
 
                 let bound_finder = li2_bound.get_bound_finder(
@@ -147,7 +142,7 @@ impl Problems {
                     let data = BoundStateData::new(energy, b);
                     saver.send(data)
                 }
-            });
+            })?;
 
         Ok(())
     }
