@@ -155,3 +155,6 @@ class WaveFunctionData:
 
     def __iter__(self):
         return map(lambda i: WaveFunction(self.parameters()[i], self.distances()[i, :], self.values()[i, :]), range(self.df.shape[0]))
+    
+    def __getitem__(self, i: int):
+        return WaveFunction(self.parameters()[i], self.distances()[i, :], self.values()[i, :])
