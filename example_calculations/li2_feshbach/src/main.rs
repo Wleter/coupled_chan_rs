@@ -1,7 +1,7 @@
 use cc_problems::{
     AngularMomentum,
     atom_structure::AtomBasisRecipe,
-    coupled_chan::{composite_int::CompositeInt, dispersion::Dispersion},
+    coupled_chan::{composite_int::CompositeInt, dispersion::Dispersion, log_derivative::diabatic::Johnson},
     homo_diatom_basis::{AlkaliHomoDiatom, HomoDiatomRecipe},
     prelude::*,
     spin_algebra::{hi32, hu32},
@@ -28,8 +28,7 @@ impl Problems {
         let mag_fields = linspace(0., 1200., 1001);
         let saver = DataSaver::new("data/li2_levels.jsonl", JsonFormat, FileAccess::Create)?;
 
-        DependenceProblem::new(li2_problem)
-            .dependence(mag_fields, |problem, &field| {
+        DependenceProblem::new(li2_problem).dependence(mag_fields, |problem, &field| {
             problem.set_b_field(field * Gauss);
             let w_matrix = problem.w_matrix();
 
@@ -56,17 +55,16 @@ impl Problems {
         let li2_scattering = li2_scattering();
         let saver = DataSaver::new("data/li2_feshbach.jsonl", JsonFormat, FileAccess::Create)?;
 
-        DependenceProblem::new(li2_problem)
-            .dependence(mag_fields, |problem, &field| {
-                problem.set_b_field(field * Gauss);
-                let w_matrix = problem.w_matrix();
+        DependenceProblem::new(li2_problem).dependence(mag_fields, |problem, &field| {
+            problem.set_b_field(field * Gauss);
+            let w_matrix = problem.w_matrix();
 
-                let s_matrix = li2_scattering.get_s_matrix(&w_matrix, RatioNumerov::new);
+            let s_matrix = li2_scattering.get_s_matrix(&w_matrix, RatioNumerov::new);
 
-                saver.send(SMatrixData::new(field, s_matrix));
+            saver.send(SMatrixData::new(field, s_matrix));
 
-                Ok(())
-            })?;
+            Ok(())
+        })?;
 
         Ok(())
     }
@@ -82,31 +80,29 @@ impl Problems {
 
         let saver = DataSaver::new("data/li2_bound.jsonl", JsonFormat, FileAccess::Create)?;
 
-        DependenceProblem::new(li2_problem)
-            .dependence(mag_fields, |problem, &field| {
-                problem.set_b_field(field * Gauss);
+        DependenceProblem::new(li2_problem).dependence(mag_fields, |problem, &field| {
+            problem.set_b_field(field * Gauss);
 
-                let bound_finder = li2_bound.get_bound_finder(
-                    (e_min.to(AuEnergy).value(), e_max.to(AuEnergy).value()),
-                    err.to(AuEnergy).value(),
-                    |e| {
-                        let mut problem = problem.clone();
-                        problem.system_params.energy = e * AuEnergy;
+            let bound_finder = li2_bound.get_bound_finder::<_, Johnson>(
+                (e_min.to(AuEnergy).value(), e_max.to(AuEnergy).value()),
+                err.to(AuEnergy).value(),
+                |e| {
+                    let mut problem = problem.clone();
+                    problem.system_params.energy = e * AuEnergy;
 
-                        problem.w_matrix()
-                    },
-                    |w, s, b| JohnsonLogDerivative::new(w, s, b),
-                );
+                    problem.w_matrix()
+                },
+            );
 
-                let bounds: Result<Vec<BoundState>> = bound_finder.bound_states().collect();
+            let bounds: Result<Vec<BoundState>> = bound_finder.bound_states().collect();
 
-                for b in bounds? {
-                    let data = BoundStateData::new(field, b);
-                    saver.send(data)
-                }
+            for b in bounds? {
+                let data = BoundStateData::new(field, b);
+                saver.send(data)
+            }
 
-                Ok(())
-            })?;
+            Ok(())
+        })?;
 
         Ok(())
     }
@@ -126,31 +122,25 @@ impl Problems {
 
         let saver = DataSaver::new("data/li2_field.jsonl", JsonFormat, FileAccess::Create)?;
 
-        DependenceProblem::new(li2_problem)
-            .dependence(energies, |problem, &energy| {
-                problem.system_params.energy = energy * AuEnergy;
+        DependenceProblem::new(li2_problem).dependence(energies, |problem, &energy| {
+            problem.system_params.energy = energy * AuEnergy;
 
-                let bound_finder = li2_bound.get_bound_finder(
-                    (mag_min, mag_max),
-                    err,
-                    |f| {
-                        let mut problem = problem.clone();
-                        problem.set_b_field(f * Gauss);
+            let bound_finder = li2_bound.get_bound_finder::<_, Johnson>((mag_min, mag_max), err, |f| {
+                let mut problem = problem.clone();
+                problem.set_b_field(f * Gauss);
 
-                        problem.w_matrix()
-                    },
-                    |w, s, b| JohnsonLogDerivative::new(w, s, b),
-                );
+                problem.w_matrix()
+            });
 
-                let bounds: Result<Vec<BoundState>> = bound_finder.bound_states().collect();
+            let bounds: Result<Vec<BoundState>> = bound_finder.bound_states().collect();
 
-                for b in bounds? {
-                    let data = BoundStateData::new(energy, b);
-                    saver.send(data)
-                }
+            for b in bounds? {
+                let data = BoundStateData::new(energy, b);
+                saver.send(data)
+            }
 
-                Ok(())
-            })?;
+            Ok(())
+        })?;
 
         Ok(())
     }
@@ -166,7 +156,7 @@ impl Problems {
 
         let saver = DataSaver::new("data/li2_wave_600G.jsonl", JsonFormat, FileAccess::Create)?;
 
-        let bound_finder = li2_bound.get_bound_finder(
+        let bound_finder = li2_bound.get_bound_finder::<_, Johnson>(
             (e_min.to(AuEnergy).value(), e_max.to(AuEnergy).value()),
             err.to(AuEnergy).value(),
             |e| {
@@ -175,7 +165,6 @@ impl Problems {
 
                 problem.w_matrix()
             },
-            |w, s, b| JohnsonLogDerivative::new(w, s, b),
         );
 
         for b in bound_finder.bound_states() {
@@ -362,7 +351,7 @@ mod tests {
         let err = 1. * MHz;
         let li2_bound = li2_bound();
 
-        let bound_finder = li2_bound.get_bound_finder(
+        let bound_finder = li2_bound.get_bound_finder::<_, Johnson>(
             (e_min.to(AuEnergy).value(), e_max.to(AuEnergy).value()),
             err.to(AuEnergy).value(),
             |e| {
@@ -371,7 +360,6 @@ mod tests {
 
                 problem.w_matrix()
             },
-            |w, s, b| JohnsonLogDerivative::new(w, s, b),
         );
 
         let bound_states: Result<Vec<BoundState>> = bound_finder.bound_states().collect();
@@ -430,17 +418,12 @@ mod tests {
         let err = 1e-2;
         let li2_bound = li2_bound();
 
-        let bound_finder = li2_bound.get_bound_finder(
-            (mag_min, mag_max),
-            err,
-            |f| {
-                let mut problem = li2_problem.clone();
-                problem.set_b_field(f * Gauss);
+        let bound_finder = li2_bound.get_bound_finder::<_, Johnson>((mag_min, mag_max), err, |f| {
+            let mut problem = li2_problem.clone();
+            problem.set_b_field(f * Gauss);
 
-                problem.w_matrix()
-            },
-            |w, s, b| JohnsonLogDerivative::new(w, s, b),
-        );
+            problem.w_matrix()
+        });
 
         let bound_states: Result<Vec<BoundState>> = bound_finder.bound_states().collect();
         let bound_states: Vec<BoundState> = bound_states

@@ -13,7 +13,7 @@ use propagator::{
 };
 
 use crate::{
-    Operator,
+    CoupledPropagator, Operator,
     coupling::WMatrix,
     s_matrix::{SMatrix, SMatrixGetter},
 };
@@ -384,6 +384,12 @@ impl<W: WMatrix> Propagator<Ratio<Operator>> for RatioNumerov<'_, W> {
             }
         }
         &self.solution
+    }
+}
+
+impl<'a, W: WMatrix> CoupledPropagator<'a, W, Ratio<Operator>> for RatioNumerov<'a, W> {
+    fn get_propagator(w_matrix: &'a W, step: StepStrategy, boundary: Boundary<Operator>) -> Self {
+        Self::new(w_matrix, step, boundary)
     }
 }
 

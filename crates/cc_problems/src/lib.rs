@@ -20,7 +20,7 @@ use serde::Serialize;
 pub use spin_algebra;
 
 use coupled_chan::{
-    Operator,
+    CoupledPropagator, Operator,
     constants::{Bohr, Quantity},
     coupling::{AngularBlocks, Levels, WMatrix},
     log_derivative::diabatic::{DiabaticLogDerivative, LogDerivativeReference},
@@ -173,7 +173,6 @@ impl BoundProblem {
         parameter_range: (f64, f64),
         parameter_err: f64,
         problem: impl Fn(f64) -> W + 'a,
-        prop: impl for<'w> Fn(&'w W, StepStrategy, Boundary<Operator>) -> DiabaticLogDerivative<'w, L, W> + 'a,
     ) -> BoundStatesFinder<'a, W, L>
     where
         W: WMatrix,
@@ -183,7 +182,7 @@ impl BoundProblem {
             .set_parameter_range([parameter_range.0, parameter_range.1], parameter_err)
             .set_problem(problem)
             .set_r_range([self.r_min, self.r_match, self.r_max])
-            .set_propagator(move |b, w| prop(w, self.step_strat.clone(), b))
+            .set_propagator(move |b, w| DiabaticLogDerivative::get_propagator(w, self.step_strat.clone(), b))
             .set_node_monotony(self.node_monotony);
 
         if let Some(node_range) = self.node_range {

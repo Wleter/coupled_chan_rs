@@ -10,13 +10,15 @@ pub use crate::{
         Interaction,
         constants::*,
         coupling::{VanishingCoupling, WMatrix},
-        log_derivative::diabatic::{DiabaticLogDerivative, JohnsonLogDerivative},
+        log_derivative::diabatic::{
+            DiabaticLogDerivative, DiabaticManolopoulos, Johnson, JohnsonLogDerivative, ManolopoulosLogDerivative,
+        },
         propagator::{Boundary, Direction, Propagator, step_strategy::*},
         ratio_numerov::RatioNumerov,
         s_matrix::*,
         vanishing_boundary,
     },
-    problems::DependenceProblem,
+    problems::{DependenceProblem, Indicator, Parallelism},
     qol_utils::{
         problem_selector::{ProblemSelector, get_args},
         problems_impl,

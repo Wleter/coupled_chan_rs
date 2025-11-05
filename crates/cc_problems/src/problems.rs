@@ -1,5 +1,5 @@
-use indicatif::{ProgressBar, ProgressStyle};
 use crate::prelude::*;
+use indicatif::{ProgressBar, ProgressStyle};
 
 pub fn default_progress() -> ProgressStyle {
     ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos:>7}/{len:7} ({eta})")
@@ -10,7 +10,7 @@ pub fn default_progress() -> ProgressStyle {
 pub struct DependenceProblem<T> {
     indicator: Indicator,
     parallelism: Parallelism,
-    problem: T
+    problem: T,
 }
 
 impl<T: Send + Clone> DependenceProblem<T> {
@@ -34,8 +34,8 @@ impl<T: Send + Clone> DependenceProblem<T> {
         self
     }
 
-    pub fn dependence<D, F>(mut self, data: Vec<D>, op: F) -> Result<()> 
-    where 
+    pub fn dependence<D, F>(mut self, data: Vec<D>, op: F) -> Result<()>
+    where
         D: Send + Sync + std::fmt::Display,
         F: Fn(&mut T, &D) -> Result<()> + Sync + Send,
     {
@@ -48,17 +48,16 @@ impl<T: Send + Clone> DependenceProblem<T> {
             Parallelism::Rayon(n) => {
                 let pool = rayon::ThreadPoolBuilder::new().num_threads(n).build()?;
                 pool.install(|| {
-                    data.par_iter()
-                        .for_each_with(self.problem, |p, d| {
-                            if let Some(b) = &bar {
-                                b.inc(1);
-                            }
-                            if let Err(e) = op(p, d) {
-                                eprintln!("error {e} encountered on data {d}")
-                            }
-                        });
+                    data.par_iter().for_each_with(self.problem, |p, d| {
+                        if let Some(b) = &bar {
+                            b.inc(1);
+                        }
+                        if let Err(e) = op(p, d) {
+                            eprintln!("error {e} encountered on data {d}")
+                        }
+                    });
                 });
-            },
+            }
             Parallelism::Seq => {
                 for d in data.iter() {
                     if let Some(b) = &bar {
@@ -69,7 +68,7 @@ impl<T: Send + Clone> DependenceProblem<T> {
                         eprintln!("error {e} encountered on data {d}")
                     }
                 }
-            },
+            }
         }
 
         if let Some(b) = bar {

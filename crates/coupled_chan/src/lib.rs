@@ -6,7 +6,7 @@ pub mod s_matrix;
 pub use constants;
 use faer::Mat;
 pub use propagator;
-use propagator::{Boundary, Direction};
+use propagator::{Boundary, Direction, Propagator, Repr, step_strategy::StepStrategy};
 pub use single_chan::interaction::*;
 
 use crate::coupling::WMatrix;
@@ -28,6 +28,10 @@ pub fn vanishing_boundary(r_start: f64, direction: Direction, w_matrix: &impl WM
         value: Operator::new(VALUE_VANISHING * &w_matrix.id().0),
         derivative: Operator::new(sign * DERIVATIVE_VANISHING * &w_matrix.id().0),
     }
+}
+
+pub trait CoupledPropagator<'a, W: WMatrix, R: Repr>: Propagator<R> {
+    fn get_propagator(w_matrix: &'a W, step: StepStrategy, boundary: Boundary<Operator>) -> Self;
 }
 
 #[cfg(test)]

@@ -37,7 +37,7 @@ pub trait Propagator<R: Repr> {
     fn propagate_to(&mut self, r: f64) -> &Solution<R>;
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Nodes(pub u64);
 
 pub trait NodeCountPropagator<R: Repr>: Propagator<R> {

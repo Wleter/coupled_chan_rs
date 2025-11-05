@@ -14,7 +14,7 @@ use propagator::{
     step_strategy::StepStrategy,
 };
 
-use crate::{Operator, coupling::WMatrix, ratio_numerov::get_wavelength};
+use crate::{CoupledPropagator, Operator, coupling::WMatrix, ratio_numerov::get_wavelength};
 
 // doi: 10.1063/1.451472
 pub trait LogDerivativeReference {
@@ -235,6 +235,14 @@ impl<R: LogDerivativeReference, W: WMatrix> Propagator<LogDeriv<Operator>> for D
 impl<R: LogDerivativeReference, W: WMatrix> NodeCountPropagator<LogDeriv<Operator>> for DiabaticLogDerivative<'_, R, W> {
     fn nodes(&self) -> Nodes {
         self.nodes
+    }
+}
+
+impl<'a, R: LogDerivativeReference, W: WMatrix> CoupledPropagator<'a, W, LogDeriv<Operator>>
+    for DiabaticLogDerivative<'a, R, W>
+{
+    fn get_propagator(w_matrix: &'a W, step: StepStrategy, boundary: Boundary<Operator>) -> Self {
+        Self::new(w_matrix, step, boundary)
     }
 }
 
