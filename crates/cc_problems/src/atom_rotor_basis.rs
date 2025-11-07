@@ -166,8 +166,10 @@ impl<P: Interaction> PotentialSurface<P> {
     }
 }
 
+pub type PESCoupling<P> = Composite<Masked<ScaledInteraction<P>>>;
+
 impl<P: Interaction + Clone> PotentialSurface<P> {
-    pub fn hamiltonian(&self) -> Composite<Masked<ScaledInteraction<P>>> {
+    pub fn hamiltonian(&self) -> PESCoupling<P> {
         let composite = self
             .surface
             .0
@@ -259,7 +261,7 @@ where
     T: Interaction + Clone,
     S: Interaction + Clone,
 {
-    type Coupling = Pair<Composite<Masked<ScaledInteraction<T>>>, Composite<Masked<ScaledInteraction<S>>>>;
+    type Coupling = Pair<PESCoupling<T>, PESCoupling<S>>;
     type WMatrix = RedCoupling<Self::Coupling>;
 
     fn asymptote(&self) -> Asymptote {
@@ -355,7 +357,7 @@ impl<T> Hamiltonian for SinglePESAtomRotorTRAM<T>
 where
     T: Interaction + Clone,
 {
-    type Coupling = Composite<Masked<ScaledInteraction<T>>>;
+    type Coupling = PESCoupling<T>;
     type WMatrix = RedCoupling<Self::Coupling>;
 
     fn asymptote(&self) -> Asymptote {
