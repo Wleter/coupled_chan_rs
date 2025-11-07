@@ -11,18 +11,20 @@ pub mod system_structure;
 pub mod tram_basis;
 
 pub use anyhow;
+use anyhow::bail;
 pub use coupled_chan;
 pub use hilbert_space;
 pub use math_utils::{linspace, logspace};
 pub use qol_utils;
 pub use rayon;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 pub use spin_algebra;
 
 use coupled_chan::{
     CoupledPropagator, Operator,
     constants::{Bohr, Quantity},
-    coupling::{AngularBlocks, Levels, WMatrix},
+    coupling::{AngularBlocks, Asymptote, Levels, VanishingCoupling, WMatrix},
     log_derivative::diabatic::{DiabaticLogDerivative, LogDerivativeReference},
     propagator::{Boundary, Direction, Propagator, Repr, Solution, step_strategy::StepStrategy},
     s_matrix::{SMatrix, SMatrixGetter},
@@ -126,6 +128,33 @@ impl AngularBasisElements {
             angular_blocks: blocks,
         }
     }
+}
+
+pub trait Structure {
+    fn modify_parameter(&mut self, key: &str, value: Value) -> anyhow::Result<()>;
+
+    fn modify_parameters(&mut self, data: Value) -> anyhow::Result<()> {
+        if let Some(data) = data.as_object() {
+            for (key, value) in data {
+                self.modify_parameter(key.as_str(), value.clone())?
+            }
+        } else {
+            bail!("Expected map value")
+        }
+
+        Ok(())
+    }
+}
+
+pub trait Hamiltonian: Structure {
+    type Coupling: VanishingCoupling;
+    type WMatrix: WMatrix;
+
+    fn asymptote(&self) -> Asymptote;
+
+    fn coupling(&self) -> Self::Coupling;
+
+    fn w_matrix(&self) -> Self::WMatrix;
 }
 
 #[derive(Clone, Debug)]

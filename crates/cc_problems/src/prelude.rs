@@ -4,7 +4,7 @@ pub use math_utils::{linspace, logspace};
 pub use rayon::prelude::*;
 
 pub use crate::{
-    BoundProblem, BoundStateData, LevelsData, SMatrixData, ScatteringProblem,
+    BoundProblem, BoundStateData, Hamiltonian, LevelsData, SMatrixData, ScatteringProblem, Structure,
     bound_states::{BoundState, BoundStatesFinder, NodeMonotony, NodeRangeTarget, WaveFunction},
     coupled_chan::{
         Interaction,

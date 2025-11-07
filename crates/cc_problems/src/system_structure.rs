@@ -3,9 +3,8 @@ use coupled_chan::constants::units::{
     atomic_units::{AuEnergy, AuMass},
 };
 use hilbert_space::dyn_space::{BasisId, SpaceBasis, SubspaceBasis};
-use serde::{Deserialize, Serialize};
 
-use crate::AngularMomentum;
+use crate::{AngularMomentum, Structure};
 
 #[derive(Clone, Debug)]
 pub struct AngularBasis {
@@ -28,7 +27,7 @@ impl AngularBasis {
     }
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug)]
 pub struct SystemParams {
     pub mass: Quantity<AuMass>,
     pub energy: Quantity<AuEnergy>,
@@ -48,5 +47,18 @@ impl Default for SystemParams {
 impl SystemParams {
     pub fn red_masses(masses: &[Quantity<AuMass>]) -> Quantity<AuMass> {
         1. / masses.iter().fold(0., |acc, x| acc + 1. / x.value()) * AuMass
+    }
+}
+
+impl Structure for SystemParams {
+    fn modify_parameter(&mut self, key: &str, value: serde_json::Value) -> anyhow::Result<()> {
+        match key {
+            "mass" => self.mass = serde_json::from_value(value)?,
+            "energy" => self.energy = serde_json::from_value(value)?,
+            "entrance_channel" => self.entrance_channel = serde_json::from_value(value)?,
+            _ => anyhow::bail!("Could not find {key} in SystemParams"),
+        }
+
+        Ok(())
     }
 }

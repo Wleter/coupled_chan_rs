@@ -8,6 +8,7 @@ use hilbert_space::{
     dyn_space::{BasisElementsRef, BasisId, SpaceBasis, SubspaceBasis},
     operator_diag_mel,
 };
+use serde::{Deserialize, Serialize};
 
 use crate::{AngularBasisElements, AngularMomentum};
 
@@ -101,18 +102,18 @@ impl<I: Interaction> Interaction2D<ScaledInteraction<I>> {
             }
             PESScaling::Scaling(scaling) => {
                 for (_, p) in &mut self.0 {
-                    p.scaling *= scaling
+                    p.scale(scaling);
                 }
             }
             PESScaling::LegendreScaling(n, scaling) => {
                 if let Some((_, p)) = self.0.iter_mut().find(|x| x.0 == n) {
-                    p.scaling *= scaling
+                    p.scale(scaling);
                 }
             }
             PESScaling::AnisotropicScaling(scaling) => {
                 for (n, p) in &mut self.0 {
                     if *n != 0 {
-                        p.scaling *= scaling
+                        p.scale(scaling);
                     }
                 }
             }
@@ -121,7 +122,7 @@ impl<I: Interaction> Interaction2D<ScaledInteraction<I>> {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum PESScaling {
     /// Perform composite scaling in the given order
     Composite(Vec<PESScaling>),

@@ -1,15 +1,17 @@
+use anyhow::bail;
 use coupled_chan::{
     Interaction, Operator,
     constants::units::{Gauss, Quantity},
-    coupling::{Asymptote, RedCoupling, VanishingCoupling, WMatrix, composite::Composite, masked::Masked, pair::Pair},
+    coupling::{Asymptote, RedCoupling, composite::Composite, masked::Masked, pair::Pair},
     scaled_interaction::ScaledInteraction,
 };
 use hilbert_space::{cast_variant, dyn_space::SpaceBasis, operator_mel};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use spin_algebra::{Spin, half_integer::HalfI32, hu32};
 
 use crate::{
-    AngularBasisElements, AngularMomentum,
+    AngularBasisElements, AngularMomentum, Hamiltonian, Structure,
     atom_structure::{AtomBasis, AtomBasisRecipe, AtomStructure},
     operator_mel::{percival_coef_tram_mel, singlet_projection_uncoupled, triplet_projection_uncoupled},
     rotor_structure::{Interaction2D, RotationalEnergy},
@@ -81,7 +83,7 @@ pub struct PotentialSurface<P: Interaction> {
     pub operator: Vec<Operator>,
 }
 
-impl<P: Interaction + Clone> PotentialSurface<P> {
+impl<P: Interaction> PotentialSurface<P> {
     pub fn new(surface: Interaction2D<P>, elements: &AngularBasisElements, tram: &TRAMBasis) -> Self {
         let zeros = Operator::zeros(elements.full_basis.basis.size());
 
@@ -100,13 +102,7 @@ impl<P: Interaction + Clone> PotentialSurface<P> {
             .filter(|a: &Operator| a.0 != zeros.0)
             .collect();
 
-        let surface = Interaction2D(
-            surface
-                .0
-                .into_iter()
-                .map(|x| (x.0, ScaledInteraction::new(x.1, 1.)))
-                .collect(),
-        );
+        let surface = Interaction2D(surface.0.into_iter().map(|x| (x.0, ScaledInteraction::new(x.1))).collect());
 
         Self { surface, operator }
     }
@@ -135,13 +131,7 @@ impl<P: Interaction + Clone> PotentialSurface<P> {
             .filter(|a: &Operator| a.0 != zeros.0)
             .collect();
 
-        let surface = Interaction2D(
-            surface
-                .0
-                .into_iter()
-                .map(|x| (x.0, ScaledInteraction::new(x.1, 1.)))
-                .collect(),
-        );
+        let surface = Interaction2D(surface.0.into_iter().map(|x| (x.0, ScaledInteraction::new(x.1))).collect());
 
         Self { surface, operator }
     }
@@ -170,17 +160,13 @@ impl<P: Interaction + Clone> PotentialSurface<P> {
             .filter(|a: &Operator| a.0 != zeros.0)
             .collect();
 
-        let surface = Interaction2D(
-            surface
-                .0
-                .into_iter()
-                .map(|x| (x.0, ScaledInteraction::new(x.1, 1.)))
-                .collect(),
-        );
+        let surface = Interaction2D(surface.0.into_iter().map(|x| (x.0, ScaledInteraction::new(x.1))).collect());
 
         Self { surface, operator }
     }
+}
 
+impl<P: Interaction + Clone> PotentialSurface<P> {
     pub fn hamiltonian(&self) -> Composite<Masked<ScaledInteraction<P>>> {
         let composite = self
             .surface
@@ -217,8 +203,8 @@ const ALKALI_SPINS: &str = "Expected alkali problem with s_a = 1/2, s_b = 1/2, s
 
 impl<T, S> AlkaliAtomRotorTRAM<T, S>
 where
-    T: Interaction + Clone,
-    S: Interaction + Clone,
+    T: Interaction,
+    S: Interaction,
 {
     pub fn new(triplet: Interaction2D<T>, singlet: Interaction2D<S>, recipe: AtomRotorTRAMRecipe) -> Self {
         assert!(recipe.atom_a.s == hu32!(1 / 2), "{ALKALI_SPINS}");
@@ -244,8 +230,39 @@ where
         self.atom_b.set_b_field(b_field);
         self.atom_c.set_b_field(b_field);
     }
+}
 
-    pub fn asymptote(&self) -> Asymptote {
+impl<T, S> Structure for AlkaliAtomRotorTRAM<T, S>
+where
+    T: Interaction,
+    S: Interaction,
+{
+    fn modify_parameter(&mut self, key: &str, value: Value) -> anyhow::Result<()> {
+        match key {
+            key if key.starts_with("system_params.") => self.system_params.modify_parameter(&key[14..], value)?,
+            key if key.starts_with("atom_a.") => self.atom_a.modify_parameter(&key[7..], value)?,
+            key if key.starts_with("atom_b.") => self.atom_b.modify_parameter(&key[7..], value)?,
+            key if key.starts_with("atom_c.") => self.atom_c.modify_parameter(&key[7..], value)?,
+            "b_field" => self.set_b_field(serde_json::from_value(value)?),
+            "rot_const" => self.rotational.rot_const = serde_json::from_value(value)?,
+            "triplet_scaling" => self.triplet.surface.scale(serde_json::from_value(value)?),
+            "singlet_scaling" => self.singlet.surface.scale(serde_json::from_value(value)?),
+            _ => bail!("Could not find {key} in AlkaliAtomRotorTRAM"),
+        }
+
+        Ok(())
+    }
+}
+
+impl<T, S> Hamiltonian for AlkaliAtomRotorTRAM<T, S>
+where
+    T: Interaction + Clone,
+    S: Interaction + Clone,
+{
+    type Coupling = Pair<Composite<Masked<ScaledInteraction<T>>>, Composite<Masked<ScaledInteraction<S>>>>;
+    type WMatrix = RedCoupling<Self::Coupling>;
+
+    fn asymptote(&self) -> Asymptote {
         let angular_blocks = self.atom_a.hamiltonian()
             + self.atom_b.hamiltonian()
             + self.atom_c.hamiltonian()
@@ -259,11 +276,11 @@ where
         )
     }
 
-    pub fn coupling(&self) -> impl VanishingCoupling + use<T, S> {
+    fn coupling(&self) -> Self::Coupling {
         Pair::new(self.triplet.hamiltonian(), self.singlet.hamiltonian())
     }
 
-    pub fn w_matrix(&self) -> impl WMatrix + use<T, S> {
+    fn w_matrix(&self) -> Self::WMatrix {
         RedCoupling::new(self.coupling(), self.asymptote())
     }
 }
@@ -286,7 +303,7 @@ where
 
 impl<P> SinglePESAtomRotorTRAM<P>
 where
-    P: Interaction + Clone,
+    P: Interaction,
 {
     pub fn new(pes: Interaction2D<P>, recipe: AtomRotorTRAMRecipe) -> Self {
         assert!(
@@ -312,8 +329,36 @@ where
         self.atom_b.set_b_field(b_field);
         self.atom_c.set_b_field(b_field);
     }
+}
 
-    pub fn asymptote(&self) -> Asymptote {
+impl<T> Structure for SinglePESAtomRotorTRAM<T>
+where
+    T: Interaction,
+{
+    fn modify_parameter(&mut self, key: &str, value: Value) -> anyhow::Result<()> {
+        match key {
+            key if key.starts_with("system_params.") => self.system_params.modify_parameter(&key[14..], value)?,
+            key if key.starts_with("atom_a.") => self.atom_a.modify_parameter(&key[7..], value)?,
+            key if key.starts_with("atom_b.") => self.atom_b.modify_parameter(&key[7..], value)?,
+            key if key.starts_with("atom_c.") => self.atom_c.modify_parameter(&key[7..], value)?,
+            "b_field" => self.set_b_field(serde_json::from_value(value)?),
+            "rot_const" => self.rotational.rot_const = serde_json::from_value(value)?,
+            "pes_scaling" => self.pes.surface.scale(serde_json::from_value(value)?),
+            _ => bail!("Could not find {key} in SinglePESAtomRotorTRAM"),
+        }
+
+        Ok(())
+    }
+}
+
+impl<T> Hamiltonian for SinglePESAtomRotorTRAM<T>
+where
+    T: Interaction + Clone,
+{
+    type Coupling = Composite<Masked<ScaledInteraction<T>>>;
+    type WMatrix = RedCoupling<Self::Coupling>;
+
+    fn asymptote(&self) -> Asymptote {
         let angular_blocks = self.atom_a.hamiltonian()
             + self.atom_b.hamiltonian()
             + self.atom_c.hamiltonian()
@@ -327,11 +372,11 @@ where
         )
     }
 
-    pub fn coupling(&self) -> impl VanishingCoupling + use<P> {
+    fn coupling(&self) -> Self::Coupling {
         self.pes.hamiltonian()
     }
 
-    pub fn w_matrix(&self) -> impl WMatrix + use<P> {
+    fn w_matrix(&self) -> Self::WMatrix {
         RedCoupling::new(self.coupling(), self.asymptote())
     }
 }

@@ -1,3 +1,4 @@
+use anyhow::bail;
 use coupled_chan::{
     constants::{
         BOHR_MAG, G_FACTOR,
@@ -13,9 +14,10 @@ use hilbert_space::{
     operator_diag_mel, operator_mel,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use spin_algebra::{Spin, SpinOps, get_spin_basis, half_integer::HalfU32};
 
-use crate::AngularBasisElements;
+use crate::{AngularBasisElements, Structure};
 
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
 pub struct AtomBasisRecipe {
@@ -70,6 +72,20 @@ impl AtomStructure {
     }
 }
 
+impl Structure for AtomStructure {
+    fn modify_parameter(&mut self, key: &str, value: Value) -> anyhow::Result<()> {
+        match key {
+            "gamma_e" => self.zeeman_e.gamma = serde_json::from_value(value)?,
+            "gamma_n" => self.zeeman_n.gamma = serde_json::from_value(value)?,
+            "a_hifi" => self.hyperfine.a_hifi = serde_json::from_value(value)?,
+            "b_field" => self.set_b_field(serde_json::from_value(value)?),
+            _ => bail!("Did not find {key} in AtomStructure"),
+        }
+
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct HyperfineStructure {
     pub a_hifi: Quantity<AuEnergy>,
@@ -119,5 +135,49 @@ impl ZeemanSplitting {
 
     pub fn hamiltonian(&self) -> AngularBlocks {
         self.operator.scale(self.gamma.value() * self.b_field.value())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use hilbert_space::dyn_space::SpaceBasis;
+    use serde_json::json;
+    use spin_algebra::hu32;
+
+    use crate::{AngularMomentum, system_structure::AngularBasis};
+
+    use super::*;
+
+    #[test]
+    pub fn test_atom_structure_modifier() {
+        let recipe = super::AtomBasisRecipe {
+            s: hu32!(1 / 2),
+            i: hu32!(1),
+        };
+        let mut basis = SpaceBasis::default();
+        let atom = AtomBasis::new(recipe, &mut basis);
+        let angular = AngularBasis::new(AngularMomentum(0), &mut basis);
+        let full_basis = basis.get_basis();
+        let elements = AngularBasisElements::new_angular(full_basis, &angular);
+
+        let mut structure = AtomStructure::new(&elements, &atom);
+        let a_hifi = 1.;
+        let b_field = 100.;
+        let zeeman_n = 1.;
+        let zeeman_e = -2.;
+
+        let data = json!({
+            "a_hifi": [a_hifi, "AuEnergy"],
+            "b_field": [b_field, "Gauss"],
+            "gamma_n": [zeeman_n, "AuEnergy/Gauss"],
+            "gamma_e": [zeeman_e, "AuEnergy/Gauss"],
+        });
+
+        structure.modify_parameters(data).unwrap();
+        assert_eq!(structure.hyperfine.a_hifi, a_hifi * AuEnergy);
+        assert_eq!(structure.zeeman_e.b_field, b_field * Gauss);
+        assert_eq!(structure.zeeman_n.b_field, b_field * Gauss);
+        assert_eq!(structure.zeeman_n.gamma, zeeman_n * (AuEnergy / Gauss));
+        assert_eq!(structure.zeeman_e.gamma, zeeman_e * (AuEnergy / Gauss));
     }
 }

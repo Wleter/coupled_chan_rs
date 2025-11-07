@@ -4,7 +4,8 @@ use coupled_chan::{
         BOHR_MAG, G_FACTOR,
         units::{Quantity, atomic_units::Gauss},
     },
-    coupling::{AngularBlocks, Asymptote, RedCoupling, VanishingCoupling, WMatrix, pair::Pair},
+    coupling::{AngularBlocks, Asymptote, RedCoupling, masked::Masked, pair::Pair},
+    scaled_interaction::ScaledInteraction,
 };
 use hilbert_space::{
     Parity, cast_variant,
@@ -18,7 +19,7 @@ use spin_algebra::{
 };
 
 use crate::{
-    AngularBasisElements, AngularMomentum,
+    AngularBasisElements, AngularMomentum, Hamiltonian, Structure,
     atom_structure::{AtomBasis, AtomBasisRecipe, AtomStructure, HyperfineStructure, ZeemanSplitting},
     diatom_basis::PotentialCurve,
     system_structure::{AngularBasis, SystemParams},
@@ -164,10 +165,10 @@ where
 
 impl<T, S> AlkaliHomoDiatom<T, S>
 where
-    T: Interaction + Clone,
-    S: Interaction + Clone,
+    T: Interaction,
+    S: Interaction,
 {
-    pub fn new(recipe: HomoDiatomRecipe) -> Self {
+    pub fn new(triplet: T, singlet: S, recipe: HomoDiatomRecipe) -> Self {
         assert!(recipe.atom.s == hu32!(1 / 2), "Expected open shell atom");
         let basis = HomoDiatomBasis::new(recipe);
 
@@ -190,8 +191,8 @@ where
         Self {
             system_params: SystemParams::default(),
             atom,
-            triplet: PotentialCurve::new_triplet_coupled(&basis.basis, &basis.combined_atom_basis),
-            singlet: PotentialCurve::new_singlet_coupled(&basis.basis, &basis.combined_atom_basis),
+            triplet: PotentialCurve::new_triplet_coupled(triplet, &basis.basis, &basis.combined_atom_basis),
+            singlet: PotentialCurve::new_singlet_coupled(singlet, &basis.basis, &basis.combined_atom_basis),
             basis,
         }
     }
@@ -199,8 +200,36 @@ where
     pub fn set_b_field(&mut self, b_field: Quantity<Gauss>) {
         self.atom.set_b_field(b_field);
     }
+}
 
-    pub fn asymptote(&self) -> Asymptote {
+impl<T, S> Structure for AlkaliHomoDiatom<T, S>
+where
+    T: Interaction,
+    S: Interaction,
+{
+    fn modify_parameter(&mut self, key: &str, value: serde_json::Value) -> anyhow::Result<()> {
+        match key {
+            key if key.starts_with("system_params.") => self.system_params.modify_parameter(&key[14..], value)?,
+            key if key.starts_with("atom.") => self.atom.modify_parameter(&key[5..], value)?,
+            "b_field" => self.set_b_field(serde_json::from_value(value)?),
+            "triplet_scaling" => self.triplet.potential.scale(serde_json::from_value(value)?),
+            "singlet_scaling" => self.singlet.potential.scale(serde_json::from_value(value)?),
+            _ => anyhow::bail!("Could not find {key} in AlkaliHomoDiatom"),
+        }
+
+        Ok(())
+    }
+}
+
+impl<T, S> Hamiltonian for AlkaliHomoDiatom<T, S>
+where
+    T: Interaction + Clone,
+    S: Interaction + Clone,
+{
+    type Coupling = Pair<Masked<ScaledInteraction<T>>, Masked<ScaledInteraction<S>>>;
+    type WMatrix = RedCoupling<Self::Coupling>;
+
+    fn asymptote(&self) -> Asymptote {
         let angular_blocks = self.atom.hamiltonian();
 
         Asymptote::new_angular_blocks(
@@ -211,11 +240,11 @@ where
         )
     }
 
-    pub fn coupling(&self) -> impl VanishingCoupling + use<T, S> {
+    fn coupling(&self) -> Self::Coupling {
         Pair::new(self.triplet.hamiltonian(), self.singlet.hamiltonian())
     }
 
-    pub fn w_matrix(&self) -> impl WMatrix + use<T, S> {
+    fn w_matrix(&self) -> Self::WMatrix {
         RedCoupling::new(self.coupling(), self.asymptote())
     }
 }

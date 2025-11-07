@@ -1,7 +1,7 @@
 use coupled_chan::{
     Interaction, Operator,
     constants::{Gauss, Quantity},
-    coupling::{Asymptote, RedCoupling, VanishingCoupling, WMatrix, masked::Masked, pair::Pair},
+    coupling::{Asymptote, RedCoupling, masked::Masked, pair::Pair},
     scaled_interaction::ScaledInteraction,
 };
 use hilbert_space::{cast_variant, dyn_space::SpaceBasis, operator_diag_mel, operator_mel};
@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use spin_algebra::{Spin, half_integer::HalfI32, hu32};
 
 use crate::{
-    AngularBasisElements, AngularMomentum,
+    AngularBasisElements, AngularMomentum, Hamiltonian, Structure,
     atom_structure::{AtomBasis, AtomBasisRecipe, AtomStructure},
     operator_mel::{singlet_projection_uncoupled, triplet_projection_uncoupled},
     system_structure::{AngularBasis, SystemParams},
@@ -62,63 +62,59 @@ impl DiatomBasis {
 
 #[derive(Debug, Clone)]
 pub struct PotentialCurve<P: Interaction> {
-    pub potential: Option<ScaledInteraction<P>>,
+    pub potential: ScaledInteraction<P>,
     pub operator: Operator,
 }
 
-impl<P: Interaction + Clone> PotentialCurve<P> {
-    pub fn new_triplet(elements: &AngularBasisElements, atom_a: &AtomBasis, atom_b: &AtomBasis) -> Self {
+impl<P: Interaction> PotentialCurve<P> {
+    pub fn new_triplet(triplet: P, elements: &AngularBasisElements, atom_a: &AtomBasis, atom_b: &AtomBasis) -> Self {
         let operator = operator_mel!(dyn elements.full_basis, [atom_a.s, atom_b.s], |[s1: Spin, s2: Spin]| {
             triplet_projection_uncoupled(s1, s2)
         });
 
         Self {
-            potential: None,
+            potential: ScaledInteraction::new(triplet),
             operator,
         }
     }
 
-    pub fn new_singlet(elements: &AngularBasisElements, atom_a: &AtomBasis, atom_b: &AtomBasis) -> Self {
+    pub fn new_singlet(singlet: P, elements: &AngularBasisElements, atom_a: &AtomBasis, atom_b: &AtomBasis) -> Self {
         let operator = operator_mel!(dyn elements.full_basis, [atom_a.s, atom_b.s], |[s1: Spin, s2: Spin]| {
             singlet_projection_uncoupled(s1, s2)
         });
 
         Self {
-            potential: None,
+            potential: ScaledInteraction::new(singlet),
             operator,
         }
     }
 
-    pub fn new_triplet_coupled(elements: &AngularBasisElements, atom_pair: &AtomBasis) -> Self {
+    pub fn new_triplet_coupled(triplet: P, elements: &AngularBasisElements, atom_pair: &AtomBasis) -> Self {
         let operator = operator_diag_mel!(dyn elements.full_basis, [atom_pair.s], |[s: Spin]| {
             if s.s == hu32!(1) { 1. } else { 0. }
         });
 
         Self {
-            potential: None,
+            potential: ScaledInteraction::new(triplet),
             operator,
         }
     }
 
-    pub fn new_singlet_coupled(elements: &AngularBasisElements, atom_pair: &AtomBasis) -> Self {
+    pub fn new_singlet_coupled(singlet: P, elements: &AngularBasisElements, atom_pair: &AtomBasis) -> Self {
         let operator = operator_diag_mel!(dyn elements.full_basis, [atom_pair.s], |[s: Spin]| {
             if s.s == hu32!(0) { 1. } else { 0. }
         });
 
         Self {
-            potential: None,
+            potential: ScaledInteraction::new(singlet),
             operator,
         }
     }
+}
 
-    pub fn set_potential(&mut self, potential: P) {
-        self.potential = Some(ScaledInteraction::new(potential, 1.))
-    }
-
+impl<P: Interaction + Clone> PotentialCurve<P> {
     pub fn hamiltonian(&self) -> Masked<ScaledInteraction<P>> {
-        let potential = self.potential.as_ref().expect("Did not set the potential");
-
-        Masked::new(potential.clone(), self.operator.clone())
+        Masked::new(self.potential.clone(), self.operator.clone())
     }
 }
 
@@ -140,10 +136,10 @@ where
 
 impl<T, S> AlkaliDiatom<T, S>
 where
-    T: Interaction + Clone,
-    S: Interaction + Clone,
+    T: Interaction,
+    S: Interaction,
 {
-    pub fn new(recipe: DiatomBasisRecipe) -> Self {
+    pub fn new(triplet: T, singlet: S, recipe: DiatomBasisRecipe) -> Self {
         assert!(recipe.atom_a.s == hu32!(1 / 2), "Expected open shell A atom");
         assert!(recipe.atom_b.s == hu32!(1 / 2), "Expected open shell B atom");
 
@@ -153,8 +149,8 @@ where
             system_params: SystemParams::default(),
             atom_a: AtomStructure::new(&basis.basis, &basis.atom_a),
             atom_b: AtomStructure::new(&basis.basis, &basis.atom_b),
-            triplet: PotentialCurve::new_triplet(&basis.basis, &basis.atom_a, &basis.atom_b),
-            singlet: PotentialCurve::new_singlet(&basis.basis, &basis.atom_a, &basis.atom_b),
+            triplet: PotentialCurve::new_triplet(triplet, &basis.basis, &basis.atom_a, &basis.atom_b),
+            singlet: PotentialCurve::new_singlet(singlet, &basis.basis, &basis.atom_a, &basis.atom_b),
             basis,
         }
     }
@@ -163,8 +159,37 @@ where
         self.atom_a.set_b_field(b_field);
         self.atom_b.set_b_field(b_field);
     }
+}
 
-    pub fn asymptote(&self) -> Asymptote {
+impl<T, S> Structure for AlkaliDiatom<T, S>
+where
+    T: Interaction,
+    S: Interaction,
+{
+    fn modify_parameter(&mut self, key: &str, value: serde_json::Value) -> anyhow::Result<()> {
+        match key {
+            key if key.starts_with("system_params.") => self.system_params.modify_parameter(&key[14..], value)?,
+            key if key.starts_with("atom_a.") => self.atom_a.modify_parameter(&key[7..], value)?,
+            key if key.starts_with("atom_b.") => self.atom_b.modify_parameter(&key[7..], value)?,
+            "b_field" => self.set_b_field(serde_json::from_value(value)?),
+            "triplet_scaling" => self.triplet.potential.scale(serde_json::from_value(value)?),
+            "singlet_scaling" => self.singlet.potential.scale(serde_json::from_value(value)?),
+            _ => anyhow::bail!("Could not find {key} in AlkaliDiatom"),
+        }
+
+        Ok(())
+    }
+}
+
+impl<T, S> Hamiltonian for AlkaliDiatom<T, S>
+where
+    T: Interaction + Clone,
+    S: Interaction + Clone,
+{
+    type Coupling = Pair<Masked<ScaledInteraction<T>>, Masked<ScaledInteraction<S>>>;
+    type WMatrix = RedCoupling<Self::Coupling>;
+
+    fn asymptote(&self) -> Asymptote {
         let angular_blocks = self.atom_a.hamiltonian() + self.atom_b.hamiltonian();
 
         Asymptote::new_angular_blocks(
@@ -175,11 +200,11 @@ where
         )
     }
 
-    pub fn coupling(&self) -> impl VanishingCoupling {
+    fn coupling(&self) -> Self::Coupling {
         Pair::new(self.triplet.hamiltonian(), self.singlet.hamiltonian())
     }
 
-    pub fn w_matrix(&self) -> impl WMatrix {
+    fn w_matrix(&self) -> Self::WMatrix {
         RedCoupling::new(self.coupling(), self.asymptote())
     }
 }

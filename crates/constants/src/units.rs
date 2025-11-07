@@ -138,6 +138,12 @@ impl<U: Unit, V: Unit> std::ops::Mul<Frac<U, V>> for f64 {
 #[derive(Clone, Copy, Default)]
 pub struct Quantity<U>(pub f64, pub U);
 
+impl<U> PartialEq for Quantity<U> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
 impl<U: Unit + Debug> Serialize for Quantity<U> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -156,19 +162,25 @@ struct QuantityVisitor<U> {
     marker: PhantomData<fn() -> Quantity<U>>,
 }
 
-impl<U> QuantityVisitor<U> {
+impl<U: Unit + Debug> QuantityVisitor<U> {
     fn new() -> Self {
         QuantityVisitor { marker: PhantomData }
     }
-}
 
-const QUANTITY_ERR: &str = "Expecting Quantity<U> formatted as [value, \"unit\"]";
+    fn parsing_msg() -> String {
+        format!(
+            "Expecting Quantity<{:?}> formatted as [value, \"{:?}\"]",
+            U::default(),
+            U::default()
+        )
+    }
+}
 
 impl<'de, U: Unit + Debug> Visitor<'de> for QuantityVisitor<U> {
     type Value = Quantity<U>;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str(QUANTITY_ERR)
+        formatter.write_str(&Self::parsing_msg())
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -180,18 +192,18 @@ impl<'de, U: Unit + Debug> Visitor<'de> for QuantityVisitor<U> {
         let unit: Option<String> = seq.next_element()?;
 
         if len != 2 {
-            return Err(Error::custom(QUANTITY_ERR));
+            return Err(Error::custom(Self::parsing_msg()));
         }
         if let None = &value {
-            return Err(Error::custom(QUANTITY_ERR));
+            return Err(Error::custom(Self::parsing_msg()));
         }
         if let None = &unit {
-            return Err(Error::custom(QUANTITY_ERR));
+            return Err(Error::custom(Self::parsing_msg()));
         }
         if let Some(unit) = &unit
             && unit != &format!("{:?}", U::default())
         {
-            return Err(Error::custom(QUANTITY_ERR));
+            return Err(Error::custom(Self::parsing_msg()));
         }
 
         Ok(Quantity(value.unwrap(), U::default()))

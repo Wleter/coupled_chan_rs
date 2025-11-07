@@ -7,8 +7,15 @@ pub struct ScaledInteraction<P: Interaction> {
 }
 
 impl<P: Interaction> ScaledInteraction<P> {
-    pub fn new(interaction: P, scaling: f64) -> Self {
-        Self { interaction, scaling }
+    pub fn new(interaction: P) -> Self {
+        Self {
+            interaction,
+            scaling: 1.,
+        }
+    }
+
+    pub fn scale(&mut self, scaling: f64) {
+        self.scaling *= scaling
     }
 }
 

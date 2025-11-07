@@ -178,17 +178,15 @@ impl Problems {
 }
 
 pub fn li2_problem(recipe: HomoDiatomRecipe) -> AlkaliHomoDiatom<impl Interaction + Clone, impl Interaction + Clone> {
-    let singlet = CompositeInt::new(vec![Dispersion::new(-1381., -6), Dispersion::new(1.112e7, -12)]);
     let triplet = CompositeInt::new(vec![Dispersion::new(-1381., -6), Dispersion::new(2.19348e8, -12)]);
+    let singlet = CompositeInt::new(vec![Dispersion::new(-1381., -6), Dispersion::new(1.112e7, -12)]);
 
-    let mut diatom = AlkaliHomoDiatom::new(recipe);
+    let mut diatom = AlkaliHomoDiatom::new(triplet, singlet, recipe);
 
     diatom.atom.hyperfine.a_hifi = (228.2 / 1.5 * MHz).to(AuEnergy);
     diatom.system_params.energy = (1e-7 * Kelvin).to(AuEnergy);
     diatom.system_params.mass = (6.015122 / 2. * Dalton).to(AuMass);
     diatom.system_params.entrance_channel = 0;
-    diatom.triplet.set_potential(triplet);
-    diatom.singlet.set_potential(singlet);
 
     diatom
 }
