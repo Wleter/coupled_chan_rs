@@ -12,11 +12,12 @@ use hilbert_space::{
     dyn_space::{BasisId, SpaceBasis, SubspaceBasis},
     operator_diag_mel, operator_mel,
 };
+use serde::{Deserialize, Serialize};
 use spin_algebra::{Spin, SpinOps, get_spin_basis, half_integer::HalfU32};
 
 use crate::AngularBasisElements;
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
 pub struct AtomBasisRecipe {
     pub s: HalfU32,
     pub i: HalfU32,

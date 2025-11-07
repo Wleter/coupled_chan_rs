@@ -14,6 +14,7 @@ faer = { workspace = true, optional = true}
 nalgebra = { workspace = true, optional = true}
 ndarray = { workspace = true, optional = true}
 
+serde = {workspace = true}
 [features]
 faer = ["dep:faer", "matrix_utils/faer"]
 nalgebra = ["dep:nalgebra", "matrix_utils/nalgebra"]

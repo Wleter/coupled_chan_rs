@@ -5,6 +5,7 @@ use coupled_chan::{
     scaled_interaction::ScaledInteraction,
 };
 use hilbert_space::{cast_variant, dyn_space::SpaceBasis, operator_mel};
+use serde::{Deserialize, Serialize};
 use spin_algebra::{Spin, half_integer::HalfI32, hu32};
 
 use crate::{
@@ -18,7 +19,7 @@ use crate::{
 
 /// Recipe for alkali atom-rotor problem A + B-C,
 /// where A, B are alkali-like
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct AtomRotorTRAMRecipe {
     pub atom_a: AtomBasisRecipe,
     pub atom_b: AtomBasisRecipe,

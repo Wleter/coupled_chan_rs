@@ -3,6 +3,7 @@ use coupled_chan::constants::units::{
     atomic_units::{AuEnergy, AuMass},
 };
 use hilbert_space::dyn_space::{BasisId, SpaceBasis, SubspaceBasis};
+use serde::{Deserialize, Serialize};
 
 use crate::AngularMomentum;
 
@@ -27,7 +28,7 @@ impl AngularBasis {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct SystemParams {
     pub mass: Quantity<AuMass>,
     pub energy: Quantity<AuEnergy>,

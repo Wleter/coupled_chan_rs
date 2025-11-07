@@ -1,9 +1,16 @@
 pub mod atomic_units;
 pub use atomic_units::*;
-use serde::{Deserialize, Serialize, de::{Error, Visitor}, ser::SerializeTuple};
+use serde::{
+    Deserialize, Serialize,
+    de::{Error, Visitor},
+    ser::SerializeTuple,
+};
 
 use std::{
-    fmt::{Debug, Display, LowerExp, UpperExp}, iter::Sum, marker::PhantomData, ops::{Add, AddAssign, Div, Mul, Sub, SubAssign}
+    fmt::{Debug, Display, LowerExp, UpperExp},
+    iter::Sum,
+    marker::PhantomData,
+    ops::{Add, AddAssign, Div, Mul, Sub, SubAssign},
 };
 
 pub trait Unit: Copy + Default {
@@ -134,7 +141,8 @@ pub struct Quantity<U>(pub f64, pub U);
 impl<U: Unit + Debug> Serialize for Quantity<U> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: serde::Serializer {
+        S: serde::Serializer,
+    {
         let mut ser = serializer.serialize_tuple(2)?;
 
         ser.serialize_element(&self.0)?;
@@ -145,14 +153,12 @@ impl<U: Unit + Debug> Serialize for Quantity<U> {
 }
 
 struct QuantityVisitor<U> {
-    marker: PhantomData<fn() -> Quantity<U>>
+    marker: PhantomData<fn() -> Quantity<U>>,
 }
 
 impl<U> QuantityVisitor<U> {
     fn new() -> Self {
-        QuantityVisitor {
-            marker: PhantomData
-        }
+        QuantityVisitor { marker: PhantomData }
     }
 }
 
@@ -166,25 +172,26 @@ impl<'de, U: Unit + Debug> Visitor<'de> for QuantityVisitor<U> {
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-        where
-            A: serde::de::SeqAccess<'de>, 
+    where
+        A: serde::de::SeqAccess<'de>,
     {
-
         let len = seq.size_hint().unwrap_or(2);
         let value: Option<f64> = seq.next_element()?;
         let unit: Option<String> = seq.next_element()?;
 
         if len != 2 {
-            return Err(Error::custom(QUANTITY_ERR))
+            return Err(Error::custom(QUANTITY_ERR));
         }
         if let None = &value {
-            return Err(Error::custom(QUANTITY_ERR))
+            return Err(Error::custom(QUANTITY_ERR));
         }
         if let None = &unit {
-            return Err(Error::custom(QUANTITY_ERR))
+            return Err(Error::custom(QUANTITY_ERR));
         }
-        if let Some(unit) = &unit && unit != &format!("{:?}", U::default()){
-            return Err(Error::custom(QUANTITY_ERR))
+        if let Some(unit) = &unit
+            && unit != &format!("{:?}", U::default())
+        {
+            return Err(Error::custom(QUANTITY_ERR));
         }
 
         Ok(Quantity(value.unwrap(), U::default()))
@@ -194,7 +201,7 @@ impl<'de, U: Unit + Debug> Visitor<'de> for QuantityVisitor<U> {
 impl<'de, U: Unit + Debug> Deserialize<'de> for Quantity<U> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de> 
+        D: serde::Deserializer<'de>,
     {
         deserializer.deserialize_tuple(2, QuantityVisitor::new())
     }
@@ -329,7 +336,6 @@ mod tests {
 
     #[test]
     fn test_complex_units() {
-
         let quantity = 1. * (GHz * Gauss / Bohr);
         assert_eq!(&format!("{quantity}"), "1 GHz * Gauss / Bohr", "Wrong format");
 

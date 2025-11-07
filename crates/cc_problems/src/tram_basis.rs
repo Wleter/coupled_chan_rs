@@ -2,11 +2,12 @@ use hilbert_space::{
     Parity, cast_variant,
     dyn_space::{BasisId, SpaceBasis, SpaceElement, SubspaceBasis},
 };
+use serde::{Deserialize, Serialize};
 use spin_algebra::{Spin, get_spin_basis};
 
 use crate::{AngularMomentum, rotor_structure::RotorBasis, system_structure::AngularBasis};
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct TRAMBasisRecipe {
     pub l_max: u32,
     pub n_max: u32,

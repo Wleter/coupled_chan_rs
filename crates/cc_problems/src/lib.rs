@@ -16,7 +16,7 @@ pub use hilbert_space;
 pub use math_utils::{linspace, logspace};
 pub use qol_utils;
 pub use rayon;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 pub use spin_algebra;
 
 use coupled_chan::{
@@ -39,7 +39,7 @@ use crate::{
     system_structure::AngularBasis,
 };
 
-#[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default, Serialize, Deserialize)]
 pub struct AngularMomentum(pub u32);
 
 impl std::fmt::Debug for AngularMomentum {
