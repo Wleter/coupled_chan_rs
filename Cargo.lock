@@ -292,6 +292,8 @@ name = "constants"
 version = "0.1.0"
 dependencies = [
  "num-traits",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -307,6 +309,10 @@ dependencies = [
  "propagator",
  "single_chan",
 ]
+
+[[package]]
+name = "coupled_chan_cli"
+version = "0.1.0"
 
 [[package]]
 name = "cpufeatures"

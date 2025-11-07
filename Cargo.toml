@@ -10,11 +10,12 @@ members = [
     "crates/spin_algebra", 
     "crates/single_chan", 
     "crates/propagator", 
-    "crates/coupled_chan", 
+    "crates/coupled_chan",
     "crates/cc_problems", 
+    "crates/coupled_chan_cli",
 
     "example_calculations/li2_feshbach",
-    "example_calculations/atom_rotor",
+    "example_calculations/atom_rotor", 
 ]
 resolver = "3"
 

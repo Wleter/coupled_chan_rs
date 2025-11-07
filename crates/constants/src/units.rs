@@ -1,10 +1,9 @@
 pub mod atomic_units;
 pub use atomic_units::*;
+use serde::{Deserialize, Serialize, de::{Error, Visitor}, ser::SerializeTuple};
 
 use std::{
-    fmt::{Debug, Display, LowerExp, UpperExp},
-    iter::Sum,
-    ops::{Add, AddAssign, Div, Mul, Sub, SubAssign},
+    fmt::{Debug, Display, LowerExp, UpperExp}, iter::Sum, marker::PhantomData, ops::{Add, AddAssign, Div, Mul, Sub, SubAssign}
 };
 
 pub trait Unit: Copy + Default {
@@ -62,7 +61,7 @@ impl<U: Unit, V: Unit> Unit for Prod<U, V> {
 
 impl<U: Unit + Debug, V: Unit + Debug> Debug for Prod<U, V> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?} * {:?}", self.0, self.1)
+        write!(f, "{:?}*{:?}", self.0, self.1)
     }
 }
 
@@ -101,7 +100,7 @@ impl<U: Unit, V: Unit> Unit for Frac<U, V> {
 
 impl<U: Unit + Debug, V: Unit + Debug> Debug for Frac<U, V> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?} / {:?}", self.0, self.1)
+        write!(f, "{:?}/{:?}", self.0, self.1)
     }
 }
 
@@ -131,6 +130,75 @@ impl<U: Unit, V: Unit> std::ops::Mul<Frac<U, V>> for f64 {
 
 #[derive(Clone, Copy, Default)]
 pub struct Quantity<U>(pub f64, pub U);
+
+impl<U: Unit + Debug> Serialize for Quantity<U> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer {
+        let mut ser = serializer.serialize_tuple(2)?;
+
+        ser.serialize_element(&self.0)?;
+        ser.serialize_element(&format!("{:?}", self.1))?;
+
+        ser.end()
+    }
+}
+
+struct QuantityVisitor<U> {
+    marker: PhantomData<fn() -> Quantity<U>>
+}
+
+impl<U> QuantityVisitor<U> {
+    fn new() -> Self {
+        QuantityVisitor {
+            marker: PhantomData
+        }
+    }
+}
+
+const QUANTITY_ERR: &str = "Expecting Quantity<U> formatted as [value, \"unit\"]";
+
+impl<'de, U: Unit + Debug> Visitor<'de> for QuantityVisitor<U> {
+    type Value = Quantity<U>;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str(QUANTITY_ERR)
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+        where
+            A: serde::de::SeqAccess<'de>, 
+    {
+
+        let len = seq.size_hint().unwrap_or(2);
+        let value: Option<f64> = seq.next_element()?;
+        let unit: Option<String> = seq.next_element()?;
+
+        if len != 2 {
+            return Err(Error::custom(QUANTITY_ERR))
+        }
+        if let None = &value {
+            return Err(Error::custom(QUANTITY_ERR))
+        }
+        if let None = &unit {
+            return Err(Error::custom(QUANTITY_ERR))
+        }
+        if let Some(unit) = &unit && unit != &format!("{:?}", U::default()){
+            return Err(Error::custom(QUANTITY_ERR))
+        }
+
+        Ok(Quantity(value.unwrap(), U::default()))
+    }
+}
+
+impl<'de, U: Unit + Debug> Deserialize<'de> for Quantity<U> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de> 
+    {
+        deserializer.deserialize_tuple(2, QuantityVisitor::new())
+    }
+}
 
 impl<U: Debug> Debug for Quantity<U> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -240,7 +308,7 @@ impl<U: Unit, V: Unit> Div<Quantity<V>> for Quantity<U> {
 
 #[cfg(test)]
 mod tests {
-    use crate::units::{Unit, atomic_units::*};
+    use crate::units::*;
 
     #[test]
     fn test_units() {
@@ -261,7 +329,6 @@ mod tests {
 
     #[test]
     fn test_complex_units() {
-        use crate::units::atomic_units::*;
 
         let quantity = 1. * (GHz * Gauss / Bohr);
         assert_eq!(&format!("{quantity}"), "1 GHz * Gauss / Bohr", "Wrong format");
@@ -271,5 +338,14 @@ mod tests {
 
         let quantity = quantity_angstrom.to(Kelvin * Gauss / Angstrom);
         assert_eq!(quantity_angstrom.value(), quantity.value() * Kelvin::TO_BASE / GHz::TO_BASE);
+    }
+
+    #[test]
+    fn test_serialization() {
+        let value = 1. * (Kelvin / Gauss);
+        let serialized = serde_json::to_string(&value).unwrap();
+        assert_eq!(serialized, "[1.0,\"Kelvin/Gauss\"]");
+        let deserialized: Quantity<Frac<Kelvin, Gauss>> = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(value.value(), deserialized.value());
     }
 }
