@@ -1,7 +1,5 @@
 use crate::coupling::VanishingCoupling;
 
-pub type DynComposite = Composite<Box<dyn VanishingCoupling>>;
-
 #[derive(Debug, Clone)]
 pub struct Composite<P: VanishingCoupling> {
     couplings: Vec<P>,

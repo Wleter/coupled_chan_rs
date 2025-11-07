@@ -70,20 +70,16 @@ impl<'a, P: Interaction> WFunction for RedInteraction<'a, P> {
     }
 }
 
-pub struct DynInteraction {
-    interaction: Box<dyn Interaction>,
-}
+pub struct DynInteraction(Box<dyn Interaction>);
 
 impl DynInteraction {
     pub fn new<P: Interaction + 'static>(potential: P) -> Self {
-        Self {
-            interaction: Box::new(potential),
-        }
+        Self(Box::new(potential))
     }
 }
 
 impl Interaction for DynInteraction {
     fn value(&self, r: f64) -> f64 {
-        self.interaction.value(r)
+        self.0.value(r)
     }
 }

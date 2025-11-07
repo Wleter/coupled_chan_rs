@@ -20,6 +20,28 @@ pub trait VanishingCoupling {
     fn size(&self) -> usize;
 }
 
+pub struct DynVanishingCoupling(Box<dyn VanishingCoupling>);
+
+impl DynVanishingCoupling {
+    pub fn new<T: VanishingCoupling + 'static>(coupling: T) -> Self {
+        Self(Box::new(coupling))
+    }
+}
+
+impl VanishingCoupling for DynVanishingCoupling {
+    fn value_inplace(&self, r: f64, channels: &mut Operator) {
+        self.0.value_inplace(r, channels);
+    }
+
+    fn value_inplace_add(&self, r: f64, channels: &mut Operator) {
+        self.0.value_inplace_add(r, channels);
+    }
+
+    fn size(&self) -> usize {
+        self.0.size()
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Levels {
     pub l: Vec<u32>,
