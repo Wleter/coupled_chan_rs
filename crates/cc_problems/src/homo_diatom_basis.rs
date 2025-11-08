@@ -37,13 +37,13 @@ pub struct HomoDiatomBasis {
     pub combined_atom_basis: AtomBasis,
     pub angular: AngularBasis,
 
-    basis: AngularBasisElements,
+    pub basis: AngularBasisElements,
 
-    atom_a: AtomBasis,
-    atom_b: AtomBasis,
-    basis_sep: AngularBasisElements,
+    pub atom_a: AtomBasis,
+    pub atom_b: AtomBasis,
+    pub basis_sep: AngularBasisElements,
 
-    transformation: AngularBlocks,
+    pub transformation: AngularBlocks,
 }
 
 impl HomoDiatomBasis {

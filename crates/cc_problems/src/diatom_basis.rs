@@ -30,7 +30,7 @@ pub struct DiatomBasis {
     pub atom_b: AtomBasis,
     pub angular: AngularBasis,
 
-    basis: AngularBasisElements,
+    pub basis: AngularBasisElements,
 }
 
 impl DiatomBasis {

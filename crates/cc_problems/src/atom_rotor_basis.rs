@@ -40,7 +40,7 @@ pub struct AtomRotorTRAMBasis {
     pub atom_c: AtomBasis,
     pub tram: TRAMBasis,
 
-    basis: AngularBasisElements,
+    pub basis: AngularBasisElements,
 }
 
 impl AtomRotorTRAMBasis {
