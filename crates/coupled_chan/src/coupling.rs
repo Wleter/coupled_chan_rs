@@ -292,6 +292,32 @@ pub trait WMatrix {
     fn asymptote(&self) -> &Asymptote;
 }
 
+pub struct DynWMatrix(Box<dyn WMatrix>);
+
+impl DynWMatrix {
+    pub fn new<W: WMatrix + 'static>(w_matrix: W) -> Self {
+        Self(Box::new(w_matrix))
+    }
+}
+
+impl WMatrix for DynWMatrix {
+    fn size(&self) -> usize {
+        self.0.size()
+    }
+
+    fn value_inplace(&self, r: f64, channels: &mut Operator) {
+        self.0.value_inplace(r, channels);
+    }
+
+    fn id(&self) -> &Operator {
+        self.0.id()
+    }
+
+    fn asymptote(&self) -> &Asymptote {
+        self.0.asymptote()
+    }
+}
+
 #[derive(Clone)]
 pub struct RedCoupling<P: VanishingCoupling> {
     pub coupling: P,

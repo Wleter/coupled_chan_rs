@@ -21,6 +21,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 pub use spin_algebra;
 
+pub use serde;
+pub use serde_json; 
+
 use coupled_chan::{
     CoupledPropagator, Operator,
     constants::{Bohr, Quantity},
@@ -155,6 +158,31 @@ pub trait Hamiltonian: Structure {
     fn coupling(&self) -> Self::Coupling;
 
     fn w_matrix(&self) -> Self::WMatrix;
+}
+
+pub struct DynHamiltonian<C, W>(Box<dyn Hamiltonian<Coupling = C, WMatrix = W>>);
+
+impl<C, W> Structure for DynHamiltonian<C, W> {
+    fn modify_parameter(&mut self, key: &str, value: Value) -> anyhow::Result<()> {
+        self.0.modify_parameter(key, value)
+    }
+}
+
+impl<C: VanishingCoupling, W: WMatrix> Hamiltonian for DynHamiltonian<C, W> {
+    type Coupling = C;
+    type WMatrix = W;
+
+    fn asymptote(&self) -> Asymptote {
+        self.0.asymptote()
+    }
+
+    fn coupling(&self) -> Self::Coupling {
+        self.0.coupling()
+    }
+
+    fn w_matrix(&self) -> Self::WMatrix {
+        self.0.w_matrix()
+    }
 }
 
 #[derive(Clone, Debug)]
