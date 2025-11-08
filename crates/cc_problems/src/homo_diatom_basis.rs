@@ -4,8 +4,7 @@ use coupled_chan::{
         BOHR_MAG, G_FACTOR,
         units::{Quantity, atomic_units::Gauss},
     },
-    coupling::{AngularBlocks, Asymptote, RedCoupling, masked::Masked, pair::Pair},
-    scaled_interaction::ScaledInteraction,
+    coupling::{AngularBlocks, Asymptote, RedCoupling, pair::Pair},
 };
 use hilbert_space::{
     Parity, cast_variant,
@@ -21,7 +20,7 @@ use spin_algebra::{
 use crate::{
     AngularBasisElements, AngularMomentum, Hamiltonian, Structure,
     atom_structure::{AtomBasis, AtomBasisRecipe, AtomStructure, HyperfineStructure, ZeemanSplitting},
-    diatom_basis::PotentialCurve,
+    diatom_basis::{PotentialCurve, PotentialCurveCoupling},
     system_structure::{AngularBasis, SystemParams},
 };
 
@@ -226,7 +225,7 @@ where
     T: Interaction + Clone,
     S: Interaction + Clone,
 {
-    type Coupling = Pair<Masked<ScaledInteraction<T>>, Masked<ScaledInteraction<S>>>;
+    type Coupling = Pair<PotentialCurveCoupling<T>, PotentialCurveCoupling<S>>;
     type WMatrix = RedCoupling<Self::Coupling>;
 
     fn asymptote(&self) -> Asymptote {

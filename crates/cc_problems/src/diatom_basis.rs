@@ -60,6 +60,8 @@ impl DiatomBasis {
     }
 }
 
+pub type PotentialCurveCoupling<T> = Masked<ScaledInteraction<T>>;
+
 #[derive(Debug, Clone)]
 pub struct PotentialCurve<P: Interaction> {
     pub potential: ScaledInteraction<P>,
@@ -186,7 +188,7 @@ where
     T: Interaction + Clone,
     S: Interaction + Clone,
 {
-    type Coupling = Pair<Masked<ScaledInteraction<T>>, Masked<ScaledInteraction<S>>>;
+    type Coupling = Pair<PotentialCurveCoupling<T>,PotentialCurveCoupling<S>>;
     type WMatrix = RedCoupling<Self::Coupling>;
 
     fn asymptote(&self) -> Asymptote {
