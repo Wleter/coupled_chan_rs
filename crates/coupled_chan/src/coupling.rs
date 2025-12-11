@@ -290,6 +290,13 @@ pub trait WMatrix {
 
     fn id(&self) -> &Operator;
     fn asymptote(&self) -> &Asymptote;
+
+    fn adiabats(&self, r: f64) -> Vec<f64> {
+        let mut operator = Operator::zeros(self.size());
+        self.value_inplace(r, &mut operator);
+
+        operator.self_adjoint_eigenvalues(faer::Side::Lower).unwrap()
+    }
 }
 
 pub struct DynWMatrix(Box<dyn WMatrix>);
