@@ -9,6 +9,7 @@ pub trait SMatrixGetter {
     fn get_s_matrix(&self, w_matrix: &impl WMatrix) -> SMatrix;
 }
 
+#[derive(Debug, Clone)]
 pub struct SMatrix {
     s_matrix: Mat<c64>,
     momentum: f64,
@@ -26,6 +27,14 @@ impl SMatrix {
 
     pub fn s_matrix(&self) -> MatRef<'_, c64> {
         self.s_matrix.as_ref()
+    }
+
+    pub fn entrance_number(&self) -> usize {
+        self.entrance
+    }
+
+    pub fn entrance_momentum(&self) -> f64 {
+        self.momentum
     }
 
     pub fn get_phase_shift(&self) -> f64 {

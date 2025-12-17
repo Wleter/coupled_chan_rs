@@ -19,6 +19,7 @@ problems_impl!(Problems, "Li2 collision",
     "Li2 Bound" => |_| Self::li2_bound(),
     "Li2 Field" => |_| Self::li2_field(),
     "Li2 Wave" => |_| Self::li2_wave(),
+    "Li2 convergences" => |_| Self::convergences(),
 );
 
 impl Problems {
@@ -172,6 +173,30 @@ impl Problems {
 
             saver.send(wave)
         }
+
+        Ok(())
+    }
+
+    fn convergences() -> Result<()> {
+        let mut li2_problem = li2_problem(li2_recipe());
+        li2_problem.system_params.entrance_channel = 2;
+
+        let r_maxes = logspace(1., 4., 50);
+        let saver = DataSaver::new("data/li2_r_max_conv.jsonl", JsonFormat, FileAccess::Create)?;
+
+        DependenceProblem::new(li2_problem).dependence(r_maxes, |problem, &r_max| {
+            let li2_scattering = ScatteringProblem {
+                r_max: Quantity(r_max, Bohr),
+                ..li2_scattering()
+            };
+            let w_matrix = problem.w_matrix();
+
+            let s_matrix = li2_scattering.get_s_matrix(&w_matrix, RatioNumerov::new);
+
+            saver.send(SMatrixData::new(r_max, s_matrix));
+
+            Ok(())
+        })?;
 
         Ok(())
     }

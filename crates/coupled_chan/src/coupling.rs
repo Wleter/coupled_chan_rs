@@ -18,6 +18,20 @@ pub trait VanishingCoupling {
     fn value_inplace(&self, r: f64, channels: &mut Operator);
     fn value_inplace_add(&self, r: f64, channels: &mut Operator);
     fn size(&self) -> usize;
+
+    fn value(&self, r: f64) -> Operator {
+        let mut operator = Operator::zeros(self.size());
+        self.value_inplace(r, &mut operator);
+
+        operator
+    }
+
+    fn adiabats(&self, r: f64) -> Vec<f64> {
+        let mut operator = Operator::zeros(self.size());
+        self.value_inplace(r, &mut operator);
+
+        operator.self_adjoint_eigenvalues(faer::Side::Lower).unwrap()
+    }
 }
 
 pub struct DynVanishingCoupling(Box<dyn VanishingCoupling>);
@@ -290,6 +304,13 @@ pub trait WMatrix {
 
     fn id(&self) -> &Operator;
     fn asymptote(&self) -> &Asymptote;
+
+    fn value(&self, r: f64) -> Operator {
+        let mut operator = Operator::zeros(self.size());
+        self.value_inplace(r, &mut operator);
+
+        operator
+    }
 
     fn adiabats(&self, r: f64) -> Vec<f64> {
         let mut operator = Operator::zeros(self.size());
