@@ -1,7 +1,5 @@
 use crate::interaction::Interaction;
 
-pub type DynComposite = CompositeInt<Box<dyn Interaction>>;
-
 #[derive(Debug, Clone)]
 pub struct CompositeInt<P: Interaction> {
     interactions: Vec<P>,

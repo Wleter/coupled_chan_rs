@@ -15,9 +15,13 @@ use matrix_utils::faer::diagonalize;
 use crate::Operator;
 
 pub trait VanishingCoupling {
-    fn value_inplace(&self, r: f64, channels: &mut Operator);
     fn value_inplace_add(&self, r: f64, channels: &mut Operator);
     fn size(&self) -> usize;
+    
+    fn value_inplace(&self, r: f64, channels: &mut Operator) {
+        channels.fill(0.);
+        self.value_inplace_add(r, channels);
+    }
 
     fn value(&self, r: f64) -> Operator {
         let mut operator = Operator::zeros(self.size());

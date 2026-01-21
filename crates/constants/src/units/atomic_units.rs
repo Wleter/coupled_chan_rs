@@ -13,6 +13,10 @@ pub struct CmInv;
 impl_unit_group!(CmInv, AuEnergy, 4.5563352529132e-6);
 
 #[derive(Clone, Copy, Default, Debug)]
+pub struct EV;
+impl_unit_group!(EV, AuEnergy, 0.0367492929);
+
+#[derive(Clone, Copy, Default, Debug)]
 pub struct GHz;
 impl_unit_group!(GHz, AuEnergy, 1.51982850071586e-07);
 

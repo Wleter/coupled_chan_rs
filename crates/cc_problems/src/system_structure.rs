@@ -3,6 +3,7 @@ use coupled_chan::constants::units::{
     atomic_units::{AuEnergy, AuMass},
 };
 use hilbert_space::dyn_space::{BasisId, SpaceBasis, SubspaceBasis};
+use spin_algebra::get_spin_basis;
 
 use crate::{AngularMomentum, Structure};
 
@@ -21,6 +22,13 @@ impl AngularBasis {
     pub fn new(l_max: AngularMomentum, space_basis: &mut SpaceBasis) -> Self {
         let l = (0..=l_max.0).map(AngularMomentum).collect();
 
+        let l = space_basis.push_subspace(SubspaceBasis::new(l));
+
+        Self { l }
+    }
+
+    pub fn new_projections(l_max: AngularMomentum, space_basis: &mut SpaceBasis) -> Self {
+        let l = (0..=l_max.0).map(|l| get_spin_basis(l.into())).flatten().collect();
         let l = space_basis.push_subspace(SubspaceBasis::new(l));
 
         Self { l }

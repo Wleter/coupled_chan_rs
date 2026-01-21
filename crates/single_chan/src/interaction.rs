@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use constants::units::{
     Quantity,
     atomic_units::{AuEnergy, AuMass},
@@ -10,6 +12,7 @@ pub mod dispersion;
 pub mod func_potential;
 pub mod morse_long_range;
 pub mod scaled_interaction;
+pub mod pair_int;
 
 pub trait Interaction {
     fn value(&self, r: f64) -> f64;
@@ -70,11 +73,12 @@ impl<'a, P: Interaction> WFunction for RedInteraction<'a, P> {
     }
 }
 
-pub struct DynInteraction(Box<dyn Interaction>);
+#[derive(Clone)]
+pub struct DynInteraction(Arc<dyn Interaction + Send + Sync>);
 
 impl DynInteraction {
-    pub fn new<P: Interaction + 'static>(potential: P) -> Self {
-        Self(Box::new(potential))
+    pub fn new<P: Interaction + 'static + Send + Sync>(potential: P) -> Self {
+        Self(Arc::new(potential))
     }
 }
 

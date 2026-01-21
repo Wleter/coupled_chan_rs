@@ -5,11 +5,7 @@ pub struct FuncPotential<F: Fn(f64) -> f64> {
 }
 
 impl<F: Fn(f64) -> f64> FuncPotential<F> {
-    /// The potential ought to be asymptotic to 0 value
-    /// and without included centrifugal term
     pub fn new(f: F) -> Self {
-        assert_eq!((f)(f64::INFINITY), 0., "Interaction should be vanishing");
-
         Self { func: f }
     }
 }
