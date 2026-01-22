@@ -1,7 +1,7 @@
 use cc_problems::{
     atom_rotor_basis::{AlkaliAtomRotorTRAM, AtomRotorTRAMRecipe},
     atom_structure::AtomBasisRecipe,
-    coupled_chan::{composite_int::CompositeInt, dispersion::Dispersion},
+    coupled_chan::{Composite, dispersion::Dispersion},
     prelude::*,
     rotor_structure::Interaction2D,
     system_structure::SystemParams,
@@ -77,18 +77,18 @@ fn caf_rb_problem(
     let c12_0_singlet = factors_singlet[singlet_scaling_no] * C12_0_SINGLET;
     let c12_0_triplet = factors_triplet[triplet_scaling_no] * C12_0_TRIPLET;
 
-    let singlet_iso = CompositeInt::new(vec![Dispersion::new(C6_0, -6), Dispersion::new(c12_0_singlet, -12)]);
+    let singlet_iso = Composite::new(vec![Dispersion::new(C6_0, -6), Dispersion::new(c12_0_singlet, -12)]);
 
-    let triplet_iso = CompositeInt::new(vec![Dispersion::new(C6_0, -6), Dispersion::new(c12_0_triplet, -12)]);
+    let triplet_iso = Composite::new(vec![Dispersion::new(C6_0, -6), Dispersion::new(c12_0_triplet, -12)]);
 
     let singlet = Interaction2D(vec![
         (0, singlet_iso),
-        (2, CompositeInt::new(vec![Dispersion::new(C6_2, -6)])),
+        (2, Composite::new(vec![Dispersion::new(C6_2, -6)])),
     ]);
 
     let triplet = Interaction2D(vec![
         (0, triplet_iso),
-        (2, CompositeInt::new(vec![Dispersion::new(C6_2, -6)])),
+        (2, Composite::new(vec![Dispersion::new(C6_2, -6)])),
     ]);
 
     let mut problem = AlkaliAtomRotorTRAM::new(triplet, singlet, recipe);
@@ -124,11 +124,11 @@ fn caf_rb_recipe() -> AtomRotorTRAMRecipe {
     }
 }
 
-fn caf_rb_scattering() -> ScatteringProblem {
+fn caf_rb_scattering() -> ScatteringProblem<LocalWavelengthStep> {
     ScatteringProblem {
         r_min: 7.2 * Bohr,
         r_max: 1.5e3 * Bohr,
-        step_strat: LocalWavelengthStep::new(1e-4, f64::INFINITY, 500.).into(),
+        step_strat: LocalWavelengthStep::new(1e-4, f64::INFINITY, 500.),
     }
 }
 

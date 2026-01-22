@@ -8,3 +8,4 @@ cc_constants = {path = "../cc_constants"}
 cc_propagator = {path = "../cc_propagator"}
 num-complex = {workspace = true}
 cc_math_utils = {path = "../cc_math_utils"}
+cc_qol_utils = {path = "../cc_qol_utils"}

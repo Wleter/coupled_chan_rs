@@ -9,7 +9,7 @@ use faer::{
 use cc_math_utils::bessel::{ratio_riccati_i, ratio_riccati_k, riccati_j, riccati_n};
 use cc_matrix_utils::faer::{get_ldlt_inverse_buffer, inverse_ldlt_inplace};
 use cc_propagator::{
-    Boundary, Direction, Propagator, Ratio, Solution, propagator_watcher::PropagatorWatcher, step_strategy::StepStrategy,
+    Boundary, Direction, Propagator, Ratio, Solution, propagator_watcher::PropagatorWatcher, step_strategy::Step,
 };
 
 use crate::{
@@ -21,9 +21,9 @@ use crate::{
 // todo! look whether V(r) is evaluated at correct values
 
 /// 10.1063/1.436421
-pub struct RatioNumerov<'a, W: WMatrix> {
+pub struct RatioNumerov<'a, W: WMatrix, S: Step> {
     w_matrix: &'a W,
-    step: StepStrategy,
+    step: S,
 
     solution: Solution<Ratio<Operator>>,
 
@@ -42,8 +42,8 @@ pub struct RatioNumerov<'a, W: WMatrix> {
     inverse_buffer: MemBuffer,
 }
 
-impl<'a, W: WMatrix> RatioNumerov<'a, W> {
-    pub fn new(w_matrix: &'a W, step: StepStrategy, boundary: Boundary<Operator>) -> Self {
+impl<'a, W: WMatrix, S: Step> RatioNumerov<'a, W, S> {
+    pub fn new(w_matrix: &'a W, step: S, boundary: Boundary<Operator>) -> Self {
         let size = w_matrix.size();
         let r = boundary.r_start;
 
@@ -113,10 +113,6 @@ impl<'a, W: WMatrix> RatioNumerov<'a, W> {
 
     pub fn remove_watchers(&mut self) {
         self.watchers = None
-    }
-
-    pub fn change_step_strategy(&mut self, step: StepStrategy) {
-        self.step = step
     }
 
     fn halve_the_step(&mut self) {
@@ -336,7 +332,7 @@ impl<'a, W: WMatrix> RatioNumerov<'a, W> {
     }
 }
 
-impl<W: WMatrix> Propagator<Ratio<Operator>> for RatioNumerov<'_, W> {
+impl<W: WMatrix, S: Step> Propagator<Ratio<Operator>> for RatioNumerov<'_, W, S> {
     fn step(&mut self) -> &Solution<Ratio<Operator>> {
         if let Some(watchers) = &mut self.watchers {
             for w in watchers {
@@ -387,8 +383,8 @@ impl<W: WMatrix> Propagator<Ratio<Operator>> for RatioNumerov<'_, W> {
     }
 }
 
-impl<'a, W: WMatrix> CoupledPropagator<'a, W, Ratio<Operator>> for RatioNumerov<'a, W> {
-    fn get_propagator(w_matrix: &'a W, step: StepStrategy, boundary: Boundary<Operator>) -> Self {
+impl<'a, W: WMatrix, S: Step> CoupledPropagator<'a, W, Ratio<Operator>, S> for RatioNumerov<'a, W, S> {
+    fn get_propagator(w_matrix: &'a W, step: S, boundary: Boundary<Operator>) -> Self {
         Self::new(w_matrix, step, boundary)
     }
 }

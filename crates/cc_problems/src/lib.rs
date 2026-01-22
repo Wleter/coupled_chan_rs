@@ -29,7 +29,7 @@ use coupled_chan::{
     cc_constants::{Bohr, Quantity},
     coupling::{AngularBlocks, Asymptote, Levels, VanishingCoupling, WMatrix},
     log_derivative::diabatic::{DiabaticLogDerivative, LogDerivativeReference},
-    cc_propagator::{Boundary, Direction, Propagator, Repr, Solution, step_strategy::StepStrategy},
+    cc_propagator::{Boundary, Direction, Propagator, Repr, Solution, step_strategy::Step},
     s_matrix::{SMatrix, SMatrixGetter},
     vanishing_boundary,
 };
@@ -186,23 +186,24 @@ impl<C: VanishingCoupling, W: WMatrix> Hamiltonian for DynHamiltonian<C, W> {
 }
 
 #[derive(Clone, Debug)]
-pub struct ScatteringProblem {
+pub struct ScatteringProblem<S: Step> {
     pub r_min: Quantity<Bohr>,
     pub r_max: Quantity<Bohr>,
-    pub step_strat: StepStrategy,
+    pub step_strat: S,
 }
 
-impl ScatteringProblem {
+impl<S: Step + Clone> ScatteringProblem<S> {
     pub fn get_s_matrix<'a, W, R, P>(
         &self,
         w_matrix: &'a W,
-        prop: impl Fn(&'a W, StepStrategy, Boundary<Operator>) -> P,
+        prop: impl Fn(&'a W, S, Boundary<Operator>) -> P,
     ) -> SMatrix
     where
         W: WMatrix,
         R: Repr,
         P: Propagator<R> + 'a,
         Solution<R>: SMatrixGetter,
+        S: Step
     {
         let boundary = vanishing_boundary(self.r_min.value(), Direction::Outwards, w_matrix);
 
@@ -214,23 +215,23 @@ impl ScatteringProblem {
 }
 
 #[derive(Clone, Debug)]
-pub struct BoundProblem {
+pub struct BoundProblem<S: Step> {
     pub r_min: Quantity<Bohr>,
     pub r_match: Quantity<Bohr>,
     pub r_max: Quantity<Bohr>,
-    pub step_strat: StepStrategy,
+    pub step_strat: S,
 
     pub node_range: Option<NodeRangeTarget>,
     pub node_monotony: NodeMonotony,
 }
 
-impl BoundProblem {
+impl<S: Step + Clone> BoundProblem<S> {
     pub fn get_bound_finder<'a, W, L>(
         &'a self,
         parameter_range: (f64, f64),
         parameter_err: f64,
         problem: impl Fn(f64) -> W + 'a,
-    ) -> BoundStatesFinder<'a, W, L>
+    ) -> BoundStatesFinder<'a, W, L, S>
     where
         W: WMatrix,
         L: LogDerivativeReference,

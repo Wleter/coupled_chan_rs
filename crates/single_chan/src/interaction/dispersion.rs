@@ -1,9 +1,10 @@
-use cc_constants::units::{
+use cc_constants::{Unit, units::{
     Quantity,
     atomic_units::{AuEnergy, AuMass, Bohr},
-};
+}};
+use cc_qol_utils::Composite;
 
-use crate::interaction::{Interaction, composite_int::CompositeInt};
+use crate::interaction::Interaction;
 
 /// Potential of the form d0 * r^n
 #[derive(Debug, Clone)]
@@ -24,13 +25,16 @@ impl Interaction for Dispersion {
     }
 }
 
-pub fn lennard_jones(d6: Quantity<AuEnergy>, r6: Quantity<Bohr>) -> CompositeInt<Dispersion> {
-    let d6 = d6.value();
-    let r6 = r6.value();
+pub fn lennard_jones(
+    d6: Quantity<impl Unit<Base = AuEnergy>>, 
+    r6: Quantity<impl Unit<Base = Bohr>>
+) -> Composite<Dispersion> {
+    let d6 = d6.to(AuEnergy).value();
+    let r6 = r6.to(Bohr).value();
     let c12 = d6 * r6.powi(12);
     let c6 = -2.0 * d6 * r6.powi(6);
 
-    CompositeInt::new(vec![Dispersion::new(c12, -12), Dispersion::new(c6, -6)])
+    Composite::new(vec![Dispersion::new(c12, -12), Dispersion::new(c6, -6)])
 }
 
 pub struct Centrifugal {
@@ -39,10 +43,10 @@ pub struct Centrifugal {
 }
 
 impl Centrifugal {
-    pub fn new(l: u32, red_mass: Quantity<AuMass>) -> Self {
+    pub fn new(l: u32, red_mass: Quantity<impl Unit<Base = AuMass>>) -> Self {
         Self {
             l,
-            d0: (l * (l + 1)) as f64 / (2. * red_mass.value()),
+            d0: (l * (l + 1)) as f64 / (2. * red_mass.to(AuMass).value()),
         }
     }
 

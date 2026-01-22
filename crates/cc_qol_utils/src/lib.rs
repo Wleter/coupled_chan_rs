@@ -3,6 +3,43 @@ pub mod potential_loader;
 pub mod problem_selector;
 pub mod saving;
 
+#[derive(Debug, Clone)]
+pub struct Composite<P> {
+    pub components: Vec<P>,
+}
+
+impl<P> Default for Composite<P> {
+    fn default() -> Self {
+        Self {
+            components: Vec::new(),
+        }
+    }
+}
+
+impl<P> Composite<P> {
+    pub fn new(components: Vec<P>) -> Self {
+        Self { components }
+    }
+
+    pub fn add_component(&mut self, component: P) -> &mut Self {
+        self.components.push(component);
+
+        self
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Pair<P, V> {
+    pub first: P,
+    pub second: V
+}
+
+impl<P, V> Pair<P, V> {
+    pub fn new(first: P, second: V) -> Self {
+        Self { first, second }
+    }
+}
+
 /// Macro for crating cache with given name `$cache_name:ident` around the expression
 /// It is used together with `cached_mel!` macro to cache subsequent calculations.
 ///

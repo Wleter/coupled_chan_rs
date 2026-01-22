@@ -11,7 +11,7 @@ use faer::{
 use cc_matrix_utils::faer::{get_ldlt_inverse_buffer, inverse_ldlt_inplace, inverse_ldlt_inplace_nodes};
 use cc_propagator::{
     Boundary, Direction, LogDeriv, NodeCountPropagator, Nodes, Propagator, Solution, propagator_watcher::PropagatorWatcher,
-    step_strategy::StepStrategy,
+    step_strategy::Step,
 };
 
 use crate::{CoupledPropagator, Operator, coupling::WMatrix, ratio_numerov::get_wavelength};
@@ -26,8 +26,8 @@ pub trait LogDerivativeReference {
     fn imbedding4(h: f64, w_ref: &Operator, out: &mut Operator);
 }
 
-pub type JohnsonLogDerivative<'a, W> = DiabaticLogDerivative<'a, Johnson, W>;
-pub type ManolopoulosLogDerivative<'a, W> = DiabaticLogDerivative<'a, DiabaticManolopoulos, W>;
+pub type JohnsonLogDerivative<'a, W, S> = DiabaticLogDerivative<'a, Johnson, W, S>;
+pub type ManolopoulosLogDerivative<'a, W, S> = DiabaticLogDerivative<'a, DiabaticManolopoulos, W, S>;
 
 pub struct Johnson;
 impl LogDerivativeReference for Johnson {
@@ -114,10 +114,11 @@ impl LogDerivativeReference for DiabaticManolopoulos {
     }
 }
 
-pub struct DiabaticLogDerivative<'a, R, W>
+pub struct DiabaticLogDerivative<'a, R, W, S>
 where
     R: LogDerivativeReference,
     W: WMatrix,
+    S: Step,
 {
     w_matrix: &'a W,
     solution: Solution<LogDeriv<Operator>>,
@@ -125,11 +126,11 @@ where
     watchers: Option<Vec<&'a mut dyn PropagatorWatcher<LogDeriv<Operator>>>>,
 
     step: LogDerivativeStep<R>,
-    step_strat: StepStrategy,
+    step_strat: S,
 }
 
-impl<'a, R: LogDerivativeReference, W: WMatrix> DiabaticLogDerivative<'a, R, W> {
-    pub fn new(w_matrix: &'a W, step_strat: StepStrategy, boundary: Boundary<Operator>) -> Self {
+impl<'a, R: LogDerivativeReference, W: WMatrix, S: Step> DiabaticLogDerivative<'a, R, W, S> {
+    pub fn new(w_matrix: &'a W, step_strat: S, boundary: Boundary<Operator>) -> Self {
         let r = boundary.r_start;
 
         let mut step = LogDerivativeStep::new(w_matrix.size());
@@ -184,10 +185,6 @@ impl<'a, R: LogDerivativeReference, W: WMatrix> DiabaticLogDerivative<'a, R, W> 
         self.watchers = None
     }
 
-    pub fn change_step_strategy(&mut self, step: StepStrategy) {
-        self.step_strat = step
-    }
-
     fn step_r_target(&mut self, r: Option<f64>) {
         let wavelength = get_wavelength(&self.step.w_matrix_buffer);
 
@@ -204,7 +201,7 @@ impl<'a, R: LogDerivativeReference, W: WMatrix> DiabaticLogDerivative<'a, R, W> 
     }
 }
 
-impl<R: LogDerivativeReference, W: WMatrix> Propagator<LogDeriv<Operator>> for DiabaticLogDerivative<'_, R, W> {
+impl<R: LogDerivativeReference, W: WMatrix, S: Step> Propagator<LogDeriv<Operator>> for DiabaticLogDerivative<'_, R, W, S> {
     fn step(&mut self) -> &Solution<LogDeriv<Operator>> {
         self.step_r_target(None);
 
@@ -232,16 +229,14 @@ impl<R: LogDerivativeReference, W: WMatrix> Propagator<LogDeriv<Operator>> for D
     }
 }
 
-impl<R: LogDerivativeReference, W: WMatrix> NodeCountPropagator<LogDeriv<Operator>> for DiabaticLogDerivative<'_, R, W> {
+impl<R: LogDerivativeReference, W: WMatrix, S: Step> NodeCountPropagator<LogDeriv<Operator>> for DiabaticLogDerivative<'_, R, W, S> {
     fn nodes(&self) -> Nodes {
         self.nodes
     }
 }
 
-impl<'a, R: LogDerivativeReference, W: WMatrix> CoupledPropagator<'a, W, LogDeriv<Operator>>
-    for DiabaticLogDerivative<'a, R, W>
-{
-    fn get_propagator(w_matrix: &'a W, step: StepStrategy, boundary: Boundary<Operator>) -> Self {
+impl<'a, R: LogDerivativeReference, W: WMatrix, S: Step> CoupledPropagator<'a, W, LogDeriv<Operator>, S> for DiabaticLogDerivative<'a, R, W, S> {
+    fn get_propagator(w_matrix: &'a W, step: S, boundary: Boundary<Operator>) -> Self {
         Self::new(w_matrix, step, boundary)
     }
 }

@@ -3,16 +3,15 @@ use std::f64::consts::PI;
 use crate::{
     interaction::{Interaction, RedInteraction, WFunction},
     s_matrix::SMatrix,
-    step_strategy::StepStrategy,
 };
 use cc_math_utils::bessel::{riccati_j, riccati_n};
 use num_complex::Complex64;
-use cc_propagator::{Boundary, Direction, Propagator, Ratio, Solution, propagator_watcher::PropagatorWatcher};
+use cc_propagator::{Boundary, Direction, Propagator, Ratio, Solution, propagator_watcher::PropagatorWatcher, step_strategy::Step};
 
 /// doi: 10.1063/1.435384
-pub struct RatioNumerov<'a, W: WFunction> {
+pub struct RatioNumerov<'a, W: WFunction, S: Step> {
     w_function: &'a W,
-    step: StepStrategy,
+    step: S,
 
     solution: Solution<Ratio<f64>>,
 
@@ -25,8 +24,8 @@ pub struct RatioNumerov<'a, W: WFunction> {
     watchers: Option<Vec<&'a mut dyn PropagatorWatcher<Ratio<f64>>>>,
 }
 
-impl<'a, W: WFunction> RatioNumerov<'a, W> {
-    pub fn new(w_function: &'a W, step: StepStrategy, boundary: Boundary<f64>) -> Self {
+impl<'a, W: WFunction, S: Step> RatioNumerov<'a, W, S> {
+    pub fn new(w_function: &'a W, step: S, boundary: Boundary<f64>) -> Self {
         let r = boundary.r_start;
 
         let red_pot = w_function.value(r);
@@ -72,10 +71,6 @@ impl<'a, W: WFunction> RatioNumerov<'a, W> {
 
     pub fn remove_watchers(&mut self) {
         self.watchers = None
-    }
-
-    pub fn change_step_strategy(&mut self, step: StepStrategy) {
-        self.step = step
     }
 
     fn halve_the_step(&mut self) {
@@ -126,7 +121,7 @@ impl<'a, W: WFunction> RatioNumerov<'a, W> {
     }
 }
 
-impl<W: WFunction> Propagator<Ratio<f64>> for RatioNumerov<'_, W> {
+impl<W: WFunction, S: Step> Propagator<Ratio<f64>> for RatioNumerov<'_, W, S> {
     fn step(&mut self) -> &Solution<Ratio<f64>> {
         if let Some(watchers) = &mut self.watchers {
             for w in watchers {
@@ -219,7 +214,7 @@ mod tests {
     use cc_propagator::{Boundary, Direction, Propagator};
 
     use crate::{
-        interaction::{Level, RedInteraction, dispersion::lennard_jones},
+        interaction::{RedInteraction, dispersion::lennard_jones},
         ratio_numerov::{RatioNumerov, get_s_matrix},
         step_strategy::LocalWavelengthStep,
     };
@@ -230,7 +225,7 @@ mod tests {
         let mass = 5903.538543342382 * AuMass;
 
         let potential = lennard_jones(0.002 * AuEnergy, 9. * Bohr);
-        let red_interaction = RedInteraction::new(&potential, mass, energy.to(AuEnergy), Level::new(0, 0. * AuEnergy));
+        let red_interaction = RedInteraction::new(&potential, mass, energy, 0);
 
         let boundary = Boundary {
             r_start: 6.5,
@@ -239,7 +234,7 @@ mod tests {
             derivative: 1.,
         };
 
-        let mut numerov = RatioNumerov::new(&red_interaction, LocalWavelengthStep::default().into(), boundary);
+        let mut numerov = RatioNumerov::new(&red_interaction, LocalWavelengthStep::default(), boundary);
 
         let solution = numerov.propagate_to(1500.0);
         let s_matrix = get_s_matrix(solution, &red_interaction);

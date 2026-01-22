@@ -6,7 +6,7 @@ pub mod s_matrix;
 pub use cc_constants;
 use faer::Mat;
 pub use cc_propagator;
-use cc_propagator::{Boundary, Direction, Propagator, Repr, step_strategy::StepStrategy};
+use cc_propagator::{Boundary, Direction, Propagator, Repr, step_strategy::Step};
 pub use single_chan::interaction::*;
 
 use crate::coupling::WMatrix;
@@ -30,8 +30,8 @@ pub fn vanishing_boundary(r_start: f64, direction: Direction, w_matrix: &impl WM
     }
 }
 
-pub trait CoupledPropagator<'a, W: WMatrix, R: Repr>: Propagator<R> {
-    fn get_propagator(w_matrix: &'a W, step: StepStrategy, boundary: Boundary<Operator>) -> Self;
+pub trait CoupledPropagator<'a, W: WMatrix, R: Repr, S: Step>: Propagator<R> {
+    fn get_propagator(w_matrix: &'a W, step: S, boundary: Boundary<Operator>) -> Self;
 }
 
 #[cfg(test)]
@@ -92,7 +92,7 @@ mod tests {
             derivative: Operator::new(1. * &red_coupling.id.0),
         };
 
-        let mut numerov = RatioNumerov::new(&red_coupling, LocalWavelengthStep::default().into(), boundary);
+        let mut numerov = RatioNumerov::new(&red_coupling, LocalWavelengthStep::default(), boundary);
 
         let solution = numerov.propagate_to(1500.0);
         let s_matrix = solution.get_s_matrix(&red_coupling);
@@ -111,7 +111,7 @@ mod tests {
             derivative: Operator::new(1. * &red_coupling.id.0),
         };
 
-        let mut propagator = JohnsonLogDerivative::new(&red_coupling, LocalWavelengthStep::default().into(), boundary);
+        let mut propagator = JohnsonLogDerivative::new(&red_coupling, LocalWavelengthStep::default(), boundary);
 
         let solution = propagator.propagate_to(1500.0);
         let s_matrix = solution.get_s_matrix(&red_coupling);
@@ -130,7 +130,7 @@ mod tests {
             derivative: Operator::new(1. * &red_coupling.id.0),
         };
 
-        let mut propagator = ManolopoulosLogDerivative::new(&red_coupling, LocalWavelengthStep::default().into(), boundary);
+        let mut propagator = ManolopoulosLogDerivative::new(&red_coupling, LocalWavelengthStep::default(), boundary);
 
         let solution = propagator.propagate_to(1500.0);
         let s_matrix = solution.get_s_matrix(&red_coupling);

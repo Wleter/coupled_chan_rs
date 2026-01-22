@@ -1,7 +1,7 @@
 use cc_problems::{
     AngularMomentum,
     atom_structure::AtomBasisRecipe,
-    coupled_chan::{composite_int::CompositeInt, dispersion::Dispersion, log_derivative::diabatic::Johnson},
+    coupled_chan::{Composite, dispersion::Dispersion, log_derivative::diabatic::Johnson},
     homo_diatom_basis::{AlkaliHomoDiatom, HomoDiatomRecipe},
     prelude::*,
     spin_algebra::{hi32, hu32},
@@ -203,8 +203,8 @@ impl Problems {
 }
 
 pub fn li2_problem(recipe: HomoDiatomRecipe) -> AlkaliHomoDiatom<impl Interaction + Clone, impl Interaction + Clone> {
-    let triplet = CompositeInt::new(vec![Dispersion::new(-1381., -6), Dispersion::new(2.19348e8, -12)]);
-    let singlet = CompositeInt::new(vec![Dispersion::new(-1381., -6), Dispersion::new(1.112e7, -12)]);
+    let triplet = Composite::new(vec![Dispersion::new(-1381., -6), Dispersion::new(2.19348e8, -12)]);
+    let singlet = Composite::new(vec![Dispersion::new(-1381., -6), Dispersion::new(1.112e7, -12)]);
 
     let mut diatom = AlkaliHomoDiatom::new(triplet, singlet, recipe);
 
@@ -227,20 +227,20 @@ pub fn li2_recipe() -> HomoDiatomRecipe {
     }
 }
 
-pub fn li2_scattering() -> ScatteringProblem {
+pub fn li2_scattering() -> ScatteringProblem<LocalWavelengthStep> {
     ScatteringProblem {
         r_min: 4. * Bohr,
         r_max: 1.5e3 * Bohr,
-        step_strat: LocalWavelengthStep::new(1e-4, f64::INFINITY, 400.).into(),
+        step_strat: LocalWavelengthStep::new(1e-4, f64::INFINITY, 400.),
     }
 }
 
-pub fn li2_bound() -> BoundProblem {
+pub fn li2_bound() -> BoundProblem<LocalWavelengthStep> {
     BoundProblem {
         r_min: 4. * Bohr,
         r_match: 20. * Bohr,
         r_max: 1.5e3 * Bohr,
-        step_strat: LocalWavelengthStep::new(1e-4, 10., 400.).into(),
+        step_strat: LocalWavelengthStep::new(1e-4, 10., 400.),
         node_range: None,
         node_monotony: NodeMonotony::Increasing,
     }

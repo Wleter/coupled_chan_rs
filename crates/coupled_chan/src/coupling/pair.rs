@@ -1,18 +1,5 @@
 use crate::coupling::VanishingCoupling;
-
-#[derive(Debug, Clone)]
-pub struct Pair<P: VanishingCoupling, C: VanishingCoupling> {
-    first: P,
-    second: C,
-}
-
-impl<P: VanishingCoupling, C: VanishingCoupling> Pair<P, C> {
-    pub fn new(first: P, second: C) -> Self {
-        assert_eq!(first.size(), second.size(), "Couplings have different channel number");
-
-        Self { first, second }
-    }
-}
+pub use cc_qol_utils::Pair;
 
 impl<P: VanishingCoupling, C: VanishingCoupling> VanishingCoupling for Pair<P, C> {
     fn value_inplace(&self, r: f64, channels: &mut crate::Operator) {
@@ -26,6 +13,8 @@ impl<P: VanishingCoupling, C: VanishingCoupling> VanishingCoupling for Pair<P, C
     }
 
     fn size(&self) -> usize {
+        assert_eq!(self.first.size(), self.second.size(), "Couplings in pair have different channel number");
+
         self.first.size()
     }
 }

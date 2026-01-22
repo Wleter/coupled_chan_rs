@@ -11,4 +11,5 @@ single_chan = {path = "../single_chan"}
 cc_propagator = {path = "../cc_propagator"}
 cc_constants = {path = "../cc_constants"}
 cc_math_utils = {path = "../cc_math_utils"}
+cc_qol_utils = {path = "../cc_qol_utils"}
 hilbert_space = {path = "../hilbert_space"}

@@ -2,12 +2,7 @@ use std::mem::swap;
 
 use anyhow::Result;
 use coupled_chan::{
-    Operator,
-    cc_constants::units::{Quantity, atomic_units::Bohr},
-    coupling::WMatrix,
-    log_derivative::diabatic::{DiabaticLogDerivative, LogDerivativeReference, WaveLogDerivStorage},
-    cc_propagator::{Boundary, Direction, NodeCountPropagator, Propagator},
-    vanishing_boundary,
+    Operator, cc_constants::units::{Quantity, atomic_units::Bohr}, cc_propagator::{Boundary, Direction, NodeCountPropagator, Propagator, step_strategy::Step}, coupling::WMatrix, log_derivative::diabatic::{DiabaticLogDerivative, LogDerivativeReference, WaveLogDerivStorage}, vanishing_boundary
 };
 use hilbert_space::faer::{self, Mat};
 use cc_math_utils::brent_root_method;
@@ -105,16 +100,17 @@ pub enum NodeRangeTarget {
     TopRange(u64),
 }
 
-pub type Prop<'a, W, L> = Box<dyn for<'w> Fn(Boundary<Operator>, &'w W) -> DiabaticLogDerivative<'w, L, W> + 'a>;
+pub type Prop<'a, W, L, S> = Box<dyn for<'w> Fn(Boundary<Operator>, &'w W) -> DiabaticLogDerivative<'w, L, W, S> + 'a>;
 
 // todo! currently works only with DiabaticLogDerivative, make it work for all
-pub struct BoundStatesFinder<'a, W, L>
+pub struct BoundStatesFinder<'a, W, L, S>
 where
     W: WMatrix,
     L: LogDerivativeReference,
+    S: Step,
 {
     prob: Option<Box<dyn Fn(f64) -> W + 'a>>,
-    prop: Option<Prop<'a, W, L>>,
+    prop: Option<Prop<'a, W, L, S>>,
 
     parameter_range: Option<[f64; 2]>,
     parameter_err: Option<f64>,
@@ -126,10 +122,11 @@ where
     method: BoundMethod,
 }
 
-impl<W, L> Default for BoundStatesFinder<'_, W, L>
+impl<W, L, S> Default for BoundStatesFinder<'_, W, L, S>
 where
     W: WMatrix,
     L: LogDerivativeReference,
+    S: Step
 {
     fn default() -> Self {
         Self {
@@ -145,14 +142,14 @@ where
     }
 }
 
-impl<'a, W, L> BoundStatesFinder<'a, W, L>
+impl<'a, W, L, S: Step> BoundStatesFinder<'a, W, L, S>
 where
     W: WMatrix,
     L: LogDerivativeReference,
 {
     pub fn set_propagator(
         mut self,
-        prop: impl for<'w> Fn(Boundary<Operator>, &'w W) -> DiabaticLogDerivative<'w, L, W> + 'a,
+        prop: impl for<'w> Fn(Boundary<Operator>, &'w W) -> DiabaticLogDerivative<'w, L, W, S> + 'a,
     ) -> Self {
         self.prop = Some(Box::new(prop));
         self

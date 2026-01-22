@@ -1,6 +1,6 @@
 use cc_problems::{
     atom_rotor_basis::{AtomRotorTRAMRecipe, SinglePESAtomRotorTRAM},
-    coupled_chan::{composite_int::CompositeInt, dispersion::Dispersion, log_derivative::diabatic::Johnson},
+    coupled_chan::{Composite, dispersion::Dispersion, log_derivative::diabatic::Johnson},
     prelude::*,
     rotor_structure::{Interaction2D, PESScaling},
     tram_basis::TRAMBasisRecipe,
@@ -119,13 +119,13 @@ const C9_1: f64 = -768422.32042577;
 const C12_0: f64 = 2e9;
 
 fn get_problem(recipe: AtomRotorTRAMRecipe) -> SinglePESAtomRotorTRAM<impl Interaction + Clone + std::fmt::Debug> {
-    let pes_iso = CompositeInt::new(vec![
+    let pes_iso = Composite::new(vec![
         Dispersion::new(C6_0, -6),
         Dispersion::new(C8_0, -8),
         Dispersion::new(C12_0, -12),
     ]);
 
-    let pes_aniso_1 = CompositeInt::new(vec![Dispersion::new(C7_1, -7), Dispersion::new(C9_1, -9)]);
+    let pes_aniso_1 = Composite::new(vec![Dispersion::new(C7_1, -7), Dispersion::new(C9_1, -9)]);
 
     let pes = Interaction2D(vec![(0, pes_iso), (1, pes_aniso_1)]);
 
@@ -149,12 +149,12 @@ fn get_recipe() -> AtomRotorTRAMRecipe {
     }
 }
 
-fn get_bound_problem() -> BoundProblem {
+fn get_bound_problem() -> BoundProblem<LocalWavelengthStep> {
     BoundProblem {
         r_min: 6. * Bohr,
         r_match: 25. * Bohr,
         r_max: 500. * Bohr,
-        step_strat: LocalWavelengthStep::new(4e-3, 10., 400.).into(),
+        step_strat: LocalWavelengthStep::new(4e-3, 10., 400.),
         node_monotony: NodeMonotony::Decreasing,
         node_range: None,
     }

@@ -343,6 +343,7 @@ dependencies = [
  "cc_math_utils",
  "cc_matrix_utils",
  "cc_propagator",
+ "cc_qol_utils",
  "faer",
  "hilbert_space",
  "num-complex 0.4.6",
@@ -1928,6 +1929,7 @@ dependencies = [
  "cc_constants",
  "cc_math_utils",
  "cc_propagator",
+ "cc_qol_utils",
  "num-complex 0.4.6",
 ]
 
