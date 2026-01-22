@@ -1,15 +1,15 @@
 use std::{f64::consts::PI, mem::swap};
 
+use cc_math_utils::bessel::{ratio_riccati_i, ratio_riccati_k, riccati_j, riccati_n};
+use cc_matrix_utils::faer::{get_ldlt_inverse_buffer, inverse_ldlt_inplace};
+use cc_propagator::{
+    Boundary, Direction, Propagator, Ratio, Solution, propagator_watcher::PropagatorWatcher, step_strategy::Step,
+};
 use faer::{
     Accum, Mat, Par, c64,
     dyn_stack::MemBuffer,
     linalg::{matmul::matmul, solvers::DenseSolveCore},
     unzip, zip,
-};
-use cc_math_utils::bessel::{ratio_riccati_i, ratio_riccati_k, riccati_j, riccati_n};
-use cc_matrix_utils::faer::{get_ldlt_inverse_buffer, inverse_ldlt_inplace};
-use cc_propagator::{
-    Boundary, Direction, Propagator, Ratio, Solution, propagator_watcher::PropagatorWatcher, step_strategy::Step,
 };
 
 use crate::{
@@ -174,9 +174,6 @@ impl<'a, W: WMatrix, S: Step> RatioNumerov<'a, W, S> {
         .for_each(|unzip!(b1, u, c)| *b1 = u + self.solution.dr * self.solution.dr / 12. * c);
         // f_prev_last is (1 - T_n)
 
-        inverse_ldlt_inplace(self.f_prev_last.as_ref(), self.buffer3.0.as_mut(), &mut self.inverse_buffer);
-        // buffer3 is (1 - T_n)^-1
-
         zip!(
             self.buffer1.0.as_mut(),
             self.w_matrix.id().as_ref(),
@@ -185,17 +182,17 @@ impl<'a, W: WMatrix, S: Step> RatioNumerov<'a, W, S> {
         .for_each(|unzip!(b1, u, f)| *b1 = 12. * u - 10. * f);
         // buffer1 is (2 + 10T_n)
 
+        inverse_ldlt_inplace(self.buffer1.0.as_ref(), self.buffer3.0.as_mut(), &mut self.inverse_buffer);
+        // buffer3 is (2 + 10T_n)^-1
+
         matmul(
-            self.buffer2.0.as_mut(),
+            self.buffer1.0.as_mut(),
             Accum::Replace,
-            self.buffer1.0.as_ref(),
+            self.f_prev_last.as_ref(),
             self.buffer3.0.as_ref(),
             1.,
             Par::Seq,
         );
-        // buffer2 is U_n
-
-        inverse_ldlt_inplace(self.buffer2.0.as_ref(), self.buffer1.0.as_mut(), &mut self.inverse_buffer);
         // buffer1 is U_n^-1
 
         zip!(

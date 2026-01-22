@@ -1,6 +1,6 @@
-use faer::{Mat, c64, linalg::solvers::DenseSolveCore as _};
 use cc_math_utils::bessel::{ratio_riccati_i_deriv, ratio_riccati_k_deriv, riccati_j_deriv, riccati_n_deriv};
 use cc_propagator::{LogDeriv, Solution};
+use faer::{Mat, c64, linalg::solvers::DenseSolveCore as _};
 
 use crate::{
     Operator,

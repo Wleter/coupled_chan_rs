@@ -13,7 +13,11 @@ impl<P: VanishingCoupling, C: VanishingCoupling> VanishingCoupling for Pair<P, C
     }
 
     fn size(&self) -> usize {
-        assert_eq!(self.first.size(), self.second.size(), "Couplings in pair have different channel number");
+        assert_eq!(
+            self.first.size(),
+            self.second.size(),
+            "Couplings in pair have different channel number"
+        );
 
         self.first.size()
     }

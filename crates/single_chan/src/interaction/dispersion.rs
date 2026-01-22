@@ -1,7 +1,10 @@
-use cc_constants::{Unit, units::{
-    Quantity,
-    atomic_units::{AuEnergy, AuMass, Bohr},
-}};
+use cc_constants::{
+    Unit,
+    units::{
+        Quantity,
+        atomic_units::{AuEnergy, AuMass, Bohr},
+    },
+};
 use cc_qol_utils::Composite;
 
 use crate::interaction::Interaction;
@@ -26,8 +29,8 @@ impl Interaction for Dispersion {
 }
 
 pub fn lennard_jones(
-    d6: Quantity<impl Unit<Base = AuEnergy>>, 
-    r6: Quantity<impl Unit<Base = Bohr>>
+    d6: Quantity<impl Unit<Base = AuEnergy>>,
+    r6: Quantity<impl Unit<Base = Bohr>>,
 ) -> Composite<Dispersion> {
     let d6 = d6.to(AuEnergy).value();
     let r6 = r6.to(Bohr).value();

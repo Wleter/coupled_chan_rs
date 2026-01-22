@@ -1,9 +1,12 @@
 use std::sync::Arc;
 
-use cc_constants::{Unit, units::{
-    Quantity,
-    atomic_units::{AuEnergy, AuMass},
-}};
+use cc_constants::{
+    Unit,
+    units::{
+        Quantity,
+        atomic_units::{AuEnergy, AuMass},
+    },
+};
 
 use crate::interaction::dispersion::Centrifugal;
 
@@ -45,10 +48,10 @@ pub struct RedInteraction<'a, P: Interaction> {
 
 impl<'a, P: Interaction> RedInteraction<'a, P> {
     pub fn new(
-        interaction: &'a P, 
-        mass: Quantity<impl Unit<Base = AuMass>>, 
-        energy: Quantity<impl Unit<Base = AuEnergy>>, 
-        l: u32
+        interaction: &'a P,
+        mass: Quantity<impl Unit<Base = AuMass>>,
+        energy: Quantity<impl Unit<Base = AuEnergy>>,
+        l: u32,
     ) -> Self {
         Self {
             energy: energy.to(AuEnergy).value(),

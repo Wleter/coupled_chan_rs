@@ -9,15 +9,15 @@ use cc_constants::units::{
     Quantity,
     atomic_units::{AuEnergy, AuMass},
 };
-use faer::{Mat, unzip, zip};
 use cc_matrix_utils::faer::diagonalize;
+use faer::{Mat, unzip, zip};
 
 use crate::Operator;
 
 pub trait VanishingCoupling {
     fn value_inplace_add(&self, r: f64, channels: &mut Operator);
     fn size(&self) -> usize;
-    
+
     fn value_inplace(&self, r: f64, channels: &mut Operator) {
         channels.fill(0.);
         self.value_inplace_add(r, channels);

@@ -10,9 +10,7 @@ pub struct Composite<P> {
 
 impl<P> Default for Composite<P> {
     fn default() -> Self {
-        Self {
-            components: Vec::new(),
-        }
+        Self { components: Vec::new() }
     }
 }
 
@@ -31,7 +29,7 @@ impl<P> Composite<P> {
 #[derive(Debug, Clone)]
 pub struct Pair<P, V> {
     pub first: P,
-    pub second: V
+    pub second: V,
 }
 
 impl<P, V> Pair<P, V> {

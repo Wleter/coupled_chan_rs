@@ -81,15 +81,9 @@ fn caf_rb_problem(
 
     let triplet_iso = Composite::new(vec![Dispersion::new(C6_0, -6), Dispersion::new(c12_0_triplet, -12)]);
 
-    let singlet = Interaction2D(vec![
-        (0, singlet_iso),
-        (2, Composite::new(vec![Dispersion::new(C6_2, -6)])),
-    ]);
+    let singlet = Interaction2D(vec![(0, singlet_iso), (2, Composite::new(vec![Dispersion::new(C6_2, -6)]))]);
 
-    let triplet = Interaction2D(vec![
-        (0, triplet_iso),
-        (2, Composite::new(vec![Dispersion::new(C6_2, -6)])),
-    ]);
+    let triplet = Interaction2D(vec![(0, triplet_iso), (2, Composite::new(vec![Dispersion::new(C6_2, -6)]))]);
 
     let mut problem = AlkaliAtomRotorTRAM::new(triplet, singlet, recipe);
     problem.atom_a.hyperfine.a_hifi = (6.83 / 2. * GHz).to(AuEnergy);

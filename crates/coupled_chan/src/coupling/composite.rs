@@ -22,15 +22,15 @@ impl<P: VanishingCoupling> VanishingCoupling for Composite<P> {
     }
 
     fn size(&self) -> usize {
-        if let Some(c) = self.components.first() { 
+        if let Some(c) = self.components.first() {
             assert!(
-                self.components.iter().all(|x| x.size() == c.size()), 
+                self.components.iter().all(|x| x.size() == c.size()),
                 "Not all coupling in Composite have the same channel number"
             );
 
-            c.size() 
-        } else { 
-            0 
+            c.size()
+        } else {
+            0
         }
     }
 }

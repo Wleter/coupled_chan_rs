@@ -12,24 +12,24 @@ pub mod tram_basis;
 
 pub use anyhow;
 use anyhow::bail;
-pub use coupled_chan;
-pub use hilbert_space;
 pub use cc_math_utils::{linspace, logspace};
 pub use cc_qol_utils;
+pub use coupled_chan;
+pub use hilbert_space;
 pub use rayon;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 pub use spin_algebra;
 
 pub use serde;
-pub use serde_json; 
+pub use serde_json;
 
 use coupled_chan::{
     CoupledPropagator, Operator,
     cc_constants::{Bohr, Quantity},
+    cc_propagator::{Boundary, Direction, Propagator, Repr, Solution, step_strategy::Step},
     coupling::{AngularBlocks, Asymptote, Levels, VanishingCoupling, WMatrix},
     log_derivative::diabatic::{DiabaticLogDerivative, LogDerivativeReference},
-    cc_propagator::{Boundary, Direction, Propagator, Repr, Solution, step_strategy::Step},
     s_matrix::{SMatrix, SMatrixGetter},
     vanishing_boundary,
 };
@@ -193,17 +193,13 @@ pub struct ScatteringProblem<S: Step> {
 }
 
 impl<S: Step + Clone> ScatteringProblem<S> {
-    pub fn get_s_matrix<'a, W, R, P>(
-        &self,
-        w_matrix: &'a W,
-        prop: impl Fn(&'a W, S, Boundary<Operator>) -> P,
-    ) -> SMatrix
+    pub fn get_s_matrix<'a, W, R, P>(&self, w_matrix: &'a W, prop: impl Fn(&'a W, S, Boundary<Operator>) -> P) -> SMatrix
     where
         W: WMatrix,
         R: Repr,
         P: Propagator<R> + 'a,
         Solution<R>: SMatrixGetter,
-        S: Step
+        S: Step,
     {
         let boundary = vanishing_boundary(self.r_min.value(), Direction::Outwards, w_matrix);
 

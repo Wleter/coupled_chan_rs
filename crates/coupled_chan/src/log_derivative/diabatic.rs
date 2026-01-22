@@ -1,5 +1,10 @@
 use std::marker::PhantomData;
 
+use cc_matrix_utils::faer::{get_ldlt_inverse_buffer, inverse_ldlt_inplace, inverse_ldlt_inplace_nodes};
+use cc_propagator::{
+    Boundary, Direction, LogDeriv, NodeCountPropagator, Nodes, Propagator, Solution, propagator_watcher::PropagatorWatcher,
+    step_strategy::Step,
+};
 use faer::{
     Accum::Replace,
     ColRef,
@@ -7,11 +12,6 @@ use faer::{
     dyn_stack::MemBuffer,
     linalg::{matmul::matmul, solvers::DenseSolveCore},
     unzip, zip,
-};
-use cc_matrix_utils::faer::{get_ldlt_inverse_buffer, inverse_ldlt_inplace, inverse_ldlt_inplace_nodes};
-use cc_propagator::{
-    Boundary, Direction, LogDeriv, NodeCountPropagator, Nodes, Propagator, Solution, propagator_watcher::PropagatorWatcher,
-    step_strategy::Step,
 };
 
 use crate::{CoupledPropagator, Operator, coupling::WMatrix, ratio_numerov::get_wavelength};
@@ -229,13 +229,17 @@ impl<R: LogDerivativeReference, W: WMatrix, S: Step> Propagator<LogDeriv<Operato
     }
 }
 
-impl<R: LogDerivativeReference, W: WMatrix, S: Step> NodeCountPropagator<LogDeriv<Operator>> for DiabaticLogDerivative<'_, R, W, S> {
+impl<R: LogDerivativeReference, W: WMatrix, S: Step> NodeCountPropagator<LogDeriv<Operator>>
+    for DiabaticLogDerivative<'_, R, W, S>
+{
     fn nodes(&self) -> Nodes {
         self.nodes
     }
 }
 
-impl<'a, R: LogDerivativeReference, W: WMatrix, S: Step> CoupledPropagator<'a, W, LogDeriv<Operator>, S> for DiabaticLogDerivative<'a, R, W, S> {
+impl<'a, R: LogDerivativeReference, W: WMatrix, S: Step> CoupledPropagator<'a, W, LogDeriv<Operator>, S>
+    for DiabaticLogDerivative<'a, R, W, S>
+{
     fn get_propagator(w_matrix: &'a W, step: S, boundary: Boundary<Operator>) -> Self {
         Self::new(w_matrix, step, boundary)
     }

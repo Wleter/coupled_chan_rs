@@ -1,11 +1,16 @@
 use std::mem::swap;
 
 use anyhow::Result;
+use cc_math_utils::brent_root_method;
 use coupled_chan::{
-    Operator, cc_constants::units::{Quantity, atomic_units::Bohr}, cc_propagator::{Boundary, Direction, NodeCountPropagator, Propagator, step_strategy::Step}, coupling::WMatrix, log_derivative::diabatic::{DiabaticLogDerivative, LogDerivativeReference, WaveLogDerivStorage}, vanishing_boundary
+    Operator,
+    cc_constants::units::{Quantity, atomic_units::Bohr},
+    cc_propagator::{Boundary, Direction, NodeCountPropagator, Propagator, step_strategy::Step},
+    coupling::WMatrix,
+    log_derivative::diabatic::{DiabaticLogDerivative, LogDerivativeReference, WaveLogDerivStorage},
+    vanishing_boundary,
 };
 use hilbert_space::faer::{self, Mat};
-use cc_math_utils::brent_root_method;
 use serde::Serialize;
 
 #[derive(Clone, Debug)]
@@ -126,7 +131,7 @@ impl<W, L, S> Default for BoundStatesFinder<'_, W, L, S>
 where
     W: WMatrix,
     L: LogDerivativeReference,
-    S: Step
+    S: Step,
 {
     fn default() -> Self {
         Self {

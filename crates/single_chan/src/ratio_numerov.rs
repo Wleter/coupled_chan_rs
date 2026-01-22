@@ -5,8 +5,10 @@ use crate::{
     s_matrix::SMatrix,
 };
 use cc_math_utils::bessel::{riccati_j, riccati_n};
+use cc_propagator::{
+    Boundary, Direction, Propagator, Ratio, Solution, propagator_watcher::PropagatorWatcher, step_strategy::Step,
+};
 use num_complex::Complex64;
-use cc_propagator::{Boundary, Direction, Propagator, Ratio, Solution, propagator_watcher::PropagatorWatcher, step_strategy::Step};
 
 /// doi: 10.1063/1.435384
 pub struct RatioNumerov<'a, W: WFunction, S: Step> {

@@ -188,7 +188,7 @@ where
     T: Interaction + Clone,
     S: Interaction + Clone,
 {
-    type Coupling = Pair<PotentialCurveCoupling<T>,PotentialCurveCoupling<S>>;
+    type Coupling = Pair<PotentialCurveCoupling<T>, PotentialCurveCoupling<S>>;
     type WMatrix = RedCoupling<Self::Coupling>;
 
     fn asymptote(&self) -> Asymptote {
