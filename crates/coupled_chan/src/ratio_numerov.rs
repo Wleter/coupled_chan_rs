@@ -6,9 +6,9 @@ use faer::{
     linalg::{matmul::matmul, solvers::DenseSolveCore},
     unzip, zip,
 };
-use math_utils::bessel::{ratio_riccati_i, ratio_riccati_k, riccati_j, riccati_n};
-use matrix_utils::faer::{get_ldlt_inverse_buffer, inverse_ldlt_inplace};
-use propagator::{
+use cc_math_utils::bessel::{ratio_riccati_i, ratio_riccati_k, riccati_j, riccati_n};
+use cc_matrix_utils::faer::{get_ldlt_inverse_buffer, inverse_ldlt_inplace};
+use cc_propagator::{
     Boundary, Direction, Propagator, Ratio, Solution, propagator_watcher::PropagatorWatcher, step_strategy::StepStrategy,
 };
 

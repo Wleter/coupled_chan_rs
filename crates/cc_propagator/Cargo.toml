@@ -1,5 +1,5 @@
 [package]
-name = "propagator"
+name = "cc_propagator"
 version.workspace = true
 edition.workspace = true
 

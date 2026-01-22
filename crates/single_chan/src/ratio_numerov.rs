@@ -5,9 +5,9 @@ use crate::{
     s_matrix::SMatrix,
     step_strategy::StepStrategy,
 };
-use math_utils::bessel::{riccati_j, riccati_n};
+use cc_math_utils::bessel::{riccati_j, riccati_n};
 use num_complex::Complex64;
-use propagator::{Boundary, Direction, Propagator, Ratio, Solution, propagator_watcher::PropagatorWatcher};
+use cc_propagator::{Boundary, Direction, Propagator, Ratio, Solution, propagator_watcher::PropagatorWatcher};
 
 /// doi: 10.1063/1.435384
 pub struct RatioNumerov<'a, W: WFunction> {
@@ -214,9 +214,9 @@ fn get_wavelength(red_pot: f64) -> f64 {
 
 #[cfg(test)]
 mod tests {
-    use constants::units::atomic_units::{AuEnergy, AuMass, Bohr, Kelvin};
-    use math_utils::assert_approx_eq;
-    use propagator::{Boundary, Direction, Propagator};
+    use cc_constants::units::atomic_units::{AuEnergy, AuMass, Bohr, Kelvin};
+    use cc_math_utils::assert_approx_eq;
+    use cc_propagator::{Boundary, Direction, Propagator};
 
     use crate::{
         interaction::{Level, RedInteraction, dispersion::lennard_jones},

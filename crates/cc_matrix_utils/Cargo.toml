@@ -1,5 +1,5 @@
 [package]
-name = "matrix_utils"
+name = "cc_matrix_utils"
 version.workspace = true
 edition.workspace = true
 

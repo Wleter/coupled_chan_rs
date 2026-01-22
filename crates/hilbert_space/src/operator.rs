@@ -1,6 +1,6 @@
 use std::ops::{Add, AddAssign, Deref, DerefMut};
 
-use matrix_utils::MatrixLike;
+use cc_matrix_utils::MatrixLike;
 
 pub mod dyn_operator;
 pub mod static_operator;

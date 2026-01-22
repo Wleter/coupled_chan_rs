@@ -2,7 +2,7 @@ use crate::{
     dyn_space::{BasisElementsRef, SubspaceElement},
     operator::Operator,
 };
-use matrix_utils::{MatrixCreation, MatrixLike};
+use cc_matrix_utils::{MatrixCreation, MatrixLike};
 use num_traits::Zero;
 
 use crate::{dyn_space::BasisId, operator::Braket};

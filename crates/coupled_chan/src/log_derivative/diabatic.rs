@@ -8,8 +8,8 @@ use faer::{
     linalg::{matmul::matmul, solvers::DenseSolveCore},
     unzip, zip,
 };
-use matrix_utils::faer::{get_ldlt_inverse_buffer, inverse_ldlt_inplace, inverse_ldlt_inplace_nodes};
-use propagator::{
+use cc_matrix_utils::faer::{get_ldlt_inverse_buffer, inverse_ldlt_inplace, inverse_ldlt_inplace_nodes};
+use cc_propagator::{
     Boundary, Direction, LogDeriv, NodeCountPropagator, Nodes, Propagator, Solution, propagator_watcher::PropagatorWatcher,
     step_strategy::StepStrategy,
 };

@@ -7,4 +7,4 @@ edition.workspace = true
 cc_problems = { workspace = true }
 
 [dev-dependencies]
-math_utils = { path = "../../crates/math_utils" }
+cc_math_utils = { path = "../../crates/cc_math_utils" }

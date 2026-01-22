@@ -1,4 +1,4 @@
-use coupled_chan::constants::units::{
+use coupled_chan::cc_constants::units::{
     Quantity,
     atomic_units::{AuEnergy, AuMass},
 };

@@ -1,5 +1,5 @@
 [package]
-name = "qol_utils"
+name = "cc_qol_utils"
 version.workspace = true
 edition.workspace = true
 

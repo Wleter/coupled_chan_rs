@@ -1,6 +1,6 @@
 use coupled_chan::{
     Interaction, Operator,
-    constants::{Gauss, Quantity},
+    cc_constants::{Gauss, Quantity},
     coupling::{Asymptote, RedCoupling, masked::Masked, pair::Pair},
     scaled_interaction::ScaledInteraction,
 };

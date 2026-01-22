@@ -5,12 +5,12 @@ pub mod pair;
 
 use std::ops::Add;
 
-use constants::units::{
+use cc_constants::units::{
     Quantity,
     atomic_units::{AuEnergy, AuMass},
 };
 use faer::{Mat, unzip, zip};
-use matrix_utils::faer::diagonalize;
+use cc_matrix_utils::faer::diagonalize;
 
 use crate::Operator;
 

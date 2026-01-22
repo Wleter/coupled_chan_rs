@@ -1,6 +1,6 @@
 use anyhow::bail;
 use coupled_chan::{
-    constants::{
+    cc_constants::{
         BOHR_MAG, G_FACTOR,
         units::{
             Frac, Quantity,

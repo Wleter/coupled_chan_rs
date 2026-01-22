@@ -1,5 +1,5 @@
 [package]
-name = "constants"
+name = "cc_constants"
 version.workspace = true
 edition.workspace = true
 

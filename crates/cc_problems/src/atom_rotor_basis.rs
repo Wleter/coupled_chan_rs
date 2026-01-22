@@ -1,7 +1,7 @@
 use anyhow::bail;
 use coupled_chan::{
     Interaction, Operator,
-    constants::units::{Gauss, Quantity},
+    cc_constants::units::{Gauss, Quantity},
     coupling::{Asymptote, RedCoupling, composite::Composite, masked::Masked, pair::Pair},
     scaled_interaction::ScaledInteraction,
 };

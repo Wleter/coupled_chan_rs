@@ -86,8 +86,8 @@ dependencies = [
 name = "atom_rotor"
 version = "0.1.0"
 dependencies = [
+ "cc_math_utils",
  "cc_problems",
- "math_utils",
 ]
 
 [[package]]
@@ -184,19 +184,66 @@ dependencies = [
 ]
 
 [[package]]
+name = "cc_constants"
+version = "0.1.0"
+dependencies = [
+ "num-traits",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "cc_math_utils"
+version = "0.1.0"
+dependencies = [
+ "faer",
+ "nalgebra",
+ "ndarray 0.16.1",
+ "puruspe",
+]
+
+[[package]]
+name = "cc_matrix_utils"
+version = "0.1.0"
+dependencies = [
+ "faer",
+ "nalgebra",
+ "ndarray 0.16.1",
+]
+
+[[package]]
 name = "cc_problems"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "cc_math_utils",
+ "cc_qol_utils",
  "coupled_chan",
  "hilbert_space",
  "indicatif",
- "math_utils",
- "qol_utils",
  "rayon",
  "serde",
  "serde_json",
  "spin_algebra",
+]
+
+[[package]]
+name = "cc_propagator"
+version = "0.1.0"
+dependencies = [
+ "dyn-clone",
+]
+
+[[package]]
+name = "cc_qol_utils"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "downcast-rs",
+ "dyn-clone",
+ "serde",
+ "serde_json",
+ "spline-interpolation",
 ]
 
 [[package]]
@@ -289,25 +336,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "constants"
-version = "0.1.0"
-dependencies = [
- "num-traits",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "coupled_chan"
 version = "0.1.0"
 dependencies = [
- "constants",
+ "cc_constants",
+ "cc_math_utils",
+ "cc_matrix_utils",
+ "cc_propagator",
  "faer",
  "hilbert_space",
- "math_utils",
- "matrix_utils",
  "num-complex 0.4.6",
- "propagator",
  "single_chan",
 ]
 
@@ -930,10 +968,10 @@ checksum = "fc0fef456e4baa96da950455cd02c081ca953b141298e41db3fc7e36b1da849c"
 name = "hilbert_space"
 version = "0.1.0"
 dependencies = [
+ "cc_matrix_utils",
  "downcast-rs",
  "dyn-clone",
  "faer",
- "matrix_utils",
  "nalgebra",
  "ndarray 0.16.1",
  "num-traits",
@@ -1032,8 +1070,8 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 name = "li2_feshbach"
 version = "0.1.0"
 dependencies = [
+ "cc_math_utils",
  "cc_problems",
- "math_utils",
 ]
 
 [[package]]
@@ -1092,25 +1130,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d1525a2a28c7f4fa0fc98bb91ae755d1e2d1505079e05539e35bc876b5d65ae9"
 dependencies = [
  "regex-automata",
-]
-
-[[package]]
-name = "math_utils"
-version = "0.1.0"
-dependencies = [
- "faer",
- "nalgebra",
- "ndarray 0.16.1",
- "puruspe",
-]
-
-[[package]]
-name = "matrix_utils"
-version = "0.1.0"
-dependencies = [
- "faer",
- "nalgebra",
- "ndarray 0.16.1",
 ]
 
 [[package]]
@@ -1561,13 +1580,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "propagator"
-version = "0.1.0"
-dependencies = [
- "dyn-clone",
-]
-
-[[package]]
 name = "pulp"
 version = "0.21.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1614,18 +1626,6 @@ dependencies = [
  "libm",
  "num-traits",
  "pulp",
-]
-
-[[package]]
-name = "qol_utils"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "downcast-rs",
- "dyn-clone",
- "serde",
- "serde_json",
- "spline-interpolation",
 ]
 
 [[package]]
@@ -1925,10 +1925,10 @@ dependencies = [
 name = "single_chan"
 version = "0.1.0"
 dependencies = [
- "constants",
- "math_utils",
+ "cc_constants",
+ "cc_math_utils",
+ "cc_propagator",
  "num-complex 0.4.6",
- "propagator",
 ]
 
 [[package]]

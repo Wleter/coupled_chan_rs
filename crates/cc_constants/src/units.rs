@@ -349,7 +349,7 @@ mod tests {
     #[test]
     fn test_complex_units() {
         let quantity = 1. * (GHz * Gauss / Bohr);
-        assert_eq!(&format!("{quantity}"), "1 GHz * Gauss / Bohr", "Wrong format");
+        assert_eq!(&format!("{quantity}"), "1 GHz*Gauss/Bohr", "Wrong format");
 
         let quantity_angstrom = quantity.to(GHz * Gauss / Angstrom);
         assert_eq!(quantity_angstrom.value(), quantity.value() * Angstrom::TO_BASE);

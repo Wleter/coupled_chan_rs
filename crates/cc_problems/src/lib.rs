@@ -14,8 +14,8 @@ pub use anyhow;
 use anyhow::bail;
 pub use coupled_chan;
 pub use hilbert_space;
-pub use math_utils::{linspace, logspace};
-pub use qol_utils;
+pub use cc_math_utils::{linspace, logspace};
+pub use cc_qol_utils;
 pub use rayon;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -26,10 +26,10 @@ pub use serde_json;
 
 use coupled_chan::{
     CoupledPropagator, Operator,
-    constants::{Bohr, Quantity},
+    cc_constants::{Bohr, Quantity},
     coupling::{AngularBlocks, Asymptote, Levels, VanishingCoupling, WMatrix},
     log_derivative::diabatic::{DiabaticLogDerivative, LogDerivativeReference},
-    propagator::{Boundary, Direction, Propagator, Repr, Solution, step_strategy::StepStrategy},
+    cc_propagator::{Boundary, Direction, Propagator, Repr, Solution, step_strategy::StepStrategy},
     s_matrix::{SMatrix, SMatrixGetter},
     vanishing_boundary,
 };

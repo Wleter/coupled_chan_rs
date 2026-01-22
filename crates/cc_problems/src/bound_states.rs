@@ -3,14 +3,14 @@ use std::mem::swap;
 use anyhow::Result;
 use coupled_chan::{
     Operator,
-    constants::units::{Quantity, atomic_units::Bohr},
+    cc_constants::units::{Quantity, atomic_units::Bohr},
     coupling::WMatrix,
     log_derivative::diabatic::{DiabaticLogDerivative, LogDerivativeReference, WaveLogDerivStorage},
-    propagator::{Boundary, Direction, NodeCountPropagator, Propagator},
+    cc_propagator::{Boundary, Direction, NodeCountPropagator, Propagator},
     vanishing_boundary,
 };
 use hilbert_space::faer::{self, Mat};
-use math_utils::brent_root_method;
+use cc_math_utils::brent_root_method;
 use serde::Serialize;
 
 #[derive(Clone, Debug)]

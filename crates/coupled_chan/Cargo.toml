@@ -6,9 +6,9 @@ edition.workspace = true
 [dependencies]
 num-complex = {workspace = true}
 faer = {workspace = true}
-matrix_utils = {path = "../matrix_utils", features = ["faer"]}
+cc_matrix_utils = {path = "../cc_matrix_utils", features = ["faer"]}
 single_chan = {path = "../single_chan"}
-propagator = {path = "../propagator"}
-constants = {path = "../constants"}
-math_utils = {path = "../math_utils"}
+cc_propagator = {path = "../cc_propagator"}
+cc_constants = {path = "../cc_constants"}
+cc_math_utils = {path = "../cc_math_utils"}
 hilbert_space = {path = "../hilbert_space"}

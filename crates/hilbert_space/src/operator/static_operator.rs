@@ -1,7 +1,7 @@
 use std::mem::discriminant;
 
 use crate::{operator::Operator, static_space::BasisElement};
-use matrix_utils::{MatrixCreation, MatrixLike};
+use cc_matrix_utils::{MatrixCreation, MatrixLike};
 use num_traits::Zero;
 
 use crate::{operator::Braket, static_space::BasisElements};

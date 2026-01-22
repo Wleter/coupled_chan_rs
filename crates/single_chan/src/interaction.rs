@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use constants::units::{
+use cc_constants::units::{
     Quantity,
     atomic_units::{AuEnergy, AuMass},
 };

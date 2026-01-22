@@ -3,10 +3,10 @@ pub mod log_derivative;
 pub mod ratio_numerov;
 pub mod s_matrix;
 
-pub use constants;
+pub use cc_constants;
 use faer::Mat;
-pub use propagator;
-use propagator::{Boundary, Direction, Propagator, Repr, step_strategy::StepStrategy};
+pub use cc_propagator;
+use cc_propagator::{Boundary, Direction, Propagator, Repr, step_strategy::StepStrategy};
 pub use single_chan::interaction::*;
 
 use crate::coupling::WMatrix;
@@ -36,10 +36,10 @@ pub trait CoupledPropagator<'a, W: WMatrix, R: Repr>: Propagator<R> {
 
 #[cfg(test)]
 mod tests {
-    use constants::units::atomic_units::{AuEnergy, AuMass, Bohr, Kelvin};
+    use cc_constants::units::atomic_units::{AuEnergy, AuMass, Bohr, Kelvin};
     use faer::mat;
-    use math_utils::assert_approx_eq;
-    use propagator::{Boundary, Direction, Propagator, step_strategy::LocalWavelengthStep};
+    use cc_math_utils::assert_approx_eq;
+    use cc_propagator::{Boundary, Direction, Propagator, step_strategy::LocalWavelengthStep};
     use single_chan::interaction::{dispersion::lennard_jones, func_potential::FuncPotential};
 
     use crate::{

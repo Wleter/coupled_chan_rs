@@ -2,7 +2,7 @@ mod caf_rb_problem;
 pub mod model_problem;
 use crate::{caf_rb_problem::CaFRbProblem, model_problem::ModelRotorAtomProblem};
 
-use cc_problems::qol_utils::{
+use cc_problems::cc_qol_utils::{
     problem_selector::{ProblemSelector, get_args},
     problems_impl,
 };

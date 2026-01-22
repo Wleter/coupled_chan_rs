@@ -1,6 +1,6 @@
 use coupled_chan::{
     Interaction, Operator,
-    constants::units::{Quantity, atomic_units::AuEnergy},
+    cc_constants::units::{Quantity, atomic_units::AuEnergy},
     coupling::AngularBlocks,
     scaled_interaction::ScaledInteraction,
 };

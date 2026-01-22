@@ -1,6 +1,6 @@
 use coupled_chan::{
     Interaction,
-    constants::{
+    cc_constants::{
         BOHR_MAG, G_FACTOR,
         units::{Quantity, atomic_units::Gauss},
     },

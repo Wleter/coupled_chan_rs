@@ -250,7 +250,7 @@ pub fn li2_bound() -> BoundProblem {
 #[cfg(test)]
 mod tests {
     use cc_problems::coupled_chan::log_derivative::diabatic::ManolopoulosLogDerivative;
-    use math_utils::assert_approx_eq;
+    use cc_math_utils::assert_approx_eq;
 
     use super::*;
 
