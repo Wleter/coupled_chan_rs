@@ -1,7 +1,7 @@
 use cc_problems::{
     AngularMomentum,
     atom_structure::AtomBasisRecipe,
-    coupled_chan::{Composite, dispersion::Dispersion, log_derivative::diabatic::Johnson},
+    coupled_chan::{Composite, RedInteraction, dispersion::Dispersion, log_derivative::diabatic::Johnson, single_chan::{self, ratio_numerov::get_s_matrix}},
     homo_diatom_basis::{AlkaliHomoDiatom, HomoDiatomRecipe},
     prelude::*,
     spin_algebra::{hi32, hu32},
@@ -20,6 +20,7 @@ problems_impl!(Problems, "Li2 collision",
     "Li2 Field" => |_| Self::li2_field(),
     "Li2 Wave" => |_| Self::li2_wave(),
     "Li2 convergences" => |_| Self::convergences(),
+    "Li2 triplet scaling" => |_| Self::li2_triplet_scaling(),
 );
 
 impl Problems {
@@ -194,6 +195,43 @@ impl Problems {
             let s_matrix = li2_scattering.get_s_matrix(&w_matrix, RatioNumerov::new);
 
             saver.send(SMatrixData::new(r_max, s_matrix));
+
+            Ok(())
+        })?;
+
+        Ok(())
+    }
+
+    fn li2_triplet_scaling() -> Result<()> {
+        let li2_problem = li2_problem(li2_recipe());
+        let potential = li2_problem.singlet.potential;
+        let params = li2_problem.system_params;
+
+        let scalings = linspace(0.9, 1.1, 1001);
+
+        let saver = DataSaver::new("data/li2_triplet_scaling.jsonl", JsonFormat, FileAccess::Create)?;
+
+        DependenceProblem::new(potential).dependence(scalings, |potential, &scaling| {
+            potential.scale(scaling);
+            let w_matrix = RedInteraction::new(potential, params.mass, params.energy, 0);
+            let scattering = li2_scattering();
+            let boundary = Boundary {
+                r_start: scattering.r_min.value(),
+                direction: Direction::Outwards,
+                value: 1e-50,
+                derivative: 1.,
+            };
+            let step = LocalWavelengthStep::new(1e-4, f64::INFINITY, 500.);
+
+            let mut numerov = single_chan::ratio_numerov::RatioNumerov::new(
+                &w_matrix, 
+                step, 
+                boundary
+            );
+            let sol = numerov.propagate_to(scattering.r_max.value());
+            let s_matrix = get_s_matrix(sol, &w_matrix);
+
+            saver.send([scaling, s_matrix.get_scattering_length().re]);
 
             Ok(())
         })?;

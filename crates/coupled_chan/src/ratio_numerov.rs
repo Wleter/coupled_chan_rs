@@ -115,6 +115,7 @@ impl<'a, W: WMatrix, S: Step> RatioNumerov<'a, W, S> {
         self.watchers = None
     }
 
+    // todo! small error here
     fn halve_the_step(&mut self) {
         self.solution.dr /= 2.0;
 
