@@ -3,7 +3,7 @@ pub mod diagonal;
 pub mod masked;
 pub mod pair;
 
-use std::ops::Add;
+use std::{ops::Add, sync::Arc};
 
 use cc_constants::units::{
     Quantity,
@@ -38,11 +38,12 @@ pub trait VanishingCoupling {
     }
 }
 
-pub struct DynVanishingCoupling(Box<dyn VanishingCoupling>);
+#[derive(Clone)]
+pub struct DynVanishingCoupling(Arc<dyn VanishingCoupling + Send + Sync>);
 
 impl DynVanishingCoupling {
-    pub fn new<T: VanishingCoupling + 'static>(coupling: T) -> Self {
-        Self(Box::new(coupling))
+    pub fn new<T: VanishingCoupling + Send + Sync + 'static>(coupling: T) -> Self {
+        Self(Arc::new(coupling))
     }
 }
 
