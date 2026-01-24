@@ -7,8 +7,8 @@ pub use cc_constants;
 pub use cc_propagator;
 use cc_propagator::{Boundary, Direction, Propagator, Repr, step_strategy::Step};
 use faer::Mat;
-pub use single_chan::interaction::*;
 pub use single_chan;
+pub use single_chan::interaction::*;
 
 use crate::coupling::WMatrix;
 

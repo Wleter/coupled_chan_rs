@@ -47,10 +47,10 @@ impl<'a, W: WMatrix, S: Step> RatioNumerov<'a, W, S> {
         let size = w_matrix.size();
         let r = boundary.r_start;
 
-        let mut red_coupling_buffer = Operator::zeros(size);
+        let mut w_matrix_buffer = Operator::zeros(size);
 
-        w_matrix.value_inplace(r, &mut red_coupling_buffer);
-        let local_wavelength = get_wavelength(&red_coupling_buffer);
+        w_matrix.value_inplace(r, &mut w_matrix_buffer);
+        let local_wavelength = get_wavelength(&w_matrix_buffer);
 
         let dr = match boundary.direction {
             Direction::Inwards => -(step.get_step(r, local_wavelength).abs()),
@@ -65,7 +65,7 @@ impl<'a, W: WMatrix, S: Step> RatioNumerov<'a, W, S> {
 
         let f_last = w_matrix.id().as_ref() + dr * dr / 12. * f_last.0;
         let f_prev_last = w_matrix.id().as_ref() + dr * dr / 12. * f_prev_last.0;
-        let f = w_matrix.id().as_ref() + dr * dr / 12. * &red_coupling_buffer.0;
+        let f = w_matrix.id().as_ref() + dr * dr / 12. * &w_matrix_buffer.0;
 
         let sol = Ratio(Operator::new(
             &f * (&boundary.derivative.0 * dr + &boundary.value.0)
@@ -89,7 +89,7 @@ impl<'a, W: WMatrix, S: Step> RatioNumerov<'a, W, S> {
             f_prev_last,
             prev_sol,
 
-            w_matrix_buffer: red_coupling_buffer,
+            w_matrix_buffer,
             watchers: None,
 
             buffer1: Operator::zeros(size),
@@ -288,29 +288,11 @@ impl<'a, W: WMatrix, S: Step> RatioNumerov<'a, W, S> {
     fn perform_step(&mut self) {
         self.solution.r += self.solution.dr;
 
-        zip!(
-            self.buffer1.0.as_mut(),
-            self.w_matrix.id().as_ref(),
-            self.w_matrix_buffer.0.as_ref()
-        )
-        .for_each(|unzip!(b1, u, c)| *b1 = u + self.solution.dr * self.solution.dr / 12. * c);
-        // buffer1 is (1 - T_n)
-
-        inverse_ldlt_inplace(self.buffer1.0.as_ref(), self.prev_sol.0.0.as_mut(), &mut self.inverse_buffer);
+        inverse_ldlt_inplace(self.f.as_ref(), self.prev_sol.0.0.as_mut(), &mut self.inverse_buffer);
         // prev_sol is (1 - T_n)^-1
 
-        zip!(self.buffer3.0.as_mut(), self.w_matrix.id().as_ref(), self.buffer1.0.as_ref())
-            .for_each(|unzip!(b3, u, b1)| *b3 = 12. * u - 10. * *b1);
-        // buffer3 is (2 + 10T_n)
-
-        matmul(
-            self.buffer2.0.as_mut(),
-            Accum::Replace,
-            self.buffer3.0.as_ref(),
-            self.prev_sol.0.0.as_ref(),
-            1.,
-            Par::Seq,
-        );
+        zip!(self.buffer2.0.as_mut(), self.w_matrix.id().as_ref(), self.prev_sol.0.0.as_ref())
+            .for_each(|unzip!(b3, u, f_inv)| *b3 = 12. * f_inv - 10. * u);
         // buffer2 is U_n
 
         inverse_ldlt_inplace(
@@ -326,6 +308,14 @@ impl<'a, W: WMatrix, S: Step> RatioNumerov<'a, W, S> {
 
         swap(&mut self.f_prev_last, &mut self.f_last);
         swap(&mut self.f_last, &mut self.f);
+
+        zip!(
+            self.buffer1.0.as_mut(),
+            self.w_matrix.id().as_ref(),
+            self.w_matrix_buffer.0.as_ref()
+        )
+        .for_each(|unzip!(b1, u, c)| *b1 = u + self.solution.dr * self.solution.dr / 12. * c);
+        // buffer1 is (1 - T_{n+1})
         swap(&mut self.f, &mut self.buffer1.0);
     }
 }
@@ -338,9 +328,7 @@ impl<W: WMatrix, S: Step> Propagator<Ratio<Operator>> for RatioNumerov<'_, W, S>
             }
         }
 
-        self.w_matrix.value_inplace(self.solution.r, &mut self.w_matrix_buffer);
         let wavelength = get_wavelength(&self.w_matrix_buffer);
-
         let dr = self.step.get_step(self.solution.r, wavelength);
 
         if dr > 2.0 * self.solution.dr.abs() {
@@ -351,6 +339,8 @@ impl<W: WMatrix, S: Step> Propagator<Ratio<Operator>> for RatioNumerov<'_, W, S>
             self.halve_the_step();
         }
 
+        self.w_matrix
+            .value_inplace(self.solution.r + self.solution.dr, &mut self.w_matrix_buffer);
         self.perform_step();
 
         if let Some(watchers) = &mut self.watchers {

@@ -1,7 +1,12 @@
 use cc_problems::{
     AngularMomentum,
     atom_structure::AtomBasisRecipe,
-    coupled_chan::{Composite, RedInteraction, dispersion::Dispersion, log_derivative::diabatic::Johnson, single_chan::{self, ratio_numerov::get_s_matrix}},
+    coupled_chan::{
+        Composite, RedInteraction,
+        dispersion::Dispersion,
+        log_derivative::diabatic::Johnson,
+        single_chan::{self, ratio_numerov::get_s_matrix},
+    },
     homo_diatom_basis::{AlkaliHomoDiatom, HomoDiatomRecipe},
     prelude::*,
     spin_algebra::{hi32, hu32},
@@ -204,15 +209,15 @@ impl Problems {
 
     fn li2_triplet_scaling() -> Result<()> {
         let li2_problem = li2_problem(li2_recipe());
-        let potential = li2_problem.singlet.potential;
+        let potential = li2_problem.triplet.potential;
         let params = li2_problem.system_params;
 
-        let scalings = linspace(0.9, 1.1, 1001);
+        let scalings = linspace(0.9, 1.1, 5001);
 
         let saver = DataSaver::new("data/li2_triplet_scaling.jsonl", JsonFormat, FileAccess::Create)?;
 
         DependenceProblem::new(potential).dependence(scalings, |potential, &scaling| {
-            potential.scale(scaling);
+            potential.scaling = scaling;
             let w_matrix = RedInteraction::new(potential, params.mass, params.energy, 0);
             let scattering = li2_scattering();
             let boundary = Boundary {
@@ -221,13 +226,9 @@ impl Problems {
                 value: 1e-50,
                 derivative: 1.,
             };
-            let step = LocalWavelengthStep::new(1e-4, f64::INFINITY, 500.);
+            let step = LocalWavelengthStep::new(1e-3, f64::INFINITY, 500.);
 
-            let mut numerov = single_chan::ratio_numerov::RatioNumerov::new(
-                &w_matrix, 
-                step, 
-                boundary
-            );
+            let mut numerov = single_chan::ratio_numerov::RatioNumerov::new(&w_matrix, step, boundary);
             let sol = numerov.propagate_to(scattering.r_max.value());
             let s_matrix = get_s_matrix(sol, &w_matrix);
 

@@ -83,8 +83,9 @@ impl<'a, W: WFunction, S: Step> RatioNumerov<'a, W, S> {
         self.f_last = self.f_last / 4.0 + 0.75;
         self.solution.sol.0 *= self.f / self.f_last;
 
-        let f_last = 1.0 + self.solution.dr * self.solution.dr * self.w_function.value(self.solution.r - self.solution.dr);
-        let u = (12.0 - 10.0 * f_last) / f_last;
+        let f_last = 1.0 + self.solution.dr * self.solution.dr 
+            * self.w_function.value(self.solution.r - self.solution.dr) / 12.0;
+        let u = 12.0 / f_last - 10.0;
 
         let sol_half = (self.solution.sol.0 + 1.) / u;
 
@@ -110,8 +111,8 @@ impl<'a, W: WFunction, S: Step> RatioNumerov<'a, W, S> {
     fn perform_step(&mut self) {
         self.solution.r += self.solution.dr;
 
-        let f = 1.0 + self.solution.dr * self.solution.dr * self.red_potential_buffer / 12.0;
-        let u = (12.0 - 10.0 * f) / f;
+        let f_new = 1.0 + self.solution.dr * self.solution.dr * self.red_potential_buffer / 12.0;
+        let u = 12.0 / self.f - 10.0;
         let sol_new = u - 1. / self.solution.sol.0;
 
         self.prev_sol = self.solution.sol;
@@ -119,7 +120,7 @@ impl<'a, W: WFunction, S: Step> RatioNumerov<'a, W, S> {
 
         self.f_prev_last = self.f_last;
         self.f_last = self.f;
-        self.f = f;
+        self.f = f_new;
     }
 }
 
@@ -131,10 +132,7 @@ impl<W: WFunction, S: Step> Propagator<Ratio<f64>> for RatioNumerov<'_, W, S> {
             }
         }
 
-        let red_pot = self.w_function.value(self.solution.r);
-        self.red_potential_buffer = red_pot;
-        let wavelength = get_wavelength(red_pot);
-
+        let wavelength = get_wavelength(self.red_potential_buffer);
         let dr = self.step.get_step(self.solution.r, wavelength);
 
         if dr > 2.0 * self.solution.dr.abs() {
@@ -145,6 +143,7 @@ impl<W: WFunction, S: Step> Propagator<Ratio<f64>> for RatioNumerov<'_, W, S> {
             self.halve_the_step();
         }
 
+        self.red_potential_buffer = self.w_function.value(self.solution.r + self.solution.dr);
         self.perform_step();
 
         if let Some(watchers) = &mut self.watchers {
