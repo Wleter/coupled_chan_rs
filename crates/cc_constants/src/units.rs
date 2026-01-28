@@ -194,10 +194,10 @@ impl<'de, U: Unit + Debug> Visitor<'de> for QuantityVisitor<U> {
         if len != 2 {
             return Err(Error::custom(Self::parsing_msg()));
         }
-        if let None = &value {
+        if value.is_none() {
             return Err(Error::custom(Self::parsing_msg()));
         }
-        if let None = &unit {
+        if unit.is_none() {
             return Err(Error::custom(Self::parsing_msg()));
         }
         if let Some(unit) = &unit

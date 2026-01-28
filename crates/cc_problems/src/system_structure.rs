@@ -28,7 +28,7 @@ impl AngularBasis {
     }
 
     pub fn new_projections(l_max: AngularMomentum, space_basis: &mut SpaceBasis) -> Self {
-        let l = (0..=l_max.0).map(|l| get_spin_basis(l.into())).flatten().collect();
+        let l = (0..=l_max.0).flat_map(|l| get_spin_basis(l.into())).collect();
         let l = space_basis.push_subspace(SubspaceBasis::new(l));
 
         Self { l }

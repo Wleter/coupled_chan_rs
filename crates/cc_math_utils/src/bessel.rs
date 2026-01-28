@@ -56,14 +56,13 @@ pub fn ratio_riccati_k(n: u32, x_1: f64, x_2: f64) -> f64 {
     let red_k_1 = |x| 1.0 + 1.0 / x;
 
     // Calculates riccati $(-1)^(n+1) * K$ bessel without leading exponent
-    let k_1 = forwards_mod_bessel_recurrence(n, x_1, red_k_0(x_1), red_k_1(x_1));
-    let k_2 = forwards_mod_bessel_recurrence(n, x_2, red_k_0(x_2), red_k_1(x_2));
+    let k_1 = forwards_mod_bessel_recurrence(n, x_1, -red_k_0(x_1), red_k_1(x_1));
+    let k_2 = forwards_mod_bessel_recurrence(n, x_2, -red_k_0(x_2), red_k_1(x_2));
 
     f64::exp(x_2 - x_1) * k_1 / k_2
 }
 
-/// Calculates the ratio of derivative and the value of the  
-/// riccati modified spherical bessel function of the first kind
+/// Calculates the log derivative of riccati modified spherical bessel function of the first kind
 /// (that is $sqrt(x) I_{n+1/2}(x))
 ///
 /// "Handbook of Mathematical Functions" - eq. 10.2.2 (written as z * sqrt(pi/2z) I_{n+1/2}(z))
@@ -76,8 +75,7 @@ pub fn riccati_i_log_deriv(n: u32, x: f64) -> f64 {
     log_deriv + 1. / x
 }
 
-/// Calculates the ratio of derivative and the value of the  
-/// riccati modified spherical bessel function of the third kind
+/// Calculates the log derivative of riccati modified spherical bessel function of the third kind
 /// (that is $sqrt(x) K_{n+1/2}(x))
 ///
 /// "Handbook of Mathematical Functions" - eq. 10.2.4 (written as z * sqrt(pi/2z) K_{n+1/2}(z))
@@ -149,7 +147,7 @@ fn backwards_bessel_recurrence_deriv(n: u32, x: f64, f_0: f64, f_1: f64) -> (f64
     (f_n, f_n_minus_1 - (n + 1) as f64 / x * f_n)
 }
 
-/// Calculates logarithmic derivative of f_n(x) given n, x, f_0(x), f_1(x).
+/// Calculates log derivative of f_n(x) given n, x, f_0(x), f_1(x).
 /// "Handbook of Mathematical Functions" - eq. 10.2.18 using backwards method
 fn backwards_mod_bessel_recurrence_log_deriv(n: u32, x: f64, r_0: f64) -> f64 {
     if n == 0 {
@@ -185,10 +183,10 @@ fn forwards_mod_bessel_recurrence_log_deriv(n: u32, x: f64, r_0: f64) -> f64 {
         r_k = 1. / r_k - (2 * k + 1) as f64 / x;
     }
 
-    (n + 1) as f64 / x + r_k
+    n as f64 / x + r_k
 }
 
-/// Calculates f_n(x) given n, x, f_0(x), f_1(x).
+/// Calculates f_n(x) given n, x, f_0(x), f_1(x) using forwards propagation.
 /// "Handbook of Mathematical Functions" - eq. 10.2.18
 fn forwards_mod_bessel_recurrence(n: u32, x: f64, f_0: f64, f_1: f64) -> f64 {
     if n == 0 {
@@ -210,7 +208,7 @@ fn forwards_mod_bessel_recurrence(n: u32, x: f64, f_0: f64, f_1: f64) -> f64 {
     f_k
 }
 
-/// Calculates f_n(x) given n, x, f_0(x), f_1(x).
+/// Calculates f_n(x) given n, x, f_0(x), f_1(x) using backwards propagation.
 /// "Handbook of Mathematical Functions" - eq. 10.2.18
 fn backwards_mod_bessel_recurrence(n: u32, x: f64, f_0: f64, f_1: f64) -> f64 {
     if n == 0 {
@@ -249,7 +247,6 @@ mod tests {
         },
     };
 
-    // todo! riccati modified bessel not that much stable
     #[test]
     fn test_bessel() {
         assert_approx_eq!(riccati_j_deriv(5, 1e-3).0, 9.62001e-23, 1e-5);
@@ -274,13 +271,13 @@ mod tests {
 
         assert_approx_eq!(riccati_i_log_deriv(5, 1e-3), 6000., 1e-5);
         assert_approx_eq!(riccati_i_log_deriv(50, 1e-3), 51000., 1e-5);
-        assert_approx_eq!(riccati_i_log_deriv(5, 1e1), 1.17811, 1e-5);
-        assert_approx_eq!(riccati_i_log_deriv(50, 1e1), 5.19713, 1e-5);
+        assert_approx_eq!(riccati_i_log_deriv(5, 1e1), 1.1531, 1e-5);
+        assert_approx_eq!(riccati_i_log_deriv(50, 1e1), 5.1962056, 1e-5);
 
-        assert_approx_eq!(riccati_k_log_deriv(5, 1e-3), -4000., 1e-5);
-        assert_approx_eq!(riccati_k_log_deriv(50, 1e-3), -49000., 1e-5);
-        assert_approx_eq!(riccati_k_log_deriv(5, 1e1), -1.05798, 1e-5);
-        assert_approx_eq!(riccati_k_log_deriv(50, 1e1), -5.00098, 1e-5);
+        assert_approx_eq!(riccati_k_log_deriv(5, 1e-3), -5000., 1e-5);
+        assert_approx_eq!(riccati_k_log_deriv(50, 1e-3), -50000., 1e-5);
+        assert_approx_eq!(riccati_k_log_deriv(5, 1e1), -1.12973, 1e-5);
+        assert_approx_eq!(riccati_k_log_deriv(50, 1e1), -5.1, 1e-5);
 
         assert_approx_eq!(ratio_riccati_i(5, 5.0, 10.0), 0.00157309, 1e-5);
         assert_approx_eq!(ratio_riccati_i(10, 5.0, 10.0), 0.00011066, 1e-5);
