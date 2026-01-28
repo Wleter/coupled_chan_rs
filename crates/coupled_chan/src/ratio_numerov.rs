@@ -291,8 +291,12 @@ impl<'a, W: WMatrix, S: Step> RatioNumerov<'a, W, S> {
         inverse_ldlt_inplace(self.f.as_ref(), self.prev_sol.0.0.as_mut(), &mut self.inverse_buffer);
         // prev_sol is (1 - T_n)^-1
 
-        zip!(self.buffer2.0.as_mut(), self.w_matrix.id().as_ref(), self.prev_sol.0.0.as_ref())
-            .for_each(|unzip!(b3, u, f_inv)| *b3 = 12. * f_inv - 10. * u);
+        zip!(
+            self.buffer2.0.as_mut(),
+            self.w_matrix.id().as_ref(),
+            self.prev_sol.0.0.as_ref()
+        )
+        .for_each(|unzip!(b3, u, f_inv)| *b3 = 12. * f_inv - 10. * u);
         // buffer2 is U_n
 
         inverse_ldlt_inplace(
@@ -487,6 +491,6 @@ impl SMatrixGetter for Solution<Ratio<Operator>> {
             .expect("Closed entrance channel")
             .0;
 
-        SMatrix::new(s_matrix, momenta[asymptote.entrance_level], entrance)
+        SMatrix::new(s_matrix, momenta, entrance)
     }
 }

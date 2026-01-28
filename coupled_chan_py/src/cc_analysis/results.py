@@ -4,6 +4,19 @@ import pandas as pd
 import numpy as np
 import numpy.typing as npt
 
+def read_json_array(filename: str, parameter_index: int = 0) -> npt.NDArray:
+    df = pd.read_json(CFG.DATA_PATH / filename, lines = True, precise_float=True)
+    df = df.sort_values(by=parameter_index).reset_index(drop=True) # type: ignore
+
+    return df.to_numpy()
+
+def read_json(filename: str, parameter_index) -> pd.DataFrame:
+    df = pd.read_json(CFG.DATA_PATH / filename, lines = True, precise_float=True)
+    df = df.sort_values(by=parameter_index).reset_index(drop=True) # type: ignore
+
+    return df
+
+
 LEVELS_COLUMNS = {"parameter", "levels"}
 class LevelsData:
     df: pd.DataFrame

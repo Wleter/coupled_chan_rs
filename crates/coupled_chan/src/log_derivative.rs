@@ -1,4 +1,4 @@
-use cc_math_utils::bessel::{ratio_riccati_i_deriv, ratio_riccati_k_deriv, riccati_j_deriv, riccati_n_deriv};
+use cc_math_utils::bessel::{riccati_i_log_deriv, riccati_j_deriv, riccati_k_log_deriv, riccati_n_deriv};
 use cc_propagator::{LogDeriv, Solution};
 use faer::{Mat, c64, linalg::solvers::DenseSolveCore as _};
 
@@ -52,8 +52,8 @@ impl SMatrixGetter for Solution<LogDeriv<Operator>> {
                 n_last[(i, i)] = n_riccati / momentum.sqrt();
                 n_deriv_last[(i, i)] = n_deriv_riccati * momentum.sqrt();
             } else {
-                let ratio_i = ratio_riccati_i_deriv(l, momentum * r);
-                let ratio_k = ratio_riccati_k_deriv(l, momentum * r);
+                let ratio_i = riccati_i_log_deriv(l, momentum * r);
+                let ratio_k = riccati_k_log_deriv(l, momentum * r);
 
                 j_deriv_last[(i, i)] = ratio_i * momentum;
                 j_last[(i, i)] = 1.0;
@@ -65,7 +65,7 @@ impl SMatrixGetter for Solution<LogDeriv<Operator>> {
         let denominator = (&log_deriv.0 * n_last - n_deriv_last).partial_piv_lu();
         let denominator = denominator.inverse();
 
-        let k_matrix = -denominator * (log_deriv.0 * j_last - j_deriv_last);
+        let k_matrix = -denominator * (&log_deriv.0 * j_last - j_deriv_last);
 
         let open_channel_count = is_open_channel.iter().filter(|val| **val).count();
         let mut red_ik_matrix = Mat::<c64>::zeros(open_channel_count, open_channel_count);
@@ -100,6 +100,6 @@ impl SMatrixGetter for Solution<LogDeriv<Operator>> {
             .expect("Closed entrance channel")
             .0;
 
-        SMatrix::new(s_matrix, momenta[asymptote.entrance_level], entrance)
+        SMatrix::new(s_matrix, momenta, entrance)
     }
 }

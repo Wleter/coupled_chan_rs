@@ -12,15 +12,15 @@ pub trait SMatrixGetter {
 #[derive(Debug, Clone)]
 pub struct SMatrix {
     s_matrix: Mat<c64>,
-    momentum: f64,
+    momenta: Vec<f64>,
     entrance: usize,
 }
 
 impl SMatrix {
-    pub fn new(s_matrix: Mat<c64>, momentum: f64, entrance: usize) -> Self {
+    pub fn new(s_matrix: Mat<c64>, momenta: Vec<f64>, entrance: usize) -> Self {
         Self {
             s_matrix,
-            momentum,
+            momenta,
             entrance,
         }
     }
@@ -34,7 +34,7 @@ impl SMatrix {
     }
 
     pub fn entrance_momentum(&self) -> f64 {
-        self.momentum
+        self.momenta[self.entrance]
     }
 
     pub fn get_phase_shift(&self) -> f64 {
@@ -45,25 +45,41 @@ impl SMatrix {
     pub fn get_scattering_length(&self) -> Complex64 {
         let s_element: Complex64 = self.s_matrix[(self.entrance, self.entrance)];
 
-        1.0 / Complex64::new(0.0, self.momentum) * (1.0 - s_element) / (1.0 + s_element)
+        1.0 / Complex64::new(0.0, self.momenta[self.entrance]) * (1.0 - s_element) / (1.0 + s_element)
     }
 
     pub fn get_elastic_cross_sect(&self) -> f64 {
         let s_element: Complex64 = self.s_matrix[(self.entrance, self.entrance)];
 
-        PI / self.momentum.powi(2) * (1.0 - s_element).norm_sqr()
+        PI / self.momenta[self.entrance].powi(2) * (1.0 - s_element).norm_sqr()
     }
 
     pub fn get_inelastic_cross_sect(&self) -> f64 {
         let s_element: Complex64 = self.s_matrix[(self.entrance, self.entrance)];
 
-        PI / self.momentum.powi(2) * (1.0 - s_element.norm()).powi(2)
+        PI / self.momenta[self.entrance].powi(2) * (1.0 - s_element.norm_sqr())
     }
 
     pub fn get_inelastic_cross_sect_to(&self, channel: usize) -> f64 {
         let s_element: Complex64 = self.s_matrix[(self.entrance, channel)];
 
-        PI / self.momentum.powi(2) * s_element.norm_sqr()
+        PI / self.momenta[self.entrance].powi(2) * s_element.norm_sqr()
+    }
+
+    pub fn get_elastic_cross_sect_from(&self, in_chan: usize) -> f64 {
+        let s_element: Complex64 = self.s_matrix[(in_chan, in_chan)];
+
+        PI / self.momenta[in_chan].powi(2) * (1.0 - s_element).norm_sqr()
+    }
+
+    pub fn get_inelastic_cross_sect_from_to(&self, in_chan: usize, out_chan: usize) -> f64 {
+        let s_element: Complex64 = self.s_matrix[(in_chan, out_chan)];
+
+        if in_chan == out_chan {
+            PI / self.momenta[in_chan].powi(2) * (1. - s_element.norm_sqr())
+        } else {
+            PI / self.momenta[in_chan].powi(2) * s_element.norm_sqr()
+        }
     }
 
     pub fn get_inelastic_cross_sects(&self) -> Vec<f64> {

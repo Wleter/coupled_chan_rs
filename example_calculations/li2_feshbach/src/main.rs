@@ -226,7 +226,7 @@ impl Problems {
                 value: 1e-50,
                 derivative: 1.,
             };
-            let step = LocalWavelengthStep::new(1e-3, f64::INFINITY, 500.);
+            let step = LocalWavelengthStep::new(1e-4, f64::INFINITY, 500.);
 
             let mut numerov = single_chan::ratio_numerov::RatioNumerov::new(&w_matrix, step, boundary);
             let sol = numerov.propagate_to(scattering.r_max.value());

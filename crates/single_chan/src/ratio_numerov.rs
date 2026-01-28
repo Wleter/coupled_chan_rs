@@ -83,8 +83,8 @@ impl<'a, W: WFunction, S: Step> RatioNumerov<'a, W, S> {
         self.f_last = self.f_last / 4.0 + 0.75;
         self.solution.sol.0 *= self.f / self.f_last;
 
-        let f_last = 1.0 + self.solution.dr * self.solution.dr 
-            * self.w_function.value(self.solution.r - self.solution.dr) / 12.0;
+        let f_last =
+            1.0 + self.solution.dr * self.solution.dr * self.w_function.value(self.solution.r - self.solution.dr) / 12.0;
         let u = 12.0 / f_last - 10.0;
 
         let sol_half = (self.solution.sol.0 + 1.) / u;
@@ -201,6 +201,15 @@ pub fn get_s_matrix<P: Interaction>(sol: &Solution<Ratio<f64>>, red_interaction:
     let s_matrix = Complex64::new(1.0, k_matrix) / Complex64::new(1.0, -k_matrix);
 
     SMatrix::new(s_matrix, momentum)
+}
+
+pub fn get_vanishing_boundary(r: f64) -> Boundary<f64> {
+    Boundary {
+        r_start: r,
+        direction: Direction::Outwards,
+        value: 1e-50,
+        derivative: 1.,
+    }
 }
 
 #[inline]

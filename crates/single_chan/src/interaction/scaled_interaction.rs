@@ -3,7 +3,7 @@ use crate::interaction::Interaction;
 #[derive(Debug, Clone)]
 pub struct ScaledInteraction<P: Interaction> {
     pub scaling: f64,
-    interaction: P,
+    pub interaction: P,
 }
 
 impl<P: Interaction> ScaledInteraction<P> {
@@ -16,6 +16,10 @@ impl<P: Interaction> ScaledInteraction<P> {
 
     pub fn scale(&mut self, scaling: f64) {
         self.scaling *= scaling
+    }
+
+    pub fn set_scaling(&mut self, scaling: f64) {
+        self.scaling = scaling
     }
 }
 

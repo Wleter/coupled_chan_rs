@@ -20,8 +20,4 @@ impl SMatrix {
     pub fn get_elastic_cross_sect(&self) -> f64 {
         PI / self.momentum.powi(2) * (1.0 - self.s_matrix).norm_sqr()
     }
-
-    pub fn get_inelastic_cross_sect(&self) -> f64 {
-        PI / self.momentum.powi(2) * (1.0 - self.s_matrix.norm()).powi(2)
-    }
 }
