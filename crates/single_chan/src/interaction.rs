@@ -14,6 +14,7 @@ pub mod dispersion;
 pub mod func_potential;
 pub mod morse_long_range;
 pub mod scaled_interaction;
+pub mod interpolated;
 
 pub trait Interaction {
     fn value(&self, r: f64) -> f64;

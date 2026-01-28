@@ -1931,6 +1931,7 @@ dependencies = [
  "cc_propagator",
  "cc_qol_utils",
  "num-complex 0.4.6",
+ "spline-interpolation",
 ]
 
 [[package]]
