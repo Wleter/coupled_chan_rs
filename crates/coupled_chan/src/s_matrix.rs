@@ -37,6 +37,10 @@ impl SMatrix {
         self.momenta[self.entrance]
     }
 
+    pub fn momenta(&self) -> &[f64] {
+        &self.momenta
+    }
+
     pub fn get_phase_shift(&self) -> f64 {
         let s_element: Complex64 = self.s_matrix[(self.entrance, self.entrance)];
         0.5 * s_element.arg()
