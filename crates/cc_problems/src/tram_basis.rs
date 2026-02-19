@@ -1,6 +1,6 @@
 use hilbert_space::{
-    Parity, cast_variant,
-    dyn_space::{BasisId, SpaceBasis, SpaceElement, SubspaceBasis},
+    Parity,
+    space::{BasisId, SpaceBasis, SpaceElement, SubspaceBasis},
 };
 use serde::{Deserialize, Serialize};
 use spin_algebra::{Spin, get_spin_basis};
@@ -19,7 +19,7 @@ pub struct TRAMBasisRecipe {
 pub struct TRAMBasis {
     pub l: AngularBasis,
     pub n: RotorBasis,
-    pub n_tot: BasisId,
+    pub n_tot: BasisId<Spin>,
     pub parity: Parity,
 }
 
@@ -58,9 +58,9 @@ impl TRAMBasis {
     }
 
     pub fn filter(&self, element: SpaceElement) -> bool {
-        let l = cast_variant!(dyn element[self.l.l], AngularMomentum);
-        let n = cast_variant!(dyn element[self.n.n], AngularMomentum);
-        let n_tot_spin = cast_variant!(dyn element[self.n_tot], Spin);
+        let l = element[self.l.l];
+        let n = element[self.n.n];
+        let n_tot_spin = element[self.n_tot];
         let n_tot = n_tot_spin.s.double_value() / 2;
 
         (l.0 + n.0) >= n_tot

@@ -10,7 +10,7 @@ use coupled_chan::{
     coupling::AngularBlocks,
 };
 use hilbert_space::{
-    dyn_space::{BasisId, SpaceBasis, SubspaceBasis},
+    space::{BasisId, SpaceBasis, SubspaceBasis},
     operator_diag_mel, operator_mel,
 };
 use serde::{Deserialize, Serialize};
@@ -27,8 +27,8 @@ pub struct AtomBasisRecipe {
 
 #[derive(Clone, Debug)]
 pub struct AtomBasis {
-    pub s: BasisId,
-    pub i: BasisId,
+    pub s: BasisId<Spin>,
+    pub i: BasisId<Spin>,
 }
 
 impl AtomBasis {
@@ -95,7 +95,7 @@ pub struct HyperfineStructure {
 impl HyperfineStructure {
     pub fn new(elements: &AngularBasisElements, atom: &AtomBasis) -> Self {
         let operator = elements.get_angular_blocks(|basis| {
-            operator_mel!(dyn basis, [atom.s, atom.i], |[s: Spin, i: Spin]| {
+            operator_mel!(basis, [atom.s, atom.i], |[s, i]| {
                 SpinOps::dot(s, i)
             })
         });
@@ -119,9 +119,9 @@ pub struct ZeemanSplitting {
 }
 
 impl ZeemanSplitting {
-    pub fn new(elements: &AngularBasisElements, s: BasisId) -> Self {
+    pub fn new(elements: &AngularBasisElements, s_id: BasisId<Spin>) -> Self {
         let operator = elements.get_angular_blocks(|basis| {
-            operator_diag_mel!(dyn basis, [s], |[s: Spin]| {
+            operator_diag_mel!(basis, [s_id], |[s]| {
                 -s.m.value()
             })
         });
@@ -140,7 +140,7 @@ impl ZeemanSplitting {
 
 #[cfg(test)]
 mod tests {
-    use hilbert_space::dyn_space::SpaceBasis;
+    use hilbert_space::space::SpaceBasis;
     use serde_json::json;
     use spin_algebra::hu32;
 

@@ -1,10 +1,10 @@
 use downcast_rs::{DowncastSync, impl_downcast};
 use dyn_clone::DynClone;
 use std::{
-    fmt::{Debug, Display},
-    ops::{Deref, DerefMut, Index},
-    ptr,
+    fmt::{Debug, Display}, marker::PhantomData, ops::{Deref, Index}, ptr
 };
+
+use crate::cast_variant;
 
 pub trait DynSubspaceElement: DynClone + Debug + DowncastSync {}
 impl_downcast!(sync DynSubspaceElement);
@@ -30,20 +30,69 @@ impl Deref for SubspaceElement {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct BasisId(pub u64);
+pub struct Id(pub usize);
 
-impl Deref for BasisId {
-    type Target = u64;
+pub struct BasisId<Type>(pub Id, PhantomData<Type>);
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl<Type> BasisId<Type> {
+    pub fn new(id: usize) -> Self {
+        Self(Id(id), PhantomData)
+    }
+}
+
+impl<Type: DynSubspaceElement + Clone> BasisId<Type> {
+    pub fn cast(self, element: &SubspaceElement) -> Type {
+        cast_variant!(element, Type).clone()
+    }
+}
+
+impl<Type> Eq for BasisId<Type> {}
+impl<Type> PartialEq for BasisId<Type> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0 && self.1 == other.1
+    }
+}
+impl<Type> Debug for BasisId<Type> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("BasisId").field(&self.0).field(&self.1).finish()
+    }
+}
+impl<Type> Copy for BasisId<Type> {}
+impl<Type> Clone for BasisId<Type> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone(), self.1.clone())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct SubspaceBasisOf<Type> {
+    basis: Vec<SubspaceElement>,
+    id: BasisId<Type>,
+}
+
+impl<Type: DynSubspaceElement> SubspaceBasisOf<Type> {
+    pub fn new(basis: Vec<Type>) -> Self {
+        assert!(!basis.is_empty(), "0 size basis is not allowed");
+
+        let basis = basis.into_iter().map(|x| SubspaceElement(Box::new(x))).collect();
+
+        Self { basis, id: BasisId::new(0) }
+    }
+
+    pub fn forget(self) -> (SubspaceBasis, BasisId<Type>) {
+        let basis = SubspaceBasis {
+            basis: self.basis,
+            id: self.id.0,
+        };
+
+        (basis, self.id)
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct SubspaceBasis {
     basis: Vec<SubspaceElement>,
-    id: BasisId,
+    id: Id,
 }
 
 impl Eq for SubspaceBasis {}
@@ -57,12 +106,12 @@ impl PartialEq for SubspaceBasis {
 }
 
 impl SubspaceBasis {
-    pub fn new<T: DynSubspaceElement>(basis: Vec<T>) -> Self {
+    pub fn new<Type: DynSubspaceElement>(basis: Vec<Type>) -> SubspaceBasisOf<Type> {
         assert!(!basis.is_empty(), "0 size basis is not allowed");
 
         let basis = basis.into_iter().map(|x| SubspaceElement(Box::new(x))).collect();
 
-        Self { basis, id: BasisId(0) }
+        SubspaceBasisOf { basis, id: BasisId::new(0) }
     }
 
     pub fn elements(&self) -> &[SubspaceElement] {
@@ -78,10 +127,6 @@ impl SubspaceBasis {
 pub struct SpaceBasis(Vec<SubspaceBasis>);
 
 impl SpaceBasis {
-    pub fn new_single(space_basis: SubspaceBasis) -> Self {
-        Self(vec![space_basis])
-    }
-
     pub fn size(&self) -> usize {
         self.0.iter().fold(1, |acc, s| acc * s.size())
     }
@@ -90,9 +135,11 @@ impl SpaceBasis {
         self.0.len()
     }
 
-    pub fn push_subspace(&mut self, mut state: SubspaceBasis) -> BasisId {
-        let id = BasisId(self.0.len() as u64);
+    pub fn push_subspace<T: DynSubspaceElement>(&mut self, mut state: SubspaceBasisOf<T>) -> BasisId<T> {
+        let id = BasisId::new(self.0.len());
         state.id = id;
+
+        let (state, id) = state.forget();
 
         self.0.push(state);
         id
@@ -107,7 +154,7 @@ impl SpaceBasis {
         };
 
         let mut subspaces_elements = Vec::with_capacity(self.0.len());
-        for (i, b) in iter.current.iter().zip(self.0.iter()) {
+        for (i, b) in iter.current.0.iter().zip(self.0.iter()) {
             subspaces_elements.push(&b.basis[*i])
         }
 
@@ -115,7 +162,7 @@ impl SpaceBasis {
             .filter(|indices| {
                 subspaces_elements
                     .iter_mut()
-                    .zip(indices.iter().zip(self.0.iter()))
+                    .zip(indices.0.iter().zip(self.0.iter()))
                     .for_each(|(s, (i, b))| *s = &b.basis[*i]);
 
                 f(SpaceElement(&subspaces_elements))
@@ -146,19 +193,11 @@ impl SpaceBasis {
 #[derive(Clone, Copy, Debug)]
 pub struct SpaceElement<'a>(&'a [&'a SubspaceElement]);
 
-impl<'a> Index<BasisId> for SpaceElement<'a> {
-    type Output = SubspaceElement;
+impl<'a, T: DynSubspaceElement> Index<BasisId<T>> for SpaceElement<'a> {
+    type Output = T;
 
-    fn index(&self, index: BasisId) -> &Self::Output {
-        self.0[index.0 as usize]
-    }
-}
-
-impl<'a> Deref for SpaceElement<'a> {
-    type Target = [&'a SubspaceElement];
-
-    fn deref(&self) -> &'a Self::Target {
-        self.0
+    fn index(&self, id: BasisId<T>) -> &Self::Output {
+        cast_variant!(self.0[id.0.0], T)
     }
 }
 
@@ -166,12 +205,11 @@ impl<'a> Deref for SpaceElement<'a> {
 pub struct BasisElementIndices(Vec<usize>);
 
 impl BasisElementIndices {
-    #[allow(clippy::borrowed_box)]
-    pub fn index<'a>(&'a self, index: BasisId, basis: &'a SpaceBasis) -> &'a SubspaceElement {
-        let basis_subspace = &basis.0[index.0 as usize];
-        let subspace_index = self[index];
+    pub fn index<'a, T: DynSubspaceElement>(&'a self, id: BasisId<T>, basis: &'a SpaceBasis) -> &'a T {
+        let basis_subspace = &basis.0[id.0.0];
+        let subspace_index = self.0[id.0.0];
 
-        &basis_subspace.basis[subspace_index]
+        cast_variant!(basis_subspace.basis[subspace_index], T)
     }
 }
 
@@ -180,20 +218,6 @@ impl Deref for BasisElementIndices {
 
     fn deref(&self) -> &Self::Target {
         &self.0
-    }
-}
-
-impl DerefMut for BasisElementIndices {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl Index<BasisId> for BasisElementIndices {
-    type Output = usize;
-
-    fn index(&self, index: BasisId) -> &Self::Output {
-        &self.0[index.0 as usize]
     }
 }
 
@@ -213,7 +237,7 @@ impl Iterator for BasisElementIter {
         }
 
         let mut current_index = self.current_index;
-        for (curr, size) in self.current.iter_mut().zip(self.basis_sizes.iter()) {
+        for (curr, size) in self.current.0.iter_mut().zip(self.basis_sizes.iter()) {
             *curr = current_index % size;
             current_index /= size
         }
@@ -229,7 +253,7 @@ pub struct BasisElements {
     pub elements_indices: Vec<BasisElementIndices>,
 }
 
-// todo! duplicate code for BasisElements and BassiElementsRef
+// todo! duplicated code, cannot defer that easily
 impl BasisElements {
     pub fn as_ref<'a>(&'a self) -> BasisElementsRef<'a> {
         BasisElementsRef {
@@ -245,16 +269,32 @@ impl BasisElements {
     pub fn len(&self) -> usize {
         self.elements_indices.len()
     }
+
+    pub fn indices_iter(&self) -> impl Iterator<Item = usize> {
+        0..self.len()
+    }
 }
 
-impl Index<(usize, BasisId)> for BasisElements {
+impl<'a> Index<(usize, Id)> for BasisElementsRef<'a> {
     type Output = SubspaceElement;
 
-    fn index(&self, index: (usize, BasisId)) -> &Self::Output {
-        let basis_subspace = &self.basis.0[index.1.0 as usize];
-        let subspace_index = self.elements_indices[index.0][index.1];
+    fn index(&self, index: (usize, Id)) -> &'a Self::Output {
+        let basis_subspace = &self.basis.0[index.1.0];
+        let subspace_index = self.elements_indices[index.0].0[index.1.0];
 
         &basis_subspace.basis[subspace_index]
+    }
+}
+
+impl<'a, T: DynSubspaceElement> Index<(usize, BasisId<T>)> for BasisElementsRef<'a> {
+    type Output = T;
+
+    fn index(&self, index: (usize, BasisId<T>)) -> &Self::Output {
+        let basis_subspace = &self.basis.0[index.1.0.0];
+        let subspace_index = self.elements_indices[index.0].0[index.1.0.0];
+
+        let element = &basis_subspace.basis[subspace_index];
+        cast_variant!(element, T)
     }
 }
 
@@ -265,10 +305,10 @@ pub struct BasisElementsRef<'a> {
 }
 
 impl BasisElementsRef<'_> {
-    pub fn as_ref<'a>(&'a self) -> BasisElementsRef<'a> {
+    pub fn as_ref(&self) -> Self {
         *self
     }
-
+    
     pub fn is_empty(&self) -> bool {
         self.elements_indices.is_empty()
     }
@@ -282,21 +322,33 @@ impl BasisElementsRef<'_> {
     }
 }
 
-impl<'a> Index<(usize, BasisId)> for BasisElementsRef<'a> {
+impl Index<(usize, Id)> for BasisElements {
     type Output = SubspaceElement;
 
-    fn index(&self, index: (usize, BasisId)) -> &'a Self::Output {
-        let basis_subspace = &self.basis.0[index.1.0 as usize];
-        let subspace_index = self.elements_indices[index.0][index.1];
+    fn index(&self, index: (usize, Id)) -> &Self::Output {
+        let basis_subspace = &self.basis.0[index.1.0];
+        let subspace_index = self.elements_indices[index.0].0[index.1.0];
 
         &basis_subspace.basis[subspace_index]
+    }
+}
+
+impl<T: DynSubspaceElement> Index<(usize, BasisId<T>)> for BasisElements {
+    type Output = T;
+
+    fn index(&self, index: (usize, BasisId<T>)) -> &Self::Output {
+        let basis_subspace = &self.basis.0[index.1.0.0];
+        let subspace_index = self.elements_indices[index.0].0[index.1.0.0];
+
+        let element = &basis_subspace.basis[subspace_index];
+        cast_variant!(element, T)
     }
 }
 
 impl Display for BasisElements {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for indices in &self.elements_indices {
-            for (index, b) in indices.iter().zip(self.basis.0.iter()) {
+            for (index, b) in indices.0.iter().zip(self.basis.0.iter()) {
                 write!(f, "|{:?} > ", b.basis[*index])?
             }
             writeln!(f)?
@@ -309,7 +361,7 @@ impl Display for BasisElements {
 impl Debug for BasisElements {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for indices in &self.elements_indices {
-            for (index, b) in indices.iter().zip(self.basis.0.iter()) {
+            for (index, b) in indices.0.iter().zip(self.basis.0.iter()) {
                 write!(f, "|{:?} > ", b.basis[*index])?
             }
             writeln!(f)?
@@ -325,13 +377,15 @@ mod tests {
 
     #[derive(Clone, Copy, Debug, PartialEq)]
     pub struct ElectronSpin(u32, i32);
+
     #[derive(Clone, Copy, Debug, PartialEq)]
     pub struct NuclearSpin(u32, i32);
+
     #[derive(Clone, Copy, Debug, PartialEq)]
     pub struct Vibrational(i32);
 
     #[test]
-    fn test_dyn_space() {
+    fn test_space() {
         let mut basis = SpaceBasis::default();
 
         let e_basis = SubspaceBasis::new(vec![
@@ -353,68 +407,68 @@ mod tests {
         assert_eq!(basis_elements.len(), 4 * 2 * 2);
 
         assert_eq!(
-            basis_elements[(0, e_id)].downcast_ref::<ElectronSpin>().unwrap(),
-            &ElectronSpin(2, -2)
+            basis_elements[(0, e_id)],
+            ElectronSpin(2, -2)
         );
         assert_eq!(
-            basis_elements[(0, n_id)].downcast_ref::<NuclearSpin>().unwrap(),
-            &NuclearSpin(1, -1)
+            basis_elements[(0, n_id)],
+            NuclearSpin(1, -1)
         );
         assert_eq!(
-            basis_elements[(0, vib_id)].downcast_ref::<Vibrational>().unwrap(),
-            &Vibrational(-1)
-        );
-
-        assert_eq!(
-            basis_elements[(1, e_id)].downcast_ref::<ElectronSpin>().unwrap(),
-            &ElectronSpin(2, 0)
-        );
-        assert_eq!(
-            basis_elements[(1, n_id)].downcast_ref::<NuclearSpin>().unwrap(),
-            &NuclearSpin(1, -1)
-        );
-        assert_eq!(
-            basis_elements[(1, vib_id)].downcast_ref::<Vibrational>().unwrap(),
-            &Vibrational(-1)
+            basis_elements[(0, vib_id)],
+            Vibrational(-1)
         );
 
         assert_eq!(
-            basis_elements[(4, e_id)].downcast_ref::<ElectronSpin>().unwrap(),
-            &ElectronSpin(2, -2)
+            basis_elements[(1, e_id)],
+            ElectronSpin(2, 0)
         );
         assert_eq!(
-            basis_elements[(4, n_id)].downcast_ref::<NuclearSpin>().unwrap(),
-            &NuclearSpin(1, 1)
+            basis_elements[(1, n_id)],
+            NuclearSpin(1, -1)
         );
         assert_eq!(
-            basis_elements[(4, vib_id)].downcast_ref::<Vibrational>().unwrap(),
-            &Vibrational(-1)
-        );
-
-        assert_eq!(
-            basis_elements[(5, e_id)].downcast_ref::<ElectronSpin>().unwrap(),
-            &ElectronSpin(2, 0)
-        );
-        assert_eq!(
-            basis_elements[(5, n_id)].downcast_ref::<NuclearSpin>().unwrap(),
-            &NuclearSpin(1, 1)
-        );
-        assert_eq!(
-            basis_elements[(5, vib_id)].downcast_ref::<Vibrational>().unwrap(),
-            &Vibrational(-1)
+            basis_elements[(1, vib_id)],
+            Vibrational(-1)
         );
 
         assert_eq!(
-            basis_elements[(8, e_id)].downcast_ref::<ElectronSpin>().unwrap(),
-            &ElectronSpin(2, -2)
+            basis_elements[(4, e_id)],
+            ElectronSpin(2, -2)
         );
         assert_eq!(
-            basis_elements[(8, n_id)].downcast_ref::<NuclearSpin>().unwrap(),
-            &NuclearSpin(1, -1)
+            basis_elements[(4, n_id)],
+            NuclearSpin(1, 1)
         );
         assert_eq!(
-            basis_elements[(8, vib_id)].downcast_ref::<Vibrational>().unwrap(),
-            &Vibrational(-2)
+            basis_elements[(4, vib_id)],
+            Vibrational(-1)
+        );
+
+        assert_eq!(
+            basis_elements[(5, e_id)],
+            ElectronSpin(2, 0)
+        );
+        assert_eq!(
+            basis_elements[(5, n_id)],
+            NuclearSpin(1, 1)
+        );
+        assert_eq!(
+            basis_elements[(5, vib_id)],
+            Vibrational(-1)
+        );
+
+        assert_eq!(
+            basis_elements[(8, e_id)],
+            ElectronSpin(2, -2)
+        );
+        assert_eq!(
+            basis_elements[(8, n_id)],
+            NuclearSpin(1, -1)
+        );
+        assert_eq!(
+            basis_elements[(8, vib_id)],
+            Vibrational(-2)
         );
     }
 }

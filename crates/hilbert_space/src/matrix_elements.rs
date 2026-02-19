@@ -1,22 +1,21 @@
 use crate::{
-    dyn_space::{BasisElementsRef, SubspaceElement},
-    operator::Operator,
+    operator::Operator, space::{BasisElementsRef, Id, SubspaceElement}
 };
 use cc_matrix_utils::{MatrixCreation, MatrixLike};
 use num_traits::Zero;
 
-use crate::{dyn_space::BasisId, operator::Braket};
+use crate::operator::Braket;
 
 pub fn get_mel<'a, const N: usize, F, E>(
     elements: &'a BasisElementsRef<'a>,
-    action_subspaces: [BasisId; N],
+    action_subspaces: [Id; N],
     mut mat_element: F,
 ) -> impl FnMut(usize, usize) -> E + 'a
 where
     F: FnMut([Braket<&'a SubspaceElement>; N]) -> E + 'a,
     E: Zero,
 {
-    let action_indices = action_subspaces.map(|x| x.0 as usize);
+    let action_indices = action_subspaces.map(|x| x.0);
 
     let subspaces_len = elements.basis.subspaces_len();
     for subspace_id in action_indices {
@@ -48,14 +47,14 @@ where
 
 pub fn get_diagonal_mel<'a, const N: usize, F, E>(
     elements: &'a BasisElementsRef<'a>,
-    action_subspaces: [BasisId; N],
+    action_subspaces: [Id; N],
     mut mat_element: F,
 ) -> impl FnMut(usize, usize) -> E + 'a
 where
     F: FnMut([&'a SubspaceElement; N]) -> E + 'a,
     E: Zero,
 {
-    let action_indices = action_subspaces.map(|x| x.0 as usize);
+    let action_indices = action_subspaces.map(|x| x.0);
 
     let subspaces_len = elements.basis.subspaces_len();
     for subspace_id in action_indices {
@@ -75,16 +74,16 @@ where
 pub fn get_transform_mel<'a, const N: usize, const M: usize, F, E>(
     elements: &'a BasisElementsRef<'a>,
     elements_transform: &'a BasisElementsRef<'a>,
-    subspaces: [BasisId; N],
-    subspaces_transform: [BasisId; M],
+    subspaces: [Id; N],
+    subspaces_transform: [Id; M],
     mut mat_element: F,
 ) -> impl FnMut(usize, usize) -> E + 'a
 where
     F: FnMut([&'a SubspaceElement; N], [&'a SubspaceElement; M]) -> E + 'a,
     E: Zero,
 {
-    let indices = subspaces.map(|x| x.0 as usize);
-    let indices_transform = subspaces_transform.map(|x| x.0 as usize);
+    let indices = subspaces.map(|x| x.0);
+    let indices_transform = subspaces_transform.map(|x| x.0);
 
     let subspaces_len = subspaces.len();
     assert_eq!(
@@ -118,9 +117,9 @@ where
 }
 
 impl<M: MatrixLike> Operator<M> {
-    pub fn from_mel_dyn<'a, E, const N: usize, F>(
+    pub fn from_mel<'a, E, const N: usize, F>(
         elements: &'a BasisElementsRef<'a>,
-        action_subspaces: [BasisId; N],
+        action_subspaces: [Id; N],
         mat_element: F,
     ) -> Self
     where
@@ -134,9 +133,9 @@ impl<M: MatrixLike> Operator<M> {
         Self(mat)
     }
 
-    pub fn from_diag_mel_dyn<'a, E, const N: usize, F>(
+    pub fn from_diag_mel<'a, E, const N: usize, F>(
         elements: &'a BasisElementsRef<'a>,
-        action_subspaces: [BasisId; N],
+        action_subspaces: [Id; N],
         mat_element: F,
     ) -> Self
     where
@@ -150,11 +149,11 @@ impl<M: MatrixLike> Operator<M> {
         Self(mat)
     }
 
-    pub fn from_transform_mel_dyn<'a, E, const N: usize, const K: usize, F>(
+    pub fn from_transform_mel<'a, E, const N: usize, const K: usize, F>(
         elements: &'a BasisElementsRef<'a>,
-        subspaces: [BasisId; N],
+        subspaces: [Id; N],
         elements_transform: &'a BasisElementsRef<'a>,
-        subspaces_transform: [BasisId; K],
+        subspaces_transform: [Id; K],
         mat_element: F,
     ) -> Self
     where
@@ -172,7 +171,7 @@ impl<M: MatrixLike> Operator<M> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        dyn_space::{BasisElements, BasisId, SpaceBasis, SubspaceBasis},
+        space::{BasisElements, BasisId, SpaceBasis, SubspaceBasis},
         operator_transform_mel,
     };
 
@@ -183,7 +182,7 @@ mod tests {
     #[derive(Clone, Copy, Debug, PartialEq)]
     pub struct Vibrational(i32);
 
-    fn dyn_basis() -> (BasisElements, [BasisId; 3]) {
+    fn basis() -> (BasisElements, (BasisId<ElectronSpin>, BasisId<NuclearSpin>, BasisId<Vibrational>)) {
         let mut basis = SpaceBasis::default();
 
         let e_basis = SubspaceBasis::new(vec![ElectronSpin(1, -1), ElectronSpin(1, 1)]);
@@ -195,24 +194,31 @@ mod tests {
         let vib = SubspaceBasis::new(vec![Vibrational(-1), Vibrational(-2)]);
         let vib_id = basis.push_subspace(vib);
 
-        (basis.get_basis(), [e_id, n_id, vib_id])
+        (basis.get_basis(), (e_id, n_id, vib_id))
     }
 
     #[test]
     #[cfg(feature = "faer")]
     #[rustfmt::skip]
-    fn test_dyn_operator_faer() {
-        use faer::{mat, Mat};
-        use crate::{cast_braket, operator::Operator, operator_diag_mel, operator_mel};
+    fn test_operator_faer() {
+        use faer::{Mat, mat};
+        use crate::{operator::{Operator, Braket}, operator_diag_mel, operator_mel};
 
-        let (basis, [e_id, _, vib_id]) = dyn_basis();
+        let (basis, (e_id, _, vib_id)) = basis();
 
-        let operator = Operator::<Mat<f64>>::from_mel_dyn(
+        let operator = Operator::<Mat<f64>>::from_mel(
             &basis.as_ref(),
-            [e_id, vib_id],
+            [e_id.0, vib_id.0],
             |[e_braket, vib_braket]| {
-                let e_braket = cast_braket!(dyn e_braket, ElectronSpin);
-                let vib_braket = cast_braket!(dyn vib_braket, Vibrational);
+                let e_braket = Braket {
+                    bra: e_id.cast(e_braket.bra),
+                    ket: e_id.cast(e_braket.ket),
+                };
+                
+                let vib_braket = Braket {
+                    bra: vib_id.cast(vib_braket.bra),
+                    ket: vib_id.cast(vib_braket.ket),
+                };
 
                 if vib_braket.ket != vib_braket.bra {
                     ((e_braket.ket.0 * 1000 + e_braket.bra.0 * 100) as i32 + e_braket.ket.1 * 10 + e_braket.bra.1)
@@ -232,11 +238,12 @@ mod tests {
             [0.0, 0.0, 1089.0, 1109.0, 0.0, 0.0, 0.1, 0.1],
             [0.0, 0.0, 1091.0, 1111.0, 0.0, 0.0, 0.1, 0.1],
         ];
+
         assert_eq!(expected, operator.0);
 
-        let operator_short: Operator<Mat<f64>> = operator_mel!(dyn &basis.as_ref(),
+        let operator_short: Operator<Mat<f64>> = operator_mel!(basis.as_ref(),
             [e_id, vib_id],
-            |[e_braket: ElectronSpin, vib_braket: Vibrational]| {
+            |[e_braket, vib_braket]| {
                 if vib_braket.ket != vib_braket.bra {
                     ((e_braket.ket.0 * 1000 + e_braket.bra.0 * 100) as i32 + e_braket.ket.1 * 10 + e_braket.bra.1)
                         as f64
@@ -247,9 +254,9 @@ mod tests {
         );
         assert_eq!(operator_short.0, operator.0);
 
-        let operator_diag: Operator<Mat<f64>> = operator_diag_mel!(dyn &basis.as_ref(),
+        let operator_diag: Operator<Mat<f64>> = operator_diag_mel!(&basis.as_ref(),
             [e_id, vib_id],
-            |[e: ElectronSpin, vib: Vibrational]| {
+            |[e, vib]| {
                 10. * e.0 as f64 + e.1 as f64 + 0.1 * vib.0 as f64
             }
         );
@@ -269,18 +276,18 @@ mod tests {
     #[test]
     #[cfg(feature = "nalgebra")]
     #[rustfmt::skip]
-    fn test_dyn_operator_nalgebra() {
+    fn test_operator_nalgebra() {
         use nalgebra::{DMatrix};
         use crate::{cast_braket, operator::Operator, operator_diag_mel, operator_mel};
 
-        let (basis, [e_id, _, vib_id]) = dyn_basis();
+        let (basis, (e_id, _, vib_id)) = basis();
 
-        let operator = Operator::<DMatrix<f64>>::from_mel_dyn(
+        let operator = Operator::<DMatrix<f64>>::from_mel(
             &basis.as_ref(),
-            [e_id, vib_id],
+            [e_id.0, vib_id.0],
             |[e_braket, vib_braket]| {
-                let e_braket = cast_braket!(dyn e_braket, ElectronSpin);
-                let vib_braket = cast_braket!(dyn vib_braket, Vibrational);
+                let e_braket = cast_braket!(e_braket, ElectronSpin);
+                let vib_braket = cast_braket!(vib_braket, Vibrational);
 
                 if vib_braket.ket != vib_braket.bra {
                     ((e_braket.ket.0 * 1000 + e_braket.bra.0 * 100) as i32 + e_braket.ket.1 * 10 + e_braket.bra.1)
@@ -305,9 +312,9 @@ mod tests {
 
         assert_eq!(expected, operator.0);
 
-        let operator_short: Operator<DMatrix<f64>> = operator_mel!(dyn basis,
+        let operator_short: Operator<DMatrix<f64>> = operator_mel!(basis,
             [e_id, vib_id],
-            |[e_braket: ElectronSpin, vib_braket: Vibrational]| {
+            |[e_braket, vib_braket]| {
                 if vib_braket.ket != vib_braket.bra {
                     ((e_braket.ket.0 * 1000 + e_braket.bra.0 * 100) as i32 + e_braket.ket.1 * 10 + e_braket.bra.1)
                         as f64
@@ -319,9 +326,9 @@ mod tests {
 
         assert_eq!(operator_short.0, operator.0);
 
-        let operator_diag: Operator<DMatrix<f64>> = operator_diag_mel!(dyn basis,
+        let operator_diag: Operator<DMatrix<f64>> = operator_diag_mel!(basis,
             [e_id, vib_id],
-            |[e: ElectronSpin, vib: Vibrational]| {
+            |[e, vib]| {
                 10. * e.0 as f64 + e.1 as f64 + 0.1 * vib.0 as f64
             }
         );
@@ -341,18 +348,18 @@ mod tests {
     #[test]
     #[cfg(feature = "ndarray")]
     #[rustfmt::skip]
-    fn test_dyn_operator_ndarray() {
+    fn test_operator_ndarray() {
         use ndarray::{Array2};
         use crate::{cast_braket, operator::Operator, operator_diag_mel, operator_mel};
 
-        let (basis, [e_id, _, vib_id]) = dyn_basis();
+        let (basis, (e_id, _, vib_id)) = basis();
 
-        let operator = Operator::<Array2<f64>>::from_mel_dyn(
+        let operator = Operator::<Array2<f64>>::from_mel(
             &basis.as_ref(),
-            [e_id, vib_id],
+            [e_id.0, vib_id.0],
             |[e_braket, vib_braket]| {
-                let e_braket = cast_braket!(dyn e_braket, ElectronSpin);
-                let vib_braket = cast_braket!(dyn vib_braket, Vibrational);
+                let e_braket = cast_braket!(e_braket, ElectronSpin);
+                let vib_braket = cast_braket!(vib_braket, Vibrational);
 
                 if vib_braket.ket != vib_braket.bra {
                     ((e_braket.ket.0 * 1000 + e_braket.bra.0 * 100) as i32 + e_braket.ket.1 * 10 + e_braket.bra.1)
@@ -378,9 +385,9 @@ mod tests {
 
         assert_eq!(expected, operator.0);
 
-        let operator_short: Operator<Array2<f64>> = operator_mel!(dyn basis,
+        let operator_short: Operator<Array2<f64>> = operator_mel!(basis,
             [e_id, vib_id],
-            |[e_braket: ElectronSpin, vib_braket: Vibrational]| {
+            |[e_braket, vib_braket]| {
                 if vib_braket.ket != vib_braket.bra {
                     ((e_braket.ket.0 * 1000 + e_braket.bra.0 * 100) as i32 + e_braket.ket.1 * 10 + e_braket.bra.1)
                         as f64
@@ -392,9 +399,9 @@ mod tests {
 
         assert_eq!(operator_short.0, operator.0);
 
-        let operator_diag: Operator<Array2<f64>> = operator_diag_mel!(dyn basis,
+        let operator_diag: Operator<Array2<f64>> = operator_diag_mel!(basis,
             [e_id, vib_id],
-            |[e: ElectronSpin, vib: Vibrational]| {
+            |[e, vib]| {
                 10. * e.0 as f64 + e.1 as f64 + 0.1 * vib.0 as f64
             }
         );
@@ -415,11 +422,11 @@ mod tests {
     pub struct CombinedSpin(u32, i32);
 
     #[test]
-    fn test_dyn_transform_faer() {
+    fn test_transform_faer() {
         use crate::operator::Operator;
         use faer::{Mat, mat};
 
-        let (basis, [e_id, n_id, vib_id]) = dyn_basis();
+        let (basis, (e_id, n_id, vib_id)) = basis();
 
         let mut basis_transform = SpaceBasis::default();
 
@@ -436,9 +443,9 @@ mod tests {
         let basis_transform = basis_transform.get_basis();
 
         let transform: Operator<Mat<f64>> = operator_transform_mel!(
-            dyn basis, [e_id, n_id, vib_id],
-            dyn basis_transform, [s_transf_id, vib_transf_id],
-            |[e: ElectronSpin, n: NuclearSpin, _vib: Vibrational], [s: CombinedSpin, _vib_t: Vibrational]| {
+            basis, [e_id, n_id, vib_id],
+            basis_transform, [s_transf_id, vib_transf_id],
+            |[e, n, _vib], [s, _vib_t]| {
                 if e.1 + n.1 != s.1 {
                     return 0.
                 }

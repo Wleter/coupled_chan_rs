@@ -4,9 +4,9 @@ use coupled_chan::{
     coupling::{Asymptote, RedCoupling, masked::Masked, pair::Pair},
     scaled_interaction::ScaledInteraction,
 };
-use hilbert_space::{cast_variant, dyn_space::SpaceBasis, operator_diag_mel, operator_mel};
+use hilbert_space::{space::SpaceBasis, operator_diag_mel, operator_mel};
 use serde::{Deserialize, Serialize};
-use spin_algebra::{Spin, half_integer::HalfI32, hu32};
+use spin_algebra::{half_integer::HalfI32, hu32};
 
 use crate::{
     AngularBasisElements, AngularMomentum, Hamiltonian, Structure,
@@ -41,10 +41,10 @@ impl DiatomBasis {
         let angular = AngularBasis::new(recipe.l_max, &mut basis);
 
         let basis = basis.get_filtered_basis(|element| {
-            let s_a = cast_variant!(dyn element[atom_a.s], Spin);
-            let i_a = cast_variant!(dyn element[atom_a.i], Spin);
-            let s_b = cast_variant!(dyn element[atom_b.s], Spin);
-            let i_b = cast_variant!(dyn element[atom_b.i], Spin);
+            let s_a = element[atom_a.s];
+            let i_a = element[atom_a.i];
+            let s_b = element[atom_b.s];
+            let i_b = element[atom_b.i];
 
             s_a.m + i_a.m + s_b.m + i_b.m == recipe.tot_projection
         });
@@ -70,7 +70,7 @@ pub struct PotentialCurve<P: Interaction> {
 
 impl<P: Interaction> PotentialCurve<P> {
     pub fn new_triplet(triplet: P, elements: &AngularBasisElements, atom_a: &AtomBasis, atom_b: &AtomBasis) -> Self {
-        let operator = operator_mel!(dyn elements.full_basis, [atom_a.s, atom_b.s], |[s1: Spin, s2: Spin]| {
+        let operator = operator_mel!(elements.full_basis, [atom_a.s, atom_b.s], |[s1, s2]| {
             triplet_projection_uncoupled(s1, s2)
         });
 
@@ -81,7 +81,7 @@ impl<P: Interaction> PotentialCurve<P> {
     }
 
     pub fn new_singlet(singlet: P, elements: &AngularBasisElements, atom_a: &AtomBasis, atom_b: &AtomBasis) -> Self {
-        let operator = operator_mel!(dyn elements.full_basis, [atom_a.s, atom_b.s], |[s1: Spin, s2: Spin]| {
+        let operator = operator_mel!(elements.full_basis, [atom_a.s, atom_b.s], |[s1, s2]| {
             singlet_projection_uncoupled(s1, s2)
         });
 
@@ -92,7 +92,7 @@ impl<P: Interaction> PotentialCurve<P> {
     }
 
     pub fn new_triplet_coupled(triplet: P, elements: &AngularBasisElements, atom_pair: &AtomBasis) -> Self {
-        let operator = operator_diag_mel!(dyn elements.full_basis, [atom_pair.s], |[s: Spin]| {
+        let operator = operator_diag_mel!(elements.full_basis, [atom_pair.s], |[s]| {
             if s.s == hu32!(1) { 1. } else { 0. }
         });
 
@@ -103,7 +103,7 @@ impl<P: Interaction> PotentialCurve<P> {
     }
 
     pub fn new_singlet_coupled(singlet: P, elements: &AngularBasisElements, atom_pair: &AtomBasis) -> Self {
-        let operator = operator_diag_mel!(dyn elements.full_basis, [atom_pair.s], |[s: Spin]| {
+        let operator = operator_diag_mel!(elements.full_basis, [atom_pair.s], |[s]| {
             if s.s == hu32!(0) { 1. } else { 0. }
         });
 

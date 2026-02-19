@@ -1,6 +1,6 @@
-pub mod dyn_space;
+pub mod space;
 pub mod operator;
-pub mod static_space;
+pub mod matrix_elements;
 
 #[cfg(feature = "faer")]
 pub use faer;
@@ -10,6 +10,7 @@ pub use nalgebra;
 
 #[cfg(feature = "ndarray")]
 pub use ndarray;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]

@@ -34,8 +34,7 @@ use coupled_chan::{
     vanishing_boundary,
 };
 use hilbert_space::{
-    cast_variant,
-    dyn_space::{BasisElementIndices, BasisElements, BasisElementsRef, BasisId, DynSubspaceElement},
+    space::{BasisElementIndices, BasisElements, BasisElementsRef, BasisId, DynSubspaceElement},
 };
 
 use crate::{
@@ -75,7 +74,7 @@ impl AngularBasisElements {
 
     pub fn new<T: DynSubspaceElement>(
         full_basis: BasisElements,
-        l_index: BasisId,
+        l_index: BasisId<T>,
         conversion: impl Fn(&T) -> AngularMomentum,
     ) -> Self {
         let basis = full_basis.basis;
@@ -83,7 +82,7 @@ impl AngularBasisElements {
         let mut angular_indices: Vec<(AngularMomentum, BasisElementIndices)> = full_basis
             .elements_indices
             .into_iter()
-            .map(|indices| (conversion(cast_variant!(dyn indices.index(l_index, &basis), T)), indices))
+            .map(|indices| (conversion(indices.index(l_index, &basis)), indices))
             .collect();
         angular_indices.sort_by_key(|(l, _)| *l);
         let ordered_indices = angular_indices.iter().map(|x| x.1.clone()).collect();

@@ -7,12 +7,12 @@ use coupled_chan::{
     coupling::{AngularBlocks, Asymptote, RedCoupling, pair::Pair},
 };
 use hilbert_space::{
-    Parity, cast_variant,
-    dyn_space::{BasisElementsRef, SpaceBasis, SubspaceBasis},
+    Parity,
+    space::{BasisElementsRef, SpaceBasis, SubspaceBasis},
     operator_transform_mel,
 };
 use spin_algebra::{
-    Spin, clebsch_gordan, get_summed_spin_basis,
+    clebsch_gordan, get_summed_spin_basis,
     half_integer::{HalfI32, HalfU32},
     hu32,
 };
@@ -68,9 +68,9 @@ impl HomoDiatomBasis {
         };
 
         let basis = basis.get_filtered_basis(|element| {
-            let s_tot = cast_variant!(dyn element[combined_atom_basis.s], Spin);
-            let i_tot = cast_variant!(dyn element[combined_atom_basis.i], Spin);
-            let l = cast_variant!(dyn element[angular.l], AngularMomentum);
+            let s_tot = element[combined_atom_basis.s];
+            let i_tot = element[combined_atom_basis.i];
+            let l = element[angular.l];
 
             let even_spin = even_spin(s_max, i_max, s_tot.s, i_tot.s);
             let parity = match parity {
@@ -89,10 +89,10 @@ impl HomoDiatomBasis {
         let angular_sep = AngularBasis::new(recipe.l_max, &mut basis_sep);
 
         let basis_sep = basis_sep.get_filtered_basis(|element| {
-            let s_a = cast_variant!(dyn element[atom_a.s], Spin);
-            let i_a = cast_variant!(dyn element[atom_a.i], Spin);
-            let s_b = cast_variant!(dyn element[atom_b.s], Spin);
-            let i_b = cast_variant!(dyn element[atom_b.i], Spin);
+            let s_a = element[atom_a.s];
+            let i_a = element[atom_a.i];
+            let s_b = element[atom_b.s];
+            let i_b = element[atom_b.i];
 
             s_a.m + i_a.m + s_b.m + i_b.m == recipe.tot_projection
         });
@@ -100,11 +100,9 @@ impl HomoDiatomBasis {
 
         let transformation = |e_sep: BasisElementsRef<'_>, e: BasisElementsRef<'_>| {
             operator_transform_mel!(
-                dyn e_sep, [angular_sep.l, atom_a.s, atom_a.i, atom_b.s, atom_b.i],
-                dyn e, [angular.l, combined_atom_basis.s, combined_atom_basis.i],
-                |[l_sep: AngularMomentum, s1: Spin, i1: Spin, s2: Spin, i2: Spin],
-                    [l: AngularMomentum, s_tot: Spin, i_tot: Spin]|
-                {
+                e_sep, [angular_sep.l, atom_a.s, atom_a.i, atom_b.s, atom_b.i],
+                e, [angular.l, combined_atom_basis.s, combined_atom_basis.i],
+                |[l_sep, s1, i1, s2, i2], [l, s_tot, i_tot]| {
                     if l == l_sep {
                         clebsch_gordan(s1.s, s1.m, s2.s, s2.m, s_tot.s, s_tot.m)
                             * clebsch_gordan(i1.s, i1.m, i2.s, i2.m, i_tot.s, i_tot.m)

@@ -29,7 +29,7 @@ pub fn percival_coef(lambda: u32, l: Braket<&AngularMomentum>, n: Braket<&Angula
 }
 
 #[rustfmt::skip]
-pub fn percival_coef_tram_mel(lambda: u32, l: Braket<&AngularMomentum>, n: Braket<&AngularMomentum>, n_tot: Braket<&Spin>) -> f64 {
+pub fn percival_coef_tram_mel(lambda: u32, l: Braket<AngularMomentum>, n: Braket<AngularMomentum>, n_tot: Braket<Spin>) -> f64 {
     if n_tot.bra == n_tot.ket {
         let lambda = lambda.into();
 
@@ -57,26 +57,26 @@ pub fn percival_coef_tram_mel(lambda: u32, l: Braket<&AngularMomentum>, n: Brake
     }
 }
 
-pub fn singlet_projection_uncoupled(s1: Braket<&Spin>, s2: Braket<&Spin>) -> f64 {
+pub fn singlet_projection_uncoupled(s1: Braket<Spin>, s2: Braket<Spin>) -> f64 {
     let singlet_spin = Spin::zero();
-    SpinOps::clebsch_gordan(s1.bra, s2.bra, &singlet_spin) * SpinOps::clebsch_gordan(s1.ket, s2.ket, &singlet_spin)
+    SpinOps::clebsch_gordan(s1.bra, s2.bra, singlet_spin) * SpinOps::clebsch_gordan(s1.ket, s2.ket, singlet_spin)
 }
 
 #[rustfmt::skip]
-pub fn triplet_projection_uncoupled(s1: Braket<&Spin>, s2: Braket<&Spin>) -> f64 {
+pub fn triplet_projection_uncoupled(s1: Braket<Spin>, s2: Braket<Spin>) -> f64 {
     let mut value = 0.0;
 
     for ms in [-hi32!(1), hi32!(0), hi32!(1)] {
         let triplet_spin = Spin::new(hu32!(1), ms);
-        value += SpinOps::clebsch_gordan(s1.bra, s2.bra, &triplet_spin) 
-            * SpinOps::clebsch_gordan(s1.ket, s2.ket, &triplet_spin)
+        value += SpinOps::clebsch_gordan(s1.bra, s2.bra, triplet_spin) 
+            * SpinOps::clebsch_gordan(s1.ket, s2.ket, triplet_spin)
     }
 
     value
 }
 
 #[rustfmt::skip]
-pub fn spin_rot_tram_mel(l: Braket<&AngularMomentum>, n: Braket<&AngularMomentum>, n_tot: Braket<&Spin>, s: Braket<&Spin>) -> f64 {
+pub fn spin_rot_tram_mel(l: Braket<&AngularMomentum>, n: Braket<&AngularMomentum>, n_tot: Braket<Spin>, s: Braket<Spin>) -> f64 {
     if l.bra == l.ket && n.bra == n.ket && s.bra.s == s.ket.s {
         let l = l.bra.0.into();
         let n = n.bra.0.into();
@@ -107,9 +107,9 @@ pub fn spin_rot_tram_mel(l: Braket<&AngularMomentum>, n: Braket<&AngularMomentum
 pub fn aniso_hifi_tram_mel(
     l: Braket<&AngularMomentum>, 
     n: Braket<&AngularMomentum>, 
-    n_tot: Braket<&Spin>, 
-    s: Braket<&Spin>, 
-    i: Braket<&Spin>
+    n_tot: Braket<Spin>, 
+    s: Braket<Spin>, 
+    i: Braket<Spin>
 ) -> f64 {
     if l.bra == l.ket && s.bra.s == s.ket.s && i.bra.s == i.ket.s {
         let l: HalfU32 = l.bra.0.into();
@@ -148,9 +148,9 @@ pub fn aniso_hifi_tram_mel(
 pub fn dipole_dipole_tram_mel(
     l: Braket<&AngularMomentum>, 
     n: Braket<&AngularMomentum>, 
-    n_tot: Braket<&Spin>, 
-    s_r: Braket<&Spin>,
-    s_a: Braket<&Spin>
+    n_tot: Braket<Spin>, 
+    s_r: Braket<Spin>,
+    s_a: Braket<Spin>
 ) -> f64 {
     if n.bra == n.ket && s_r.bra.s == s_r.ket.s && s_a.bra.s == s_a.ket.s {
         let n = n.bra.0.into();
@@ -198,6 +198,6 @@ pub fn p3_factor(s: HalfU32) -> f64 {
 
 #[inline]
 /// Calculates (-1)^(s - ms)
-pub fn spin_phase_factor(s: &Spin) -> f64 {
+pub fn spin_phase_factor(s: Spin) -> f64 {
     (-1.0f64).powi((s.s.double_value() as i32 - s.m.double_value()) / 2)
 }

@@ -5,13 +5,13 @@ use coupled_chan::{
     coupling::{Asymptote, RedCoupling, composite::Composite, masked::Masked, pair::Pair},
     scaled_interaction::ScaledInteraction,
 };
-use hilbert_space::{cast_variant, dyn_space::SpaceBasis, operator_mel};
+use hilbert_space::{space::SpaceBasis, operator_mel};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use spin_algebra::{Spin, half_integer::HalfI32, hu32};
+use spin_algebra::{half_integer::HalfI32, hu32};
 
 use crate::{
-    AngularBasisElements, AngularMomentum, Hamiltonian, Structure,
+    AngularBasisElements, Hamiltonian, Structure,
     atom_structure::{AtomBasis, AtomBasisRecipe, AtomStructure},
     operator_mel::{percival_coef_tram_mel, singlet_projection_uncoupled, triplet_projection_uncoupled},
     rotor_structure::{Interaction2D, RotationalEnergy},
@@ -56,13 +56,13 @@ impl AtomRotorTRAMBasis {
                 return false;
             }
 
-            let n_tot = cast_variant!(dyn element[tram.n_tot], Spin);
-            let s_a = cast_variant!(dyn element[atom_a.s], Spin);
-            let i_a = cast_variant!(dyn element[atom_a.i], Spin);
-            let s_b = cast_variant!(dyn element[atom_b.s], Spin);
-            let i_b = cast_variant!(dyn element[atom_b.i], Spin);
-            let s_c = cast_variant!(dyn element[atom_c.s], Spin);
-            let i_c = cast_variant!(dyn element[atom_c.i], Spin);
+            let n_tot = element[tram.n_tot];
+            let s_a = element[atom_a.s];
+            let i_a = element[atom_a.i];
+            let s_b = element[atom_b.s];
+            let i_b = element[atom_b.i];
+            let s_c = element[atom_c.s];
+            let i_c = element[atom_c.i];
 
             s_a.m + i_a.m + s_b.m + i_b.m + s_c.m + i_c.m + n_tot.m == recipe.tot_projection
         });
@@ -92,9 +92,9 @@ impl<P: Interaction> PotentialSurface<P> {
             .iter()
             .map(|lambda| {
                 operator_mel!(
-                    dyn elements.full_basis,
+                    elements.full_basis,
                     [tram.l.l, tram.n.n, tram.n_tot],
-                    |[l: AngularMomentum, n: AngularMomentum, n_tot: Spin]| {
+                    |[l, n, n_tot]| {
                         percival_coef_tram_mel(lambda.0, l, n, n_tot)
                     }
                 )
@@ -121,9 +121,9 @@ impl<P: Interaction> PotentialSurface<P> {
             .iter()
             .map(|lambda| {
                 operator_mel!(
-                    dyn elements.full_basis,
+                    elements.full_basis,
                     [atom.s, rotor.s, tram.l.l, tram.n.n, tram.n_tot],
-                    |[s1: Spin, s2: Spin, l: AngularMomentum, n: AngularMomentum, n_tot: Spin]| {
+                    |[s1, s2, l, n, n_tot]| {
                         percival_coef_tram_mel(lambda.0, l, n, n_tot) * triplet_projection_uncoupled(s1, s2)
                     }
                 )
@@ -150,9 +150,9 @@ impl<P: Interaction> PotentialSurface<P> {
             .iter()
             .map(|lambda| {
                 operator_mel!(
-                    dyn elements.full_basis,
+                    elements.full_basis,
                     [atom.s, rotor.s, tram.l.l, tram.n.n, tram.n_tot],
-                    |[s1: Spin, s2: Spin, l: AngularMomentum, n: AngularMomentum, n_tot: Spin]| {
+                    |[s1, s2, l, n, n_tot]| {
                         percival_coef_tram_mel(lambda.0, l, n, n_tot) * singlet_projection_uncoupled(s1, s2)
                     }
                 )
