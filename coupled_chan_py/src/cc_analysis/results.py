@@ -155,19 +155,19 @@ class WaveFunctionData:
         return WaveFunctionData(df)
     
     def parameters(self) -> npt.NDArray:
-        return np.array(list(self.df["parameter"]))
+        return list(self.df["parameter"])
     
     def distances(self) -> npt.NDArray:
-        return np.array(list(self.df["distances"]))
+        return list(self.df["distances"])
     
     def values(self) -> npt.NDArray:
-        return np.array(list(self.df["values"]))
-    
+        return list(self.df["values"])
+
     def __len__(self) -> int:
         return self.df.shape[0]
 
     def __iter__(self):
-        return map(lambda i: WaveFunction(self.parameters()[i], self.distances()[i, :], self.values()[i, :]), range(self.df.shape[0]))
+        return map(lambda i: self[i], range(self.df.shape[0]))
     
-    def __getitem__(self, i: int):
-        return WaveFunction(self.parameters()[i], self.distances()[i, :], self.values()[i, :])
+    def __getitem__(self, i: int) -> WaveFunction:
+        return WaveFunction(np.array(self.parameters()[i]), np.array(self.distances()[i]), np.array(self.values()[i]))

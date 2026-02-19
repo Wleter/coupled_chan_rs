@@ -186,18 +186,32 @@ impl<'a, R: LogDerivativeReference, W: WMatrix, S: Step> DiabaticLogDerivative<'
     }
 
     fn step_r_target(&mut self, r: Option<f64>) {
-        let wavelength = get_wavelength(&self.step.w_matrix_buffer);
-
-        let dr_new = self.step_strat.get_step(self.solution.r, wavelength);
-        self.solution.dr = dr_new.clamp(0., 2. * self.solution.dr.abs()) * self.solution.dr.signum();
-
-        if let Some(r) = r
-            && (self.solution.r - r).abs() < self.solution.dr.abs()
-        {
-            self.solution.dr *= ((self.solution.r - r) / self.solution.dr).abs()
+        if let Some(watchers) = &mut self.watchers {
+            for w in watchers {
+                w.before_step(&self.solution);
+            }
         }
 
-        self.step.perform_step(&mut self.solution, &mut self.nodes, self.w_matrix);
+        {
+            let wavelength = get_wavelength(&self.step.w_matrix_buffer);
+    
+            let dr_new = self.step_strat.get_step(self.solution.r, wavelength);
+            self.solution.dr = dr_new.clamp(0., 2. * self.solution.dr.abs()) * self.solution.dr.signum();
+    
+            if let Some(r) = r
+                && (self.solution.r - r).abs() < self.solution.dr.abs()
+            {
+                self.solution.dr *= ((self.solution.r - r) / self.solution.dr).abs()
+            }
+    
+            self.step.perform_step(&mut self.solution, &mut self.nodes, self.w_matrix);
+        }
+
+        if let Some(watchers) = &mut self.watchers {
+            for w in watchers {
+                w.after_step(&self.solution);
+            }
+        }
     }
 }
 

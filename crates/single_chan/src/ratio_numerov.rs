@@ -1,7 +1,7 @@
 use std::f64::consts::PI;
 
 use crate::{
-    interaction::{Interaction, RedInteraction, WFunction},
+    interaction::WFunction,
     s_matrix::SMatrix,
 };
 use cc_math_utils::bessel::{riccati_j, riccati_n};
@@ -174,17 +174,17 @@ impl<W: WFunction, S: Step> Propagator<Ratio<f64>> for RatioNumerov<'_, W, S> {
     }
 }
 
-pub fn get_s_matrix<P: Interaction>(sol: &Solution<Ratio<f64>>, red_interaction: &RedInteraction<P>) -> SMatrix {
+pub fn get_s_matrix(sol: &Solution<Ratio<f64>>, w_function: &impl WFunction) -> SMatrix {
     let r_last = sol.r;
     let r_prev_last = sol.r - sol.dr;
 
-    let f_last = 1. + sol.dr * sol.dr / 12. * red_interaction.value(r_last);
-    let f_prev_last = 1. + sol.dr * sol.dr / 12. * red_interaction.value(r_prev_last);
+    let f_last = 1. + sol.dr * sol.dr / 12. * w_function.value(r_last);
+    let f_prev_last = 1. + sol.dr * sol.dr / 12. * w_function.value(r_prev_last);
 
     let wave_ratio = 1. / f_last * sol.sol.0 * f_prev_last;
 
-    let red_asymptote = red_interaction.asymptote();
-    let l = red_interaction.l();
+    let red_asymptote = w_function.asymptote();
+    let l = w_function.l();
 
     let momentum = red_asymptote.sqrt();
     if momentum.is_nan() {
