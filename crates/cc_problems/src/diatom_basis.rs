@@ -1,18 +1,50 @@
 use coupled_chan::{
-    Interaction, Operator,
-    cc_constants::{Gauss, Quantity},
-    coupling::{Asymptote, RedCoupling, masked::Masked, pair::Pair},
+    Interaction,
+    Operator,
+    cc_constants::{
+        Gauss,
+        Quantity,
+    },
+    coupling::{
+        Asymptote,
+        RedCoupling,
+        masked::Masked,
+        pair::Pair,
+    },
     scaled_interaction::ScaledInteraction,
 };
-use hilbert_space::{space::SpaceBasis, operator_diag_mel, operator_mel};
-use serde::{Deserialize, Serialize};
-use spin_algebra::{half_integer::HalfI32, hu32};
+use hilbert_space::{
+    operator_diag_mel,
+    operator_mel,
+    space::SpaceBasis,
+};
+use serde::{
+    Deserialize,
+    Serialize,
+};
+use spin_algebra::{
+    half_integer::HalfI32,
+    hu32,
+};
 
 use crate::{
-    AngularBasisElements, AngularMomentum, Hamiltonian, Structure,
-    atom_structure::{AtomBasis, AtomBasisRecipe, AtomStructure},
-    operator_mel::{singlet_projection_uncoupled, triplet_projection_uncoupled},
-    system_structure::{AngularBasis, SystemParams},
+    AngularBasisElements,
+    AngularMomentum,
+    Hamiltonian,
+    Structure,
+    atom_structure::{
+        AtomBasis,
+        AtomBasisRecipe,
+        AtomStructure,
+    },
+    operator_mel::{
+        singlet_projection_uncoupled,
+        triplet_projection_uncoupled,
+    },
+    system_structure::{
+        AngularBasis,
+        SystemParams,
+    },
 };
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]

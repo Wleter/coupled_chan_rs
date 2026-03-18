@@ -2,14 +2,24 @@ use cc_problems::{
     AngularMomentum,
     atom_structure::AtomBasisRecipe,
     coupled_chan::{
-        Composite, RedInteraction,
+        Composite,
+        RedInteraction,
         dispersion::Dispersion,
         log_derivative::diabatic::Johnson,
-        single_chan::{self, ratio_numerov::get_s_matrix},
+        single_chan::{
+            self,
+            ratio_numerov::get_s_matrix,
+        },
     },
-    homo_diatom_basis::{AlkaliHomoDiatom, HomoDiatomRecipe},
+    homo_diatom_basis::{
+        AlkaliHomoDiatom,
+        HomoDiatomRecipe,
+    },
     prelude::*,
-    spin_algebra::{hi32, hu32},
+    spin_algebra::{
+        hi32,
+        hu32,
+    },
 };
 
 fn main() {

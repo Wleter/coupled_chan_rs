@@ -243,7 +243,12 @@ mod tests {
     use crate::{
         assert_approx_eq,
         bessel::{
-            ratio_riccati_i, ratio_riccati_k, riccati_i_log_deriv, riccati_j_deriv, riccati_k_log_deriv, riccati_n_deriv,
+            ratio_riccati_i,
+            ratio_riccati_k,
+            riccati_i_log_deriv,
+            riccati_j_deriv,
+            riccati_k_log_deriv,
+            riccati_n_deriv,
         },
     };
 

@@ -5,10 +5,18 @@ pub mod s_matrix;
 
 pub use cc_constants;
 pub use cc_propagator;
-use cc_propagator::{Boundary, Direction, Propagator, Repr, step_strategy::Step};
+use cc_propagator::{
+    Boundary,
+    Direction,
+    Propagator,
+    Repr,
+    step_strategy::Step,
+};
 use faer::Mat;
-pub use single_chan;
-pub use single_chan::interaction::*;
+pub use single_chan::{
+    self,
+    interaction::*,
+};
 
 use crate::coupling::WMatrix;
 
@@ -37,16 +45,40 @@ pub trait CoupledPropagator<'a, W: WMatrix, R: Repr, S: Step>: Propagator<R> {
 
 #[cfg(test)]
 mod tests {
-    use cc_constants::units::atomic_units::{AuEnergy, AuMass, Bohr, Kelvin};
+    use cc_constants::units::atomic_units::{
+        AuEnergy,
+        AuMass,
+        Bohr,
+        Kelvin,
+    };
     use cc_math_utils::assert_approx_eq;
-    use cc_propagator::{Boundary, Direction, Propagator, step_strategy::LocalWavelengthStep};
+    use cc_propagator::{
+        Boundary,
+        Direction,
+        Propagator,
+        step_strategy::LocalWavelengthStep,
+    };
     use faer::mat;
-    use single_chan::interaction::{dispersion::lennard_jones, func_potential::FuncPotential};
+    use single_chan::interaction::{
+        dispersion::lennard_jones,
+        func_potential::FuncPotential,
+    };
 
     use crate::{
         Operator,
-        coupling::{Asymptote, Levels, RedCoupling, VanishingCoupling, diagonal::Diagonal, masked::Masked, pair::Pair},
-        log_derivative::diabatic::{JohnsonLogDerivative, ManolopoulosLogDerivative},
+        coupling::{
+            Asymptote,
+            Levels,
+            RedCoupling,
+            VanishingCoupling,
+            diagonal::Diagonal,
+            masked::Masked,
+            pair::Pair,
+        },
+        log_derivative::diabatic::{
+            JohnsonLogDerivative,
+            ManolopoulosLogDerivative,
+        },
         ratio_numerov::RatioNumerov,
         s_matrix::SMatrixGetter,
     };

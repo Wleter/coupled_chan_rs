@@ -36,11 +36,7 @@ where
     /// is a function r -> [0, 1]. 0 correspond to only near interaction
     /// and 1 correspond to only far interaction
     pub fn new(near: P, far: V, transition: F) -> Self {
-        Self {
-            near,
-            far,
-            transition,
-        }
+        Self { near, far, transition }
     }
 }
 
@@ -66,9 +62,9 @@ where
 
 /// Creates transition of the form
 /// 1/2 + 1/4 * sin(x) * (3 - sin^2(x))
-/// 
+///
 /// x is in range [-pi/2, pi/2] for r in [a, b]
-/// 
+///
 /// for r <= a it is 0 for r >= b it is 1
 pub fn sin_transition(a: f64, b: f64) -> impl Fn(f64) -> f64 + Clone {
     assert!(a < b, "0 width sin transition range");
@@ -76,7 +72,7 @@ pub fn sin_transition(a: f64, b: f64) -> impl Fn(f64) -> f64 + Clone {
     move |r| {
         if r <= a {
             0.
-        } else if r >= b{
+        } else if r >= b {
             1.
         } else {
             let x = ((r - b) - (a - r)) / (b - a);

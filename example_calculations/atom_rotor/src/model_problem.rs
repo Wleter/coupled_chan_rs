@@ -1,8 +1,18 @@
 use cc_problems::{
-    atom_rotor_basis::{AtomRotorTRAMRecipe, SinglePESAtomRotorTRAM},
-    coupled_chan::{Composite, dispersion::Dispersion, log_derivative::diabatic::Johnson},
+    atom_rotor_basis::{
+        AtomRotorTRAMRecipe,
+        SinglePESAtomRotorTRAM,
+    },
+    coupled_chan::{
+        Composite,
+        dispersion::Dispersion,
+        log_derivative::diabatic::Johnson,
+    },
     prelude::*,
-    rotor_structure::{Interaction2D, PESScaling},
+    rotor_structure::{
+        Interaction2D,
+        PESScaling,
+    },
     tram_basis::TRAMBasisRecipe,
 };
 

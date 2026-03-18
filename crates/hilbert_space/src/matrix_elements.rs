@@ -1,7 +1,15 @@
 use crate::{
-    operator::Operator, space::{BasisElementsRef, Id, SubspaceElement}
+    operator::Operator,
+    space::{
+        BasisElementsRef,
+        Id,
+        SubspaceElement,
+    },
 };
-use cc_matrix_utils::{MatrixCreation, MatrixLike};
+use cc_matrix_utils::{
+    MatrixCreation,
+    MatrixLike,
+};
 use num_traits::Zero;
 
 use crate::operator::Braket;
@@ -171,8 +179,13 @@ impl<M: MatrixLike> Operator<M> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        space::{BasisElements, BasisId, SpaceBasis, SubspaceBasis},
         operator_transform_mel,
+        space::{
+            BasisElements,
+            BasisId,
+            SpaceBasis,
+            SubspaceBasis,
+        },
     };
 
     #[derive(Clone, Copy, Debug, PartialEq)]
@@ -182,7 +195,10 @@ mod tests {
     #[derive(Clone, Copy, Debug, PartialEq)]
     pub struct Vibrational(i32);
 
-    fn basis() -> (BasisElements, (BasisId<ElectronSpin>, BasisId<NuclearSpin>, BasisId<Vibrational>)) {
+    fn basis() -> (
+        BasisElements,
+        (BasisId<ElectronSpin>, BasisId<NuclearSpin>, BasisId<Vibrational>),
+    ) {
         let mut basis = SpaceBasis::default();
 
         let e_basis = SubspaceBasis::new(vec![ElectronSpin(1, -1), ElectronSpin(1, 1)]);
@@ -424,7 +440,10 @@ mod tests {
     #[test]
     fn test_transform_faer() {
         use crate::operator::Operator;
-        use faer::{Mat, mat};
+        use faer::{
+            Mat,
+            mat,
+        };
 
         let (basis, (e_id, n_id, vib_id)) = basis();
 
@@ -443,17 +462,15 @@ mod tests {
         let basis_transform = basis_transform.get_basis();
 
         let transform: Operator<Mat<f64>> = operator_transform_mel!(
-            basis, [e_id, n_id, vib_id],
-            basis_transform, [s_transf_id, vib_transf_id],
+            basis,
+            [e_id, n_id, vib_id],
+            basis_transform,
+            [s_transf_id, vib_transf_id],
             |[e, n, _vib], [s, _vib_t]| {
                 if e.1 + n.1 != s.1 {
-                    return 0.
+                    return 0.;
                 }
-                let factor = if _vib.0 * _vib_t.0 == 2 {
-                    -1.
-                } else {
-                    1.
-                };
+                let factor = if _vib.0 * _vib_t.0 == 2 { -1. } else { 1. };
 
                 factor * (s.0 as f64 + 0.1 * s.1 as f64 + e.0 as f64)
             }

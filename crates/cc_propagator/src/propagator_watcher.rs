@@ -1,4 +1,7 @@
-use crate::{Repr, Solution};
+use crate::{
+    Repr,
+    Solution,
+};
 
 pub trait PropagatorWatcher<R: Repr> {
     fn init(&mut self, _sol: &Solution<R>) {}

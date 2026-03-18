@@ -115,7 +115,10 @@ macro_rules! cache_function {
 mod tests {
     use std::{
         thread::sleep,
-        time::{Duration, Instant},
+        time::{
+            Duration,
+            Instant,
+        },
     };
 
     const DURATION: u64 = 100;

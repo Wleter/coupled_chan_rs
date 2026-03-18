@@ -1,6 +1,6 @@
-pub mod space;
-pub mod operator;
 pub mod matrix_elements;
+pub mod operator;
+pub mod space;
 
 #[cfg(feature = "faer")]
 pub use faer;
@@ -11,7 +11,10 @@ pub use nalgebra;
 #[cfg(feature = "ndarray")]
 pub use ndarray;
 
-use serde::{Deserialize, Serialize};
+use serde::{
+    Deserialize,
+    Serialize,
+};
 
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
 pub enum Parity {

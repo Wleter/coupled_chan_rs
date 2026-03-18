@@ -2,7 +2,11 @@ use cc_constants::{
     Unit,
     units::{
         Quantity,
-        atomic_units::{AuEnergy, AuMass, Bohr},
+        atomic_units::{
+            AuEnergy,
+            AuMass,
+            Bohr,
+        },
     },
 };
 use cc_qol_utils::Composite;

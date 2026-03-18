@@ -1,22 +1,57 @@
 use anyhow::bail;
 use coupled_chan::{
-    Interaction, Operator,
-    cc_constants::units::{Gauss, Quantity},
-    coupling::{Asymptote, RedCoupling, composite::Composite, masked::Masked, pair::Pair},
+    Interaction,
+    Operator,
+    cc_constants::units::{
+        Gauss,
+        Quantity,
+    },
+    coupling::{
+        Asymptote,
+        RedCoupling,
+        composite::Composite,
+        masked::Masked,
+        pair::Pair,
+    },
     scaled_interaction::ScaledInteraction,
 };
-use hilbert_space::{space::SpaceBasis, operator_mel};
-use serde::{Deserialize, Serialize};
+use hilbert_space::{
+    operator_mel,
+    space::SpaceBasis,
+};
+use serde::{
+    Deserialize,
+    Serialize,
+};
 use serde_json::Value;
-use spin_algebra::{half_integer::HalfI32, hu32};
+use spin_algebra::{
+    half_integer::HalfI32,
+    hu32,
+};
 
 use crate::{
-    AngularBasisElements, Hamiltonian, Structure,
-    atom_structure::{AtomBasis, AtomBasisRecipe, AtomStructure},
-    operator_mel::{percival_coef_tram_mel, singlet_projection_uncoupled, triplet_projection_uncoupled},
-    rotor_structure::{Interaction2D, RotationalEnergy},
+    AngularBasisElements,
+    Hamiltonian,
+    Structure,
+    atom_structure::{
+        AtomBasis,
+        AtomBasisRecipe,
+        AtomStructure,
+    },
+    operator_mel::{
+        percival_coef_tram_mel,
+        singlet_projection_uncoupled,
+        triplet_projection_uncoupled,
+    },
+    rotor_structure::{
+        Interaction2D,
+        RotationalEnergy,
+    },
     system_structure::SystemParams,
-    tram_basis::{TRAMBasis, TRAMBasisRecipe},
+    tram_basis::{
+        TRAMBasis,
+        TRAMBasisRecipe,
+    },
 };
 
 /// Recipe for alkali atom-rotor problem A + B-C,
@@ -91,13 +126,9 @@ impl<P: Interaction> PotentialSurface<P> {
             .0
             .iter()
             .map(|lambda| {
-                operator_mel!(
-                    elements.full_basis,
-                    [tram.l.l, tram.n.n, tram.n_tot],
-                    |[l, n, n_tot]| {
-                        percival_coef_tram_mel(lambda.0, l, n, n_tot)
-                    }
-                )
+                operator_mel!(elements.full_basis, [tram.l.l, tram.n.n, tram.n_tot], |[l, n, n_tot]| {
+                    percival_coef_tram_mel(lambda.0, l, n, n_tot)
+                })
             })
             .filter(|a: &Operator| a.0 != zeros.0)
             .collect();

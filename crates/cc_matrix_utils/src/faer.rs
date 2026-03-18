@@ -1,15 +1,33 @@
 use std::slice;
 
 use faer::{
-    Mat, MatMut, MatRef, Par,
-    dyn_stack::{MemBuffer, MemStack, StackReq},
-    linalg::{self, cholesky, lu, temp_mat_scratch, temp_mat_uninit, temp_mat_zeroed},
+    Mat,
+    MatMut,
+    MatRef,
+    Par,
+    dyn_stack::{
+        MemBuffer,
+        MemStack,
+        StackReq,
+    },
+    linalg::{
+        self,
+        cholesky,
+        lu,
+        temp_mat_scratch,
+        temp_mat_uninit,
+        temp_mat_zeroed,
+    },
     mat,
     perm::PermRef,
-    unzip, zip,
+    unzip,
+    zip,
 };
 
-use crate::{MatrixCreation, MatrixLike};
+use crate::{
+    MatrixCreation,
+    MatrixLike,
+};
 impl<E> MatrixLike for Mat<E> {}
 
 impl<E> MatrixCreation<E> for Mat<E> {

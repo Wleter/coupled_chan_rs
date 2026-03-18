@@ -4,7 +4,10 @@ use cc_constants::{
     Unit,
     units::{
         Quantity,
-        atomic_units::{AuEnergy, AuMass},
+        atomic_units::{
+            AuEnergy,
+            AuMass,
+        },
     },
 };
 
@@ -12,9 +15,9 @@ use crate::interaction::dispersion::Centrifugal;
 
 pub mod dispersion;
 pub mod func_potential;
+pub mod interpolated;
 pub mod morse_long_range;
 pub mod scaled_interaction;
-pub mod interpolated;
 
 pub trait Interaction {
     fn value(&self, r: f64) -> f64;

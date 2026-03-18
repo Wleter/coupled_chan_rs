@@ -1,6 +1,9 @@
 pub use clebsch_gordan::*;
 
-use clebsch_gordan::half_integer::{HalfI32, HalfU32};
+use clebsch_gordan::half_integer::{
+    HalfI32,
+    HalfU32,
+};
 use hilbert_space::operator::Braket;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -112,10 +115,16 @@ impl SpinOps {
 
 #[cfg(test)]
 mod tests {
-    use clebsch_gordan::{hi32, hu32};
+    use clebsch_gordan::{
+        hi32,
+        hu32,
+    };
     use hilbert_space::operator::Braket;
 
-    use crate::{Spin, SpinOps};
+    use crate::{
+        Spin,
+        SpinOps,
+    };
 
     #[test]
     fn test_spin_operators() {

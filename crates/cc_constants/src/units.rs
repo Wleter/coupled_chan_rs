@@ -1,16 +1,32 @@
 pub mod atomic_units;
 pub use atomic_units::*;
 use serde::{
-    Deserialize, Serialize,
-    de::{Error, Visitor},
+    Deserialize,
+    Serialize,
+    de::{
+        Error,
+        Visitor,
+    },
     ser::SerializeTuple,
 };
 
 use std::{
-    fmt::{Debug, Display, LowerExp, UpperExp},
+    fmt::{
+        Debug,
+        Display,
+        LowerExp,
+        UpperExp,
+    },
     iter::Sum,
     marker::PhantomData,
-    ops::{Add, AddAssign, Div, Mul, Sub, SubAssign},
+    ops::{
+        Add,
+        AddAssign,
+        Div,
+        Mul,
+        Sub,
+        SubAssign,
+    },
 };
 
 pub trait Unit: Copy + Default {

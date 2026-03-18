@@ -1,6 +1,13 @@
-use nalgebra::{DMatrix, SMatrix, Scalar};
+use nalgebra::{
+    DMatrix,
+    SMatrix,
+    Scalar,
+};
 
-use crate::{MatrixCreation, MatrixLike};
+use crate::{
+    MatrixCreation,
+    MatrixLike,
+};
 impl<E: Scalar> MatrixLike for DMatrix<E> {}
 impl<E: Scalar, const N: usize, const M: usize> MatrixLike for SMatrix<E, N, M> {}
 

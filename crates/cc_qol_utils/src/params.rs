@@ -1,6 +1,12 @@
-use downcast_rs::{DowncastSync, impl_downcast};
+use downcast_rs::{
+    DowncastSync,
+    impl_downcast,
+};
 use dyn_clone::DynClone;
-use std::{any::TypeId, collections::HashMap};
+use std::{
+    any::TypeId,
+    collections::HashMap,
+};
 
 pub trait CloneAny: DynClone + DowncastSync {}
 impl_downcast!(sync CloneAny);

@@ -1,11 +1,24 @@
-use anyhow::{Result, anyhow};
+use anyhow::{
+    Result,
+    anyhow,
+};
 use serde::Serialize;
 use std::{
     fmt::LowerExp,
-    fs::{File, OpenOptions, create_dir_all},
-    io::{BufWriter, Write},
+    fs::{
+        File,
+        OpenOptions,
+        create_dir_all,
+    },
+    io::{
+        BufWriter,
+        Write,
+    },
     path::Path,
-    sync::mpsc::{Sender, channel},
+    sync::mpsc::{
+        Sender,
+        channel,
+    },
     thread::JoinHandle,
 };
 

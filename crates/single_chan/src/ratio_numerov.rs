@@ -4,9 +4,18 @@ use crate::{
     interaction::WFunction,
     s_matrix::SMatrix,
 };
-use cc_math_utils::bessel::{riccati_j, riccati_n};
+use cc_math_utils::bessel::{
+    riccati_j,
+    riccati_n,
+};
 use cc_propagator::{
-    Boundary, Direction, Propagator, Ratio, Solution, propagator_watcher::PropagatorWatcher, step_strategy::Step,
+    Boundary,
+    Direction,
+    Propagator,
+    Ratio,
+    Solution,
+    propagator_watcher::PropagatorWatcher,
+    step_strategy::Step,
 };
 use num_complex::Complex64;
 
@@ -219,13 +228,28 @@ fn get_wavelength(red_pot: f64) -> f64 {
 
 #[cfg(test)]
 mod tests {
-    use cc_constants::units::atomic_units::{AuEnergy, AuMass, Bohr, Kelvin};
+    use cc_constants::units::atomic_units::{
+        AuEnergy,
+        AuMass,
+        Bohr,
+        Kelvin,
+    };
     use cc_math_utils::assert_approx_eq;
-    use cc_propagator::{Boundary, Direction, Propagator};
+    use cc_propagator::{
+        Boundary,
+        Direction,
+        Propagator,
+    };
 
     use crate::{
-        interaction::{RedInteraction, dispersion::lennard_jones},
-        ratio_numerov::{RatioNumerov, get_s_matrix},
+        interaction::{
+            RedInteraction,
+            dispersion::lennard_jones,
+        },
+        ratio_numerov::{
+            RatioNumerov,
+            get_s_matrix,
+        },
         step_strategy::LocalWavelengthStep,
     };
 

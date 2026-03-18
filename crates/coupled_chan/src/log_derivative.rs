@@ -1,11 +1,26 @@
-use cc_math_utils::bessel::{riccati_i_log_deriv, riccati_j_deriv, riccati_k_log_deriv, riccati_n_deriv};
-use cc_propagator::{LogDeriv, Solution};
-use faer::{Mat, c64, linalg::solvers::DenseSolveCore as _};
+use cc_math_utils::bessel::{
+    riccati_i_log_deriv,
+    riccati_j_deriv,
+    riccati_k_log_deriv,
+    riccati_n_deriv,
+};
+use cc_propagator::{
+    LogDeriv,
+    Solution,
+};
+use faer::{
+    Mat,
+    c64,
+    linalg::solvers::DenseSolveCore as _,
+};
 
 use crate::{
     Operator,
     coupling::WMatrix,
-    s_matrix::{SMatrix, SMatrixGetter},
+    s_matrix::{
+        SMatrix,
+        SMatrixGetter,
+    },
 };
 
 pub mod diabatic;

@@ -3,14 +3,24 @@ pub mod diagonal;
 pub mod masked;
 pub mod pair;
 
-use std::{ops::Add, sync::Arc};
+use std::{
+    ops::Add,
+    sync::Arc,
+};
 
 use cc_constants::units::{
     Quantity,
-    atomic_units::{AuEnergy, AuMass},
+    atomic_units::{
+        AuEnergy,
+        AuMass,
+    },
 };
 use cc_matrix_utils::faer::diagonalize;
-use faer::{Mat, unzip, zip};
+use faer::{
+    Mat,
+    unzip,
+    zip,
+};
 
 use crate::Operator;
 

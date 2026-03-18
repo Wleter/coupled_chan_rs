@@ -4,13 +4,29 @@ use anyhow::Result;
 use cc_math_utils::brent_root_method;
 use coupled_chan::{
     Operator,
-    cc_constants::units::{Quantity, atomic_units::Bohr},
-    cc_propagator::{Boundary, Direction, NodeCountPropagator, Propagator, step_strategy::Step},
+    cc_constants::units::{
+        Quantity,
+        atomic_units::Bohr,
+    },
+    cc_propagator::{
+        Boundary,
+        Direction,
+        NodeCountPropagator,
+        Propagator,
+        step_strategy::Step,
+    },
     coupling::WMatrix,
-    log_derivative::diabatic::{DiabaticLogDerivative, LogDerivativeReference, WaveLogDerivStorage},
+    log_derivative::diabatic::{
+        DiabaticLogDerivative,
+        LogDerivativeReference,
+        WaveLogDerivStorage,
+    },
     vanishing_boundary,
 };
-use hilbert_space::faer::{self, Mat};
+use hilbert_space::faer::{
+    self,
+    Mat,
+};
 use serde::Serialize;
 
 #[derive(Clone, Debug)]

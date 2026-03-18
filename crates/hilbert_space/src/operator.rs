@@ -1,4 +1,9 @@
-use std::ops::{Add, AddAssign, Deref, DerefMut};
+use std::ops::{
+    Add,
+    AddAssign,
+    Deref,
+    DerefMut,
+};
 
 use cc_matrix_utils::MatrixLike;
 
@@ -172,9 +177,8 @@ macro_rules! operator_diag_mel {
 
 /// Create transformation operator from matrix elements in given basis
 /// # Syntax
-/// - `operator_transform_mel!($basis, [$($elements),*],
-///     $basis_transform, [$($elements_transform),*],
-///     |[$($arg),*], [$($arg_transf),*]| $body)`
+/// - `operator_transform_mel!($basis, [$($elements),*], $basis_transform,
+///   [$($elements_transform),*], |[$($arg),*], [$($arg_transf),*]| $body)`
 #[macro_export]
 macro_rules! operator_transform_mel {
     (

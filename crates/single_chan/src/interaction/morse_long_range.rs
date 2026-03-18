@@ -1,9 +1,15 @@
 use cc_constants::units::{
     Quantity,
-    atomic_units::{AuEnergy, Bohr},
+    atomic_units::{
+        AuEnergy,
+        Bohr,
+    },
 };
 
-use crate::interaction::{Interaction, dispersion::Dispersion};
+use crate::interaction::{
+    Interaction,
+    dispersion::Dispersion,
+};
 
 pub struct MorseLongRangeBuilder {
     d0: f64,

@@ -1,8 +1,19 @@
 use std::marker::PhantomData;
 
-use cc_matrix_utils::faer::{get_ldlt_inverse_buffer, inverse_ldlt_inplace, inverse_ldlt_inplace_nodes};
+use cc_matrix_utils::faer::{
+    get_ldlt_inverse_buffer,
+    inverse_ldlt_inplace,
+    inverse_ldlt_inplace_nodes,
+};
 use cc_propagator::{
-    Boundary, Direction, LogDeriv, NodeCountPropagator, Nodes, Propagator, Solution, propagator_watcher::PropagatorWatcher,
+    Boundary,
+    Direction,
+    LogDeriv,
+    NodeCountPropagator,
+    Nodes,
+    Propagator,
+    Solution,
+    propagator_watcher::PropagatorWatcher,
     step_strategy::Step,
 };
 use faer::{
@@ -10,11 +21,20 @@ use faer::{
     ColRef,
     Par::Seq,
     dyn_stack::MemBuffer,
-    linalg::{matmul::matmul, solvers::DenseSolveCore},
-    unzip, zip,
+    linalg::{
+        matmul::matmul,
+        solvers::DenseSolveCore,
+    },
+    unzip,
+    zip,
 };
 
-use crate::{CoupledPropagator, Operator, coupling::WMatrix, ratio_numerov::get_wavelength};
+use crate::{
+    CoupledPropagator,
+    Operator,
+    coupling::WMatrix,
+    ratio_numerov::get_wavelength,
+};
 
 // doi: 10.1063/1.451472
 pub trait LogDerivativeReference {
@@ -194,16 +214,16 @@ impl<'a, R: LogDerivativeReference, W: WMatrix, S: Step> DiabaticLogDerivative<'
 
         {
             let wavelength = get_wavelength(&self.step.w_matrix_buffer);
-    
+
             let dr_new = self.step_strat.get_step(self.solution.r, wavelength);
             self.solution.dr = dr_new.clamp(0., 2. * self.solution.dr.abs()) * self.solution.dr.signum();
-    
+
             if let Some(r) = r
                 && (self.solution.r - r).abs() < self.solution.dr.abs()
             {
                 self.solution.dr *= ((self.solution.r - r) / self.solution.dr).abs()
             }
-    
+
             self.step.perform_step(&mut self.solution, &mut self.nodes, self.w_matrix);
         }
 

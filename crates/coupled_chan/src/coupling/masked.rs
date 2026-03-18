@@ -1,7 +1,13 @@
-use faer::{unzip, zip};
+use faer::{
+    unzip,
+    zip,
+};
 use single_chan::interaction::Interaction;
 
-use crate::{Operator, coupling::VanishingCoupling};
+use crate::{
+    Operator,
+    coupling::VanishingCoupling,
+};
 
 #[derive(Debug, Clone)]
 pub struct Masked<P: Interaction> {

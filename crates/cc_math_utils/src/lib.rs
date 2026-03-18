@@ -1,4 +1,7 @@
-use std::{error::Error, fmt::Display};
+use std::{
+    error::Error,
+    fmt::Display,
+};
 
 pub mod bessel;
 pub mod legendre;
@@ -164,7 +167,10 @@ macro_rules! approx_eq {
 
 #[cfg(test)]
 mod tests {
-    use crate::{linspace, logspace};
+    use crate::{
+        linspace,
+        logspace,
+    };
 
     #[test]
     fn test_grids() {

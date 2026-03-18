@@ -1,7 +1,13 @@
 use cc_problems::{
-    atom_rotor_basis::{AlkaliAtomRotorTRAM, AtomRotorTRAMRecipe},
+    atom_rotor_basis::{
+        AlkaliAtomRotorTRAM,
+        AtomRotorTRAMRecipe,
+    },
     atom_structure::AtomBasisRecipe,
-    coupled_chan::{Composite, dispersion::Dispersion},
+    coupled_chan::{
+        Composite,
+        dispersion::Dispersion,
+    },
     prelude::*,
     rotor_structure::Interaction2D,
     system_structure::SystemParams,

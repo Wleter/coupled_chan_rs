@@ -1,23 +1,44 @@
 use anyhow::bail;
 use coupled_chan::{
     cc_constants::{
-        BOHR_MAG, G_FACTOR,
+        BOHR_MAG,
+        G_FACTOR,
         units::{
-            Frac, Quantity,
-            atomic_units::{AuEnergy, Gauss},
+            Frac,
+            Quantity,
+            atomic_units::{
+                AuEnergy,
+                Gauss,
+            },
         },
     },
     coupling::AngularBlocks,
 };
 use hilbert_space::{
-    space::{BasisId, SpaceBasis, SubspaceBasis},
-    operator_diag_mel, operator_mel,
+    operator_diag_mel,
+    operator_mel,
+    space::{
+        BasisId,
+        SpaceBasis,
+        SubspaceBasis,
+    },
 };
-use serde::{Deserialize, Serialize};
+use serde::{
+    Deserialize,
+    Serialize,
+};
 use serde_json::Value;
-use spin_algebra::{Spin, SpinOps, get_spin_basis, half_integer::HalfU32};
+use spin_algebra::{
+    Spin,
+    SpinOps,
+    get_spin_basis,
+    half_integer::HalfU32,
+};
 
-use crate::{AngularBasisElements, Structure};
+use crate::{
+    AngularBasisElements,
+    Structure,
+};
 
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
 pub struct AtomBasisRecipe {
@@ -94,11 +115,8 @@ pub struct HyperfineStructure {
 
 impl HyperfineStructure {
     pub fn new(elements: &AngularBasisElements, atom: &AtomBasis) -> Self {
-        let operator = elements.get_angular_blocks(|basis| {
-            operator_mel!(basis, [atom.s, atom.i], |[s, i]| {
-                SpinOps::dot(s, i)
-            })
-        });
+        let operator =
+            elements.get_angular_blocks(|basis| operator_mel!(basis, [atom.s, atom.i], |[s, i]| { SpinOps::dot(s, i) }));
 
         Self {
             a_hifi: Default::default(),
@@ -120,11 +138,7 @@ pub struct ZeemanSplitting {
 
 impl ZeemanSplitting {
     pub fn new(elements: &AngularBasisElements, s_id: BasisId<Spin>) -> Self {
-        let operator = elements.get_angular_blocks(|basis| {
-            operator_diag_mel!(basis, [s_id], |[s]| {
-                -s.m.value()
-            })
-        });
+        let operator = elements.get_angular_blocks(|basis| operator_diag_mel!(basis, [s_id], |[s]| { -s.m.value() }));
 
         Self {
             b_field: Default::default(),
@@ -144,7 +158,10 @@ mod tests {
     use serde_json::json;
     use spin_algebra::hu32;
 
-    use crate::{AngularMomentum, system_structure::AngularBasis};
+    use crate::{
+        AngularMomentum,
+        system_structure::AngularBasis,
+    };
 
     use super::*;
 

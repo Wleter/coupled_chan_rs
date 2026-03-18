@@ -1,6 +1,9 @@
 use ndarray::Array2;
 
-use crate::{MatrixCreation, MatrixLike};
+use crate::{
+    MatrixCreation,
+    MatrixLike,
+};
 impl<E> MatrixLike for Array2<E> {}
 
 impl<E> MatrixCreation<E> for Array2<E> {

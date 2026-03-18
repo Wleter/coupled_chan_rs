@@ -1,7 +1,12 @@
 use diol::prelude::*;
 use hilbert_space::faer::Mat;
 use spin_algebra::{
-    SpinOps, get_spin_basis, half_integer::{HalfI32, HalfU32}
+    SpinOps,
+    get_spin_basis,
+    half_integer::{
+        HalfI32,
+        HalfU32,
+    },
 };
 
 fn main() -> eyre::Result<()> {
@@ -16,9 +21,13 @@ fn main() -> eyre::Result<()> {
 }
 
 use hilbert_space::{
-    space::{BasisElements, SpaceBasis, SubspaceBasis},
     operator::Operator,
     operator_mel,
+    space::{
+        BasisElements,
+        SpaceBasis,
+        SubspaceBasis,
+    },
 };
 
 pub fn dynamic_operator(bencher: Bencher, size: u32) {
@@ -40,9 +49,7 @@ pub fn dynamic_operator(bencher: Bencher, size: u32) {
     });
 
     bencher.bench(|| {
-        let mut operator: Operator<Mat<f64>> = operator_mel!(&basis, [s2_id, s4_id], |[s2, s4]| {
-            SpinOps::dot(s2, s4)
-        });
+        let mut operator: Operator<Mat<f64>> = operator_mel!(&basis, [s2_id, s4_id], |[s2, s4]| { SpinOps::dot(s2, s4) });
 
         black_box(&mut operator);
     });

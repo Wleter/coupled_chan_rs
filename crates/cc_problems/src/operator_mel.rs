@@ -1,5 +1,13 @@
 use hilbert_space::operator::Braket;
-use spin_algebra::{Spin, SpinOps, half_integer::HalfU32, hi32, hu32, wigner_3j, wigner_6j};
+use spin_algebra::{
+    Spin,
+    SpinOps,
+    half_integer::HalfU32,
+    hi32,
+    hu32,
+    wigner_3j,
+    wigner_6j,
+};
 
 use crate::AngularMomentum;
 

@@ -1,21 +1,49 @@
-use std::{f64::consts::PI, mem::swap};
+use std::{
+    f64::consts::PI,
+    mem::swap,
+};
 
-use cc_math_utils::bessel::{ratio_riccati_i, ratio_riccati_k, riccati_j, riccati_n};
-use cc_matrix_utils::faer::{get_ldlt_inverse_buffer, inverse_ldlt_inplace};
+use cc_math_utils::bessel::{
+    ratio_riccati_i,
+    ratio_riccati_k,
+    riccati_j,
+    riccati_n,
+};
+use cc_matrix_utils::faer::{
+    get_ldlt_inverse_buffer,
+    inverse_ldlt_inplace,
+};
 use cc_propagator::{
-    Boundary, Direction, Propagator, Ratio, Solution, propagator_watcher::PropagatorWatcher, step_strategy::Step,
+    Boundary,
+    Direction,
+    Propagator,
+    Ratio,
+    Solution,
+    propagator_watcher::PropagatorWatcher,
+    step_strategy::Step,
 };
 use faer::{
-    Accum, Mat, Par, c64,
+    Accum,
+    Mat,
+    Par,
+    c64,
     dyn_stack::MemBuffer,
-    linalg::{matmul::matmul, solvers::DenseSolveCore},
-    unzip, zip,
+    linalg::{
+        matmul::matmul,
+        solvers::DenseSolveCore,
+    },
+    unzip,
+    zip,
 };
 
 use crate::{
-    CoupledPropagator, Operator,
+    CoupledPropagator,
+    Operator,
     coupling::WMatrix,
-    s_matrix::{SMatrix, SMatrixGetter},
+    s_matrix::{
+        SMatrix,
+        SMatrixGetter,
+    },
 };
 
 // todo! look whether V(r) is evaluated at correct values

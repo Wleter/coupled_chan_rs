@@ -1,10 +1,20 @@
 use coupled_chan::cc_constants::units::{
     Quantity,
-    atomic_units::{AuEnergy, AuMass},
+    atomic_units::{
+        AuEnergy,
+        AuMass,
+    },
 };
-use hilbert_space::space::{BasisId, SpaceBasis, SubspaceBasis};
+use hilbert_space::space::{
+    BasisId,
+    SpaceBasis,
+    SubspaceBasis,
+};
 
-use crate::{AngularMomentum, Structure};
+use crate::{
+    AngularMomentum,
+    Structure,
+};
 
 #[derive(Clone, Debug)]
 pub struct AngularBasis {

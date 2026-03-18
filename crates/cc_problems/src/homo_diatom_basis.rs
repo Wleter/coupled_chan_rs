@@ -1,27 +1,59 @@
 use coupled_chan::{
     Interaction,
     cc_constants::{
-        BOHR_MAG, G_FACTOR,
-        units::{Quantity, atomic_units::Gauss},
+        BOHR_MAG,
+        G_FACTOR,
+        units::{
+            Quantity,
+            atomic_units::Gauss,
+        },
     },
-    coupling::{AngularBlocks, Asymptote, RedCoupling, pair::Pair},
+    coupling::{
+        AngularBlocks,
+        Asymptote,
+        RedCoupling,
+        pair::Pair,
+    },
 };
 use hilbert_space::{
     Parity,
-    space::{BasisElementsRef, SpaceBasis, SubspaceBasis},
     operator_transform_mel,
+    space::{
+        BasisElementsRef,
+        SpaceBasis,
+        SubspaceBasis,
+    },
 };
 use spin_algebra::{
-    clebsch_gordan, get_summed_spin_basis,
-    half_integer::{HalfI32, HalfU32},
+    clebsch_gordan,
+    get_summed_spin_basis,
+    half_integer::{
+        HalfI32,
+        HalfU32,
+    },
     hu32,
 };
 
 use crate::{
-    AngularBasisElements, AngularMomentum, Hamiltonian, Structure,
-    atom_structure::{AtomBasis, AtomBasisRecipe, AtomStructure, HyperfineStructure, ZeemanSplitting},
-    diatom_basis::{PotentialCurve, PotentialCurveCoupling},
-    system_structure::{AngularBasis, SystemParams},
+    AngularBasisElements,
+    AngularMomentum,
+    Hamiltonian,
+    Structure,
+    atom_structure::{
+        AtomBasis,
+        AtomBasisRecipe,
+        AtomStructure,
+        HyperfineStructure,
+        ZeemanSplitting,
+    },
+    diatom_basis::{
+        PotentialCurve,
+        PotentialCurveCoupling,
+    },
+    system_structure::{
+        AngularBasis,
+        SystemParams,
+    },
 };
 
 #[derive(Clone, Debug, Default)]
@@ -100,8 +132,10 @@ impl HomoDiatomBasis {
 
         let transformation = |e_sep: BasisElementsRef<'_>, e: BasisElementsRef<'_>| {
             operator_transform_mel!(
-                e_sep, [angular_sep.l, atom_a.s, atom_a.i, atom_b.s, atom_b.i],
-                e, [angular.l, combined_atom_basis.s, combined_atom_basis.i],
+                e_sep,
+                [angular_sep.l, atom_a.s, atom_a.i, atom_b.s, atom_b.i],
+                e,
+                [angular.l, combined_atom_basis.s, combined_atom_basis.i],
                 |[l_sep, s1, i1, s2, i2], [l, s_tot, i_tot]| {
                     if l == l_sep {
                         clebsch_gordan(s1.s, s1.m, s2.s, s2.m, s_tot.s, s_tot.m)

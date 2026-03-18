@@ -1,7 +1,19 @@
-use downcast_rs::{DowncastSync, impl_downcast};
+use downcast_rs::{
+    DowncastSync,
+    impl_downcast,
+};
 use dyn_clone::DynClone;
 use std::{
-    fmt::{Debug, Display}, marker::PhantomData, ops::{Deref, Index}, ptr
+    fmt::{
+        Debug,
+        Display,
+    },
+    marker::PhantomData,
+    ops::{
+        Deref,
+        Index,
+    },
+    ptr,
 };
 
 use crate::cast_variant;
@@ -76,7 +88,10 @@ impl<Type: DynSubspaceElement> SubspaceBasisOf<Type> {
 
         let basis = basis.into_iter().map(|x| SubspaceElement(Box::new(x))).collect();
 
-        Self { basis, id: BasisId::new(0) }
+        Self {
+            basis,
+            id: BasisId::new(0),
+        }
     }
 
     pub fn forget(self) -> (SubspaceBasis, BasisId<Type>) {
@@ -111,7 +126,10 @@ impl SubspaceBasis {
 
         let basis = basis.into_iter().map(|x| SubspaceElement(Box::new(x))).collect();
 
-        SubspaceBasisOf { basis, id: BasisId::new(0) }
+        SubspaceBasisOf {
+            basis,
+            id: BasisId::new(0),
+        }
     }
 
     pub fn elements(&self) -> &[SubspaceElement] {
@@ -308,7 +326,7 @@ impl BasisElementsRef<'_> {
     pub fn as_ref(&self) -> Self {
         *self
     }
-    
+
     pub fn is_empty(&self) -> bool {
         self.elements_indices.is_empty()
     }
@@ -406,69 +424,24 @@ mod tests {
         let basis_elements = basis.get_basis();
         assert_eq!(basis_elements.len(), 4 * 2 * 2);
 
-        assert_eq!(
-            basis_elements[(0, e_id)],
-            ElectronSpin(2, -2)
-        );
-        assert_eq!(
-            basis_elements[(0, n_id)],
-            NuclearSpin(1, -1)
-        );
-        assert_eq!(
-            basis_elements[(0, vib_id)],
-            Vibrational(-1)
-        );
+        assert_eq!(basis_elements[(0, e_id)], ElectronSpin(2, -2));
+        assert_eq!(basis_elements[(0, n_id)], NuclearSpin(1, -1));
+        assert_eq!(basis_elements[(0, vib_id)], Vibrational(-1));
 
-        assert_eq!(
-            basis_elements[(1, e_id)],
-            ElectronSpin(2, 0)
-        );
-        assert_eq!(
-            basis_elements[(1, n_id)],
-            NuclearSpin(1, -1)
-        );
-        assert_eq!(
-            basis_elements[(1, vib_id)],
-            Vibrational(-1)
-        );
+        assert_eq!(basis_elements[(1, e_id)], ElectronSpin(2, 0));
+        assert_eq!(basis_elements[(1, n_id)], NuclearSpin(1, -1));
+        assert_eq!(basis_elements[(1, vib_id)], Vibrational(-1));
 
-        assert_eq!(
-            basis_elements[(4, e_id)],
-            ElectronSpin(2, -2)
-        );
-        assert_eq!(
-            basis_elements[(4, n_id)],
-            NuclearSpin(1, 1)
-        );
-        assert_eq!(
-            basis_elements[(4, vib_id)],
-            Vibrational(-1)
-        );
+        assert_eq!(basis_elements[(4, e_id)], ElectronSpin(2, -2));
+        assert_eq!(basis_elements[(4, n_id)], NuclearSpin(1, 1));
+        assert_eq!(basis_elements[(4, vib_id)], Vibrational(-1));
 
-        assert_eq!(
-            basis_elements[(5, e_id)],
-            ElectronSpin(2, 0)
-        );
-        assert_eq!(
-            basis_elements[(5, n_id)],
-            NuclearSpin(1, 1)
-        );
-        assert_eq!(
-            basis_elements[(5, vib_id)],
-            Vibrational(-1)
-        );
+        assert_eq!(basis_elements[(5, e_id)], ElectronSpin(2, 0));
+        assert_eq!(basis_elements[(5, n_id)], NuclearSpin(1, 1));
+        assert_eq!(basis_elements[(5, vib_id)], Vibrational(-1));
 
-        assert_eq!(
-            basis_elements[(8, e_id)],
-            ElectronSpin(2, -2)
-        );
-        assert_eq!(
-            basis_elements[(8, n_id)],
-            NuclearSpin(1, -1)
-        );
-        assert_eq!(
-            basis_elements[(8, vib_id)],
-            Vibrational(-2)
-        );
+        assert_eq!(basis_elements[(8, e_id)], ElectronSpin(2, -2));
+        assert_eq!(basis_elements[(8, n_id)], NuclearSpin(1, -1));
+        assert_eq!(basis_elements[(8, vib_id)], Vibrational(-2));
     }
 }

@@ -1,6 +1,10 @@
 use std::f64::consts::PI;
 
-use faer::{Mat, MatRef, c64};
+use faer::{
+    Mat,
+    MatRef,
+    c64,
+};
 use num_complex::Complex64;
 
 use crate::coupling::WMatrix;
