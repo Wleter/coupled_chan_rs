@@ -42,11 +42,11 @@ impl RotorBasis {
     }
 
     pub fn rotational_energy(&self, basis: &BasisElementsRef) -> Operator {
-        operator_diag_mel!(basis, [self.n], |[n]| { (n.0 * (n.0 + 1)) as f64 })
+        operator_diag_mel!(basis, [self.n], |[n]| (n.0 * (n.0 + 1)) as f64)
     }
 
     pub fn distortion(&self, basis: &BasisElementsRef) -> Operator {
-        operator_diag_mel!(basis, [self.n], |[n]| { -((n.0 * (n.0 + 1)).pow(2) as f64) })
+        operator_diag_mel!(basis, [self.n], |[n]| -((n.0 * (n.0 + 1)).pow(2) as f64))
     }
 }
 
@@ -58,8 +58,7 @@ pub struct RotationalEnergy {
 
 impl RotationalEnergy {
     pub fn new(basis: &AngularBasisElements, rot: &RotorBasis) -> Self {
-        let operator =
-            basis.get_angular_blocks(|basis| operator_diag_mel!(basis, [rot.n], |[n]| { (n.0 * (n.0 + 1)) as f64 }));
+        let operator = basis.get_angular_blocks(|basis| operator_diag_mel!(basis, [rot.n], |[n]| (n.0 * (n.0 + 1)) as f64));
 
         Self {
             rot_const: Default::default(),
@@ -80,8 +79,8 @@ pub struct DistortionEnergy {
 
 impl DistortionEnergy {
     pub fn new(basis: &AngularBasisElements, rot: &RotorBasis) -> Self {
-        let operator = basis
-            .get_angular_blocks(|basis| operator_diag_mel!(basis, [rot.n], |[n]| { -((n.0 * (n.0 + 1)).pow(2) as f64) }));
+        let operator =
+            basis.get_angular_blocks(|basis| operator_diag_mel!(basis, [rot.n], |[n]| -((n.0 * (n.0 + 1)).pow(2) as f64)));
 
         Self {
             distortion: Default::default(),

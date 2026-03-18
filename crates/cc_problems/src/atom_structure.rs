@@ -30,7 +30,7 @@ use serde::{
 use serde_json::Value;
 use spin_algebra::{
     Spin,
-    SpinOps,
+    dot,
     get_spin_basis,
     half_integer::HalfU32,
 };
@@ -115,8 +115,7 @@ pub struct HyperfineStructure {
 
 impl HyperfineStructure {
     pub fn new(elements: &AngularBasisElements, atom: &AtomBasis) -> Self {
-        let operator =
-            elements.get_angular_blocks(|basis| operator_mel!(basis, [atom.s, atom.i], |[s, i]| { SpinOps::dot(s, i) }));
+        let operator = elements.get_angular_blocks(|basis| operator_mel!(basis, [atom.s, atom.i], |[s, i]| dot(s, i)));
 
         Self {
             a_hifi: Default::default(),
@@ -138,7 +137,7 @@ pub struct ZeemanSplitting {
 
 impl ZeemanSplitting {
     pub fn new(elements: &AngularBasisElements, s_id: BasisId<Spin>) -> Self {
-        let operator = elements.get_angular_blocks(|basis| operator_diag_mel!(basis, [s_id], |[s]| { -s.m.value() }));
+        let operator = elements.get_angular_blocks(|basis| operator_diag_mel!(basis, [s_id], |[s]| -s.m.value()));
 
         Self {
             b_field: Default::default(),

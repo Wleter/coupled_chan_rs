@@ -1,9 +1,8 @@
-pub use clebsch_gordan::*;
-
 use clebsch_gordan::half_integer::{
     HalfI32,
     HalfU32,
 };
+pub use clebsch_gordan::*;
 use hilbert_space::operator::Braket;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -71,46 +70,42 @@ pub fn get_summed_spin_basis(s1: HalfU32, s2: HalfU32) -> Vec<Spin> {
         .collect()
 }
 
-pub struct SpinOps;
+#[inline]
+pub fn proj_z(spin: Braket<Spin>) -> f64 {
+    if spin.bra == spin.ket { spin.bra.m.value() } else { 0.0 }
+}
 
-impl SpinOps {
-    #[inline]
-    pub fn proj_z(spin: Braket<Spin>) -> f64 {
-        if spin.bra == spin.ket { spin.bra.m.value() } else { 0.0 }
+#[inline]
+pub fn ladder_plus(spin: Braket<Spin>) -> f64 {
+    if spin.bra.s == spin.ket.s && spin.bra.m.double_value() == spin.ket.m.double_value() + 2 {
+        (spin.ket.s.value() * (spin.ket.s.value() + 1.) - spin.bra.m.value() * spin.ket.m.value()).sqrt()
+    } else {
+        0.0
     }
+}
 
-    #[inline]
-    pub fn ladder_plus(spin: Braket<Spin>) -> f64 {
-        if spin.bra.s == spin.ket.s && spin.bra.m.double_value() == spin.ket.m.double_value() + 2 {
-            (spin.ket.s.value() * (spin.ket.s.value() + 1.) - spin.bra.m.value() * spin.ket.m.value()).sqrt()
-        } else {
-            0.0
-        }
+#[inline]
+pub fn ladder_minus(spin: Braket<Spin>) -> f64 {
+    if spin.bra.s == spin.ket.s && spin.bra.m.double_value() + 2 == spin.ket.m.double_value() {
+        (spin.ket.s.value() * (spin.ket.s.value() + 1.) - spin.bra.m.value() * spin.ket.m.value()).sqrt()
+    } else {
+        0.0
     }
+}
 
-    #[inline]
-    pub fn ladder_minus(spin: Braket<Spin>) -> f64 {
-        if spin.bra.s == spin.ket.s && spin.bra.m.double_value() + 2 == spin.ket.m.double_value() {
-            (spin.ket.s.value() * (spin.ket.s.value() + 1.) - spin.bra.m.value() * spin.ket.m.value()).sqrt()
-        } else {
-            0.0
-        }
-    }
+#[inline]
+pub fn dot(spin1: Braket<Spin>, spin2: Braket<Spin>) -> f64 {
+    let val1 = proj_z(spin1) * proj_z(spin2);
+    let val2 = 0.5 * ladder_plus(spin1) * ladder_minus(spin2);
+    let val3 = 0.5 * ladder_minus(spin1) * ladder_plus(spin2);
 
-    #[inline]
-    pub fn dot(spin1: Braket<Spin>, spin2: Braket<Spin>) -> f64 {
-        let val1 = Self::proj_z(spin1) * Self::proj_z(spin2);
-        let val2 = 0.5 * Self::ladder_plus(spin1) * Self::ladder_minus(spin2);
-        let val3 = 0.5 * Self::ladder_minus(spin1) * Self::ladder_plus(spin2);
+    val1 + val2 + val3
+}
 
-        val1 + val2 + val3
-    }
-
-    /// Compute Clebsch-Gordan coefficient <spin1; spin2 | spin3>.
-    #[inline]
-    pub fn clebsch_gordan(spin1: Spin, spin2: Spin, spin3: Spin) -> f64 {
-        clebsch_gordan::clebsch_gordan(spin1.s, spin1.m, spin2.s, spin2.m, spin3.s, spin3.m)
-    }
+/// Compute Clebsch-Gordan coefficient <spin1; spin2 | spin3>.
+#[inline]
+pub fn clebsch_gordan_coef(spin1: Spin, spin2: Spin, spin3: Spin) -> f64 {
+    clebsch_gordan::clebsch_gordan(spin1.s, spin1.m, spin2.s, spin2.m, spin3.s, spin3.m)
 }
 
 #[cfg(test)]
@@ -123,7 +118,10 @@ mod tests {
 
     use crate::{
         Spin,
-        SpinOps,
+        clebsch_gordan_coef,
+        ladder_minus,
+        ladder_plus,
+        proj_z,
     };
 
     #[test]
@@ -133,37 +131,37 @@ mod tests {
         let s3 = Spin::new(hu32!(5 / 2), hi32!(3 / 2));
         let s4 = Spin::new(hu32!(6), hi32!(4));
 
-        let mel = SpinOps::proj_z(Braket::new(s1, s1));
+        let mel = proj_z(Braket::new(s1, s1));
         assert_eq!(mel, 1.5);
 
-        let mel = SpinOps::proj_z(Braket::new(s1, s2));
+        let mel = proj_z(Braket::new(s1, s2));
         assert_eq!(mel, 0.);
 
-        let mel = SpinOps::proj_z(Braket::new(s1, s3));
+        let mel = proj_z(Braket::new(s1, s3));
         assert_eq!(mel, 0.);
 
-        let mel = SpinOps::ladder_plus(Braket::new(s2, s1));
+        let mel = ladder_plus(Braket::new(s2, s1));
         assert_eq!(mel, f64::sqrt(48.) / 2.);
 
-        let mel = SpinOps::ladder_plus(Braket::new(s1, s2));
+        let mel = ladder_plus(Braket::new(s1, s2));
         assert_eq!(mel, 0.);
 
-        let mel = SpinOps::ladder_plus(Braket::new(s2, s3));
+        let mel = ladder_plus(Braket::new(s2, s3));
         assert_eq!(mel, 0.);
 
-        let mel = SpinOps::ladder_minus(Braket::new(s1, s2));
+        let mel = ladder_minus(Braket::new(s1, s2));
         assert_eq!(mel, f64::sqrt(48.) / 2.);
 
-        let mel = SpinOps::ladder_minus(Braket::new(s2, s1));
+        let mel = ladder_minus(Braket::new(s2, s1));
         assert_eq!(mel, 0.);
 
-        let mel = SpinOps::ladder_minus(Braket::new(s3, s2));
+        let mel = ladder_minus(Braket::new(s3, s2));
         assert_eq!(mel, 0.);
 
-        let mel = SpinOps::clebsch_gordan(s1, s2, s4);
+        let mel = clebsch_gordan_coef(s1, s2, s4);
         assert_eq!(mel, -f64::sqrt(7. / 11.) / 2.);
 
-        let mel = SpinOps::clebsch_gordan(s2, s3, s4);
+        let mel = clebsch_gordan_coef(s2, s3, s4);
         assert_eq!(mel, f64::sqrt(35. / 66.));
     }
 }

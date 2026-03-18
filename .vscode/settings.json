@@ -2,6 +2,9 @@
     "rust-analyzer.cargo.features": "all",
     "cSpell.words": [
         "braket",
+        "clebsch",
+        "coef",
+        "gordan",
         "Hartree",
         "ldlt",
         "Manolopoulos"

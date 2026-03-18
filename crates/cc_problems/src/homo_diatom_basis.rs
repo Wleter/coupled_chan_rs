@@ -25,7 +25,7 @@ use hilbert_space::{
     },
 };
 use spin_algebra::{
-    clebsch_gordan,
+    clebsch_gordan_coef,
     get_summed_spin_basis,
     half_integer::{
         HalfI32,
@@ -138,8 +138,7 @@ impl HomoDiatomBasis {
                 [angular.l, combined_atom_basis.s, combined_atom_basis.i],
                 |[l_sep, s1, i1, s2, i2], [l, s_tot, i_tot]| {
                     if l == l_sep {
-                        clebsch_gordan(s1.s, s1.m, s2.s, s2.m, s_tot.s, s_tot.m)
-                            * clebsch_gordan(i1.s, i1.m, i2.s, i2.m, i_tot.s, i_tot.m)
+                        clebsch_gordan_coef(s1, s2, s_tot) * clebsch_gordan_coef(i1, i2, i_tot)
                     } else {
                         0.
                     }

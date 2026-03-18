@@ -1,7 +1,7 @@
 use hilbert_space::operator::Braket;
 use spin_algebra::{
     Spin,
-    SpinOps,
+    clebsch_gordan_coef,
     half_integer::HalfU32,
     hi32,
     hu32,
@@ -67,7 +67,7 @@ pub fn percival_coef_tram_mel(lambda: u32, l: Braket<AngularMomentum>, n: Braket
 
 pub fn singlet_projection_uncoupled(s1: Braket<Spin>, s2: Braket<Spin>) -> f64 {
     let singlet_spin = Spin::zero();
-    SpinOps::clebsch_gordan(s1.bra, s2.bra, singlet_spin) * SpinOps::clebsch_gordan(s1.ket, s2.ket, singlet_spin)
+    clebsch_gordan_coef(s1.bra, s2.bra, singlet_spin) * clebsch_gordan_coef(s1.ket, s2.ket, singlet_spin)
 }
 
 #[rustfmt::skip]
@@ -76,8 +76,8 @@ pub fn triplet_projection_uncoupled(s1: Braket<Spin>, s2: Braket<Spin>) -> f64 {
 
     for ms in [-hi32!(1), hi32!(0), hi32!(1)] {
         let triplet_spin = Spin::new(hu32!(1), ms);
-        value += SpinOps::clebsch_gordan(s1.bra, s2.bra, triplet_spin) 
-            * SpinOps::clebsch_gordan(s1.ket, s2.ket, triplet_spin)
+        value += clebsch_gordan_coef(s1.bra, s2.bra, triplet_spin) 
+            * clebsch_gordan_coef(s1.ket, s2.ket, triplet_spin)
     }
 
     value
