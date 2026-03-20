@@ -4,9 +4,18 @@
         "braket",
         "clebsch",
         "coef",
+        "Diabatic",
+        "dspin",
+        "eigen",
+        "faer",
         "gordan",
         "Hartree",
+        "inplace",
         "ldlt",
-        "Manolopoulos"
+        "Manolopoulos",
+        "matmul",
+        "ncols",
+        "nrows",
+        "Numerov"
     ],
 }

@@ -5,11 +5,12 @@ edition.workspace = true
 
 [dependencies]
 puruspe = "0.4.1"
-faer = { workspace = true }
+faer = { workspace = true, optional = true }
 nalgebra = { workspace = true, optional = true}
 ndarray = { workspace = true, optional = true}
 
 [features]
-faer = []
+default = []
+faer = ["dep:faer"]
 nalgebra = ["dep:nalgebra"]
 ndarray = ["dep:ndarray"]

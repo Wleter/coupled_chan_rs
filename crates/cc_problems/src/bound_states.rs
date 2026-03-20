@@ -11,8 +11,8 @@ use coupled_chan::{
     cc_propagator::{
         Boundary,
         Direction,
-        NodeCountPropagator,
         Propagator,
+        WithNodeCount,
         step_strategy::Step,
     },
     coupling::WMatrix,

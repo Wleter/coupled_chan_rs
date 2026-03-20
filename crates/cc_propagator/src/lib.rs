@@ -1,6 +1,11 @@
 pub mod propagator_watcher;
 pub mod step_strategy;
 
+#[cfg(feature = "multi_channel")]
+pub mod multi_channel;
+#[cfg(feature = "single_channel")]
+pub mod single_channel;
+
 pub trait Repr {}
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -40,6 +45,32 @@ pub trait Propagator<R: Repr> {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Nodes(pub u64);
 
-pub trait NodeCountPropagator<R: Repr>: Propagator<R> {
+pub trait WithNodeCount {
     fn nodes(&self) -> Nodes;
+}
+
+pub trait WithWaveStorage<T> {
+    fn init_wave_storage(&mut self);
+    fn get_wave_storage(&self) -> Option<&WaveStorage<T>>;
+}
+
+pub struct WaveStorage<T> {
+    rs: Vec<f64>,
+    connections: Vec<T>,
+}
+
+impl<T> Default for WaveStorage<T> {
+    fn default() -> Self {
+        Self {
+            rs: vec![],
+            connections: vec![],
+        }
+    }
+}
+
+impl<T: Clone> WaveStorage<T> {
+    pub fn push(&mut self, r: f64, connection: &T) {
+        self.rs.push(r);
+        self.connections.push(connection.clone());
+    }
 }

@@ -1,24 +1,29 @@
 use std::marker::PhantomData;
 
-use cc_matrix_utils::faer::{
-    get_ldlt_inverse_buffer,
-    inverse_ldlt_inplace,
-    inverse_ldlt_inplace_nodes,
-};
-use cc_propagator::{
+use crate::{
     Boundary,
     Direction,
     LogDeriv,
     Nodes,
     Propagator,
     Solution,
+    WaveStorage,
     WithNodeCount,
-    propagator_watcher::PropagatorWatcher,
+    WithWaveStorage,
+    multi_channel::{
+        Matrix,
+        WMatrix,
+        local_wavelength,
+    },
     step_strategy::Step,
+};
+use cc_matrix_utils::faer::{
+    get_ldlt_inverse_buffer,
+    inverse_ldlt_inplace,
+    inverse_ldlt_inplace_nodes,
 };
 use faer::{
     Accum::Replace,
-    ColRef,
     Par::Seq,
     dyn_stack::MemBuffer,
     linalg::{
@@ -29,58 +34,51 @@ use faer::{
     zip,
 };
 
-use crate::{
-    CoupledPropagator,
-    Operator,
-    coupling::WMatrix,
-    ratio_numerov::get_wavelength,
-};
-
 // doi: 10.1063/1.451472
-pub trait LogDerivativeReference {
-    fn w_ref(w_c: &Operator, w_ref: &mut Operator);
+pub trait LogDerivReference {
+    fn w_ref(w_c: &Matrix, w_ref: &mut Matrix);
 
-    fn imbedding1(h: f64, w_ref: &Operator, out: &mut Operator);
-    fn imbedding2(h: f64, w_ref: &Operator, out: &mut Operator);
-    fn imbedding3(h: f64, w_ref: &Operator, out: &mut Operator);
-    fn imbedding4(h: f64, w_ref: &Operator, out: &mut Operator);
+    fn imbedding1(h: f64, w_ref: &Matrix, out: &mut Matrix);
+    fn imbedding2(h: f64, w_ref: &Matrix, out: &mut Matrix);
+    fn imbedding3(h: f64, w_ref: &Matrix, out: &mut Matrix);
+    fn imbedding4(h: f64, w_ref: &Matrix, out: &mut Matrix);
 }
 
 pub type JohnsonLogDerivative<'a, W, S> = DiabaticLogDerivative<'a, Johnson, W, S>;
 pub type ManolopoulosLogDerivative<'a, W, S> = DiabaticLogDerivative<'a, DiabaticManolopoulos, W, S>;
 
 pub struct Johnson;
-impl LogDerivativeReference for Johnson {
-    fn w_ref(_w_c: &Operator, w_ref: &mut Operator) {
+impl LogDerivReference for Johnson {
+    fn w_ref(_w_c: &Matrix, w_ref: &mut Matrix) {
         w_ref.fill(0.);
     }
 
-    fn imbedding1(h: f64, _w_ref: &Operator, out: &mut Operator) {
+    fn imbedding1(h: f64, _w_ref: &Matrix, out: &mut Matrix) {
         out.fill(0.);
 
         out.diagonal_mut().column_vector_mut().iter_mut().for_each(|y1| *y1 = 1.0 / h);
     }
 
-    fn imbedding2(h: f64, _w_ref: &Operator, out: &mut Operator) {
+    fn imbedding2(h: f64, _w_ref: &Matrix, out: &mut Matrix) {
         out.fill(0.);
 
         out.diagonal_mut().column_vector_mut().iter_mut().for_each(|y2| *y2 = 1.0 / h);
     }
 
     #[inline]
-    fn imbedding3(h: f64, w_ref: &Operator, out: &mut Operator) {
+    fn imbedding3(h: f64, w_ref: &Matrix, out: &mut Matrix) {
         Self::imbedding2(h, w_ref, out);
     }
 
     #[inline]
-    fn imbedding4(h: f64, w_ref: &Operator, out: &mut Operator) {
+    fn imbedding4(h: f64, w_ref: &Matrix, out: &mut Matrix) {
         Self::imbedding1(h, w_ref, out);
     }
 }
 
 pub struct DiabaticManolopoulos;
-impl LogDerivativeReference for DiabaticManolopoulos {
-    fn w_ref(w_c: &Operator, w_ref: &mut Operator) {
+impl LogDerivReference for DiabaticManolopoulos {
+    fn w_ref(w_c: &Matrix, w_ref: &mut Matrix) {
         w_ref.fill(0.);
 
         w_ref
@@ -91,7 +89,7 @@ impl LogDerivativeReference for DiabaticManolopoulos {
             .for_each(|(w_ref, &w_c)| *w_ref = w_c);
     }
 
-    fn imbedding1(h: f64, w_ref: &Operator, out: &mut Operator) {
+    fn imbedding1(h: f64, w_ref: &Matrix, out: &mut Matrix) {
         out.fill(0.);
 
         out.diagonal_mut()
@@ -107,7 +105,7 @@ impl LogDerivativeReference for DiabaticManolopoulos {
             });
     }
 
-    fn imbedding2(h: f64, w_ref: &Operator, out: &mut Operator) {
+    fn imbedding2(h: f64, w_ref: &Matrix, out: &mut Matrix) {
         out.fill(0.);
 
         out.diagonal_mut()
@@ -124,39 +122,38 @@ impl LogDerivativeReference for DiabaticManolopoulos {
     }
 
     #[inline]
-    fn imbedding3(h: f64, w_ref: &Operator, out: &mut Operator) {
+    fn imbedding3(h: f64, w_ref: &Matrix, out: &mut Matrix) {
         Self::imbedding2(h, w_ref, out);
     }
 
     #[inline]
-    fn imbedding4(h: f64, w_ref: &Operator, out: &mut Operator) {
+    fn imbedding4(h: f64, w_ref: &Matrix, out: &mut Matrix) {
         Self::imbedding1(h, w_ref, out);
     }
 }
 
 pub struct DiabaticLogDerivative<'a, R, W, S>
 where
-    R: LogDerivativeReference,
-    W: WMatrix,
+    R: LogDerivReference,
+    W: WMatrix<f64>,
     S: Step,
 {
     w_matrix: &'a W,
-    solution: Solution<LogDeriv<Operator>>,
+    solution: Solution<LogDeriv<Matrix>>,
     nodes: Nodes,
-    watchers: Option<Vec<&'a mut dyn PropagatorWatcher<LogDeriv<Operator>>>>,
 
     step: LogDerivativeStep<R>,
     step_strat: S,
 }
 
-impl<'a, R: LogDerivativeReference, W: WMatrix, S: Step> DiabaticLogDerivative<'a, R, W, S> {
-    pub fn new(w_matrix: &'a W, step_strat: S, boundary: Boundary<Operator>) -> Self {
+impl<'a, R: LogDerivReference, W: WMatrix<f64>, S: Step> DiabaticLogDerivative<'a, R, W, S> {
+    pub fn new(w_matrix: &'a W, step_strat: S, boundary: Boundary<Matrix>) -> Self {
         let r = boundary.r_start;
 
         let mut step = LogDerivativeStep::new(w_matrix.size());
 
         w_matrix.value_inplace(r, &mut step.w_matrix_buffer);
-        let local_wavelength = get_wavelength(&step.w_matrix_buffer);
+        let local_wavelength = local_wavelength(&step.w_matrix_buffer);
 
         let dr = match boundary.direction {
             Direction::Inwards => -(step_strat.get_step(r, local_wavelength).abs()),
@@ -166,9 +163,7 @@ impl<'a, R: LogDerivativeReference, W: WMatrix, S: Step> DiabaticLogDerivative<'
         let sol = Solution {
             r,
             dr,
-            sol: LogDeriv(Operator::new(
-                boundary.derivative.0 * boundary.value.partial_piv_lu().inverse(),
-            )),
+            sol: LogDeriv(boundary.derivative * boundary.value.partial_piv_lu().inverse()),
         };
 
         Self {
@@ -177,134 +172,87 @@ impl<'a, R: LogDerivativeReference, W: WMatrix, S: Step> DiabaticLogDerivative<'
             nodes: Nodes(0),
             step_strat,
             w_matrix,
-            watchers: None,
         }
-    }
-
-    pub fn with_wave_storage(&mut self, storage: WaveLogDerivStorage) {
-        self.step.wave_storage = Some(storage)
-    }
-
-    pub fn wave_storage(&self) -> &Option<WaveLogDerivStorage> {
-        &self.step.wave_storage
-    }
-
-    pub fn add_watcher(&mut self, watcher: &'a mut impl PropagatorWatcher<LogDeriv<Operator>>) {
-        if let Some(watchers) = &mut self.watchers {
-            watchers.push(watcher)
-        } else {
-            self.watchers = Some(vec![watcher])
-        }
-    }
-
-    pub fn set_watchers(&mut self, watchers: Vec<&'a mut dyn PropagatorWatcher<LogDeriv<Operator>>>) {
-        self.watchers = Some(watchers)
-    }
-
-    pub fn remove_watchers(&mut self) {
-        self.watchers = None
     }
 
     fn step_r_target(&mut self, r: Option<f64>) {
-        if let Some(watchers) = &mut self.watchers {
-            for w in watchers {
-                w.before_step(&self.solution);
-            }
-        }
+        let wavelength = local_wavelength(&self.step.w_matrix_buffer);
 
+        let dr_new = self.step_strat.get_step(self.solution.r, wavelength);
+        self.solution.dr = dr_new.clamp(0., 2. * self.solution.dr.abs()) * self.solution.dr.signum();
+
+        if let Some(r) = r
+            && (self.solution.r - r).abs() < self.solution.dr.abs()
         {
-            let wavelength = get_wavelength(&self.step.w_matrix_buffer);
-
-            let dr_new = self.step_strat.get_step(self.solution.r, wavelength);
-            self.solution.dr = dr_new.clamp(0., 2. * self.solution.dr.abs()) * self.solution.dr.signum();
-
-            if let Some(r) = r
-                && (self.solution.r - r).abs() < self.solution.dr.abs()
-            {
-                self.solution.dr *= ((self.solution.r - r) / self.solution.dr).abs()
-            }
-
-            self.step.perform_step(&mut self.solution, &mut self.nodes, self.w_matrix);
+            self.solution.dr *= ((self.solution.r - r) / self.solution.dr).abs()
         }
 
-        if let Some(watchers) = &mut self.watchers {
-            for w in watchers {
-                w.after_step(&self.solution);
-            }
-        }
+        self.step.perform_step(&mut self.solution, &mut self.nodes, self.w_matrix);
     }
 }
 
-impl<R: LogDerivativeReference, W: WMatrix, S: Step> Propagator<LogDeriv<Operator>> for DiabaticLogDerivative<'_, R, W, S> {
-    fn step(&mut self) -> &Solution<LogDeriv<Operator>> {
+impl<R: LogDerivReference, W: WMatrix<f64>, S: Step> Propagator<LogDeriv<Matrix>> for DiabaticLogDerivative<'_, R, W, S> {
+    fn step(&mut self) -> &Solution<LogDeriv<Matrix>> {
         self.step_r_target(None);
 
         &self.solution
     }
 
-    fn propagate_to(&mut self, r: f64) -> &Solution<LogDeriv<Operator>> {
-        if let Some(watchers) = &mut self.watchers {
-            for w in watchers {
-                w.init(&self.solution);
-            }
-        }
-
+    fn propagate_to(&mut self, r: f64) -> &Solution<LogDeriv<Matrix>> {
         while (self.solution.r - r) * self.solution.dr.signum() < 0. {
             self.step_r_target(Some(r));
-        }
-
-        if let Some(watchers) = &mut self.watchers {
-            for w in watchers {
-                w.finalize(&self.solution);
-            }
         }
 
         &self.solution
     }
 }
 
-impl<R: LogDerivativeReference, W: WMatrix, S: Step> WithNodeCount for DiabaticLogDerivative<'_, R, W, S> {
+impl<R: LogDerivReference, W: WMatrix<f64>, S: Step> WithNodeCount for DiabaticLogDerivative<'_, R, W, S> {
     fn nodes(&self) -> Nodes {
         self.nodes
     }
 }
 
-impl<'a, R: LogDerivativeReference, W: WMatrix, S: Step> CoupledPropagator<'a, W, LogDeriv<Operator>, S>
-    for DiabaticLogDerivative<'a, R, W, S>
-{
-    fn get_propagator(w_matrix: &'a W, step: S, boundary: Boundary<Operator>) -> Self {
-        Self::new(w_matrix, step, boundary)
+impl<R: LogDerivReference, W: WMatrix<f64>, S: Step> WithWaveStorage<Matrix> for DiabaticLogDerivative<'_, R, W, S> {
+    fn init_wave_storage(&mut self) {
+        self.step.wave_storage = Some(WaveStorage::default())
+    }
+
+    fn get_wave_storage(&self) -> Option<&WaveStorage<Matrix>> {
+        self.step.wave_storage.as_ref()
     }
 }
 
 /// https://doi.org/10.1016/0010-4655(94)90200-3
-struct LogDerivativeStep<R: LogDerivativeReference> {
-    buffer1: Operator,
-    buffer2: Operator,
-    buffer3: Operator,
+struct LogDerivativeStep<R: LogDerivReference> {
+    id: Matrix,
+    buffer1: Matrix,
+    buffer2: Matrix,
+    buffer3: Matrix,
     inverse_buffer: MemBuffer,
 
-    z_matrix: Operator,
-    w_ref: Operator,
+    z_matrix: Matrix,
+    w_ref: Matrix,
 
     reference: PhantomData<R>,
-    w_matrix_buffer: Operator,
+    w_matrix_buffer: Matrix,
 
-    wave_storage: Option<WaveLogDerivStorage>,
+    wave_storage: Option<WaveStorage<Matrix>>,
 }
 
-impl<R: LogDerivativeReference> LogDerivativeStep<R> {
+impl<R: LogDerivReference> LogDerivativeStep<R> {
     pub fn new(size: usize) -> Self {
         Self {
-            buffer1: Operator::zeros(size),
-            buffer2: Operator::zeros(size),
-            buffer3: Operator::zeros(size),
+            id: Matrix::identity(size, size),
+            buffer1: Matrix::zeros(size, size),
+            buffer2: Matrix::zeros(size, size),
+            buffer3: Matrix::zeros(size, size),
             inverse_buffer: get_ldlt_inverse_buffer(size),
 
-            z_matrix: Operator::zeros(size),
-            w_ref: Operator::zeros(size),
+            z_matrix: Matrix::zeros(size, size),
+            w_ref: Matrix::zeros(size, size),
 
-            w_matrix_buffer: Operator::zeros(size),
+            w_matrix_buffer: Matrix::zeros(size, size),
 
             reference: PhantomData,
             wave_storage: None,
@@ -312,20 +260,20 @@ impl<R: LogDerivativeReference> LogDerivativeStep<R> {
     }
 
     #[rustfmt::skip]
-    fn perform_step(&mut self, sol: &mut Solution<LogDeriv<Operator>>, nodes: &mut Nodes, w_matrix: &impl WMatrix) {
+    fn perform_step(&mut self, sol: &mut Solution<LogDeriv<Matrix>>, nodes: &mut Nodes, w_matrix: &impl WMatrix<f64>) {
         let h = sol.dr / 2.0;
 
         w_matrix.value_inplace(sol.r + h, &mut self.buffer1);
         R::w_ref(&self.buffer1, &mut self.w_ref);
 
-        zip!(self.buffer1.as_mut(), w_matrix.id().as_ref(), self.w_ref.as_ref())
+        zip!(self.buffer1.as_mut(), self.id.as_ref(), self.w_ref.as_ref())
         .for_each(|unzip!(b, u, w_ref)| {
             *b = u - h * h / 6. * (w_ref - *b)  // sign change because of different convention
         });
 
         inverse_ldlt_inplace(self.buffer1.as_ref(), self.buffer2.as_mut(), &mut self.inverse_buffer);
 
-        zip!(self.buffer2.as_mut(), w_matrix.id().as_ref())
+        zip!(self.buffer2.as_mut(), self.id.as_ref())
         .for_each(|unzip!(b, u)| {
             *b = 6. / (h * h) * (*b - u)
         });
@@ -434,64 +382,5 @@ impl<R: LogDerivativeReference> LogDerivativeStep<R> {
         nodes.0 += nodes_new;
 
         sol.r += sol.dr;
-    }
-}
-
-pub struct WaveLogDerivStorage {
-    distances: Vec<f64>,
-    connections: Vec<Operator>,
-    last_first: bool,
-    max_size_gb: u64,
-}
-
-impl WaveLogDerivStorage {
-    pub fn new(last_first: bool) -> Self {
-        Self {
-            distances: Vec::new(),
-            connections: Vec::new(),
-            last_first,
-            max_size_gb: 8,
-        }
-    }
-
-    pub fn set_max_size(&mut self, max_size_gb: u64) {
-        self.max_size_gb = max_size_gb;
-    }
-
-    pub fn push(&mut self, r: f64, connection: &Operator) {
-        let byte_size = self.connections.len() * 8 * connection.nrows() * connection.ncols();
-
-        if byte_size as u64 > (self.max_size_gb * 1024 * 1024 * 1024) {
-            panic!(
-                "Wavefunction size byte size exceeded allowed byte size {} GB",
-                self.max_size_gb
-            )
-        }
-
-        self.distances.push(r);
-        self.connections.push(connection.clone());
-    }
-
-    pub fn reconstruct(&self, wave_init: ColRef<f64>) -> (Vec<f64>, Vec<Vec<f64>>) {
-        let mut values = Vec::with_capacity(self.connections.len());
-        let mut wave_recent = wave_init.cloned();
-
-        let distances = if self.last_first {
-            for c in self.connections.iter().rev() {
-                wave_recent = &c.0 * &wave_recent;
-                values.push(wave_recent.iter().copied().collect())
-            }
-
-            self.distances.iter().rev().copied().collect()
-        } else {
-            for c in self.connections.iter() {
-                wave_recent = &c.0 * &wave_recent;
-                values.push(wave_recent.iter().copied().collect())
-            }
-
-            self.distances.clone()
-        };
-
-        (distances, values)
     }
 }

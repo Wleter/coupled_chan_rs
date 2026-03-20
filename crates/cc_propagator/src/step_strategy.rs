@@ -20,19 +20,6 @@ impl Step for SingleStep {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct ShortLongRangeStep {
-    pub r_switch: f64,
-    pub dr_short: f64,
-    pub dr_long: f64,
-}
-
-impl Step for ShortLongRangeStep {
-    fn get_step(&self, r: f64, _: f64) -> f64 {
-        if r > self.r_switch { self.dr_long } else { self.dr_short }
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
 pub struct LocalWavelengthStep {
     pub dr_min: f64,
     pub dr_max: f64,

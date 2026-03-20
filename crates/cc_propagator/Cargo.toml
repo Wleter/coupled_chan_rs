@@ -4,4 +4,14 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-dyn-clone = {workspace = true}
+faer = { workspace = true, optional = true}
+cc_matrix_utils = { path = "../cc_matrix_utils", features = ["faer"], optional = true}
+
+
+[dev-dependencies]
+cc_math_utils = {path = "../cc_math_utils"}
+
+[features]
+default = ["single_channel"]
+single_channel = []
+multi_channel = ["dep:faer", "dep:cc_matrix_utils"]

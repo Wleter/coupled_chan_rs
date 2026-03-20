@@ -6,3 +6,6 @@ __pycache__/
 *.egg-info
 build/
 /plots
+
+.python-version
+pyrightconfig.json
