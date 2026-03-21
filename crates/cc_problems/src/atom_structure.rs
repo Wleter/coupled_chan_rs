@@ -30,9 +30,9 @@ use serde::{
 use serde_json::Value;
 use spin_algebra::{
     Spin,
-    dot,
     get_spin_basis,
     half_integer::HalfU32,
+    ops::dot,
 };
 
 use crate::{

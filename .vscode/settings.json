@@ -8,6 +8,7 @@
         "dspin",
         "eigen",
         "faer",
+        "Fermionic",
         "gordan",
         "Hartree",
         "inplace",

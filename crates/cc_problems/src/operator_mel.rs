@@ -1,10 +1,10 @@
 use hilbert_space::operator::Braket;
 use spin_algebra::{
     Spin,
-    clebsch_gordan_coef,
     half_integer::HalfU32,
     hi32,
     hu32,
+    ops::clebsch_gordan_coef,
     wigner_3j,
     wigner_6j,
 };

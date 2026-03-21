@@ -25,13 +25,13 @@ use hilbert_space::{
     },
 };
 use spin_algebra::{
-    clebsch_gordan_coef,
     get_summed_spin_basis,
     half_integer::{
         HalfI32,
         HalfU32,
     },
     hu32,
+    ops::clebsch_gordan_coef,
 };
 
 use crate::{
