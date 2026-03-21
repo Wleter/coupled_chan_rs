@@ -278,10 +278,10 @@ impl<'a, W: WMatrix<f64>, S: Step> RatioNumerov<'a, W, S> {
     fn perform_step(&mut self) {
         self.solution.r += self.solution.dr;
 
-        inverse_ldlt_inplace(self.f.as_ref(), self.prev_sol.0.as_mut(), &mut self.inverse_buffer);
+        inverse_ldlt_inplace(self.f.as_ref(), self.buffer3.as_mut(), &mut self.inverse_buffer);
         // prev_sol is (1 - T_n)^-1
 
-        zip!(self.buffer2.as_mut(), self.id.as_ref(), self.prev_sol.0.as_ref())
+        zip!(self.buffer2.as_mut(), self.id.as_ref(), self.buffer3.as_ref())
             .for_each(|unzip!(b3, u, f_inv)| *b3 = 12. * f_inv - 10. * u);
         // buffer2 is U_n
 
@@ -290,6 +290,7 @@ impl<'a, W: WMatrix<f64>, S: Step> RatioNumerov<'a, W, S> {
             self.prev_sol.0.as_mut(),
             &mut self.inverse_buffer,
         );
+        // prev_sol is R^{-1}_{n-1}
 
         zip!(self.prev_sol.0.as_mut(), self.buffer2.as_ref()).for_each(|unzip!(sol, u)| *sol = u - *sol);
         // prev_sol is R_n
@@ -305,7 +306,10 @@ impl<'a, W: WMatrix<f64>, S: Step> RatioNumerov<'a, W, S> {
         swap(&mut self.f, &mut self.buffer1);
 
         if let Some(w) = &mut self.wave_storage {
-            w.push(self.solution.r, &self.solution.sol.0);
+            inverse_ldlt_inplace(self.solution.sol.0.as_ref(), self.buffer2.as_mut(), &mut self.inverse_buffer);
+            // buffer2 is R_n^-1
+
+            w.push(self.solution.r, &(&self.buffer3 * &self.buffer2 * &self.f));
         }
     }
 }

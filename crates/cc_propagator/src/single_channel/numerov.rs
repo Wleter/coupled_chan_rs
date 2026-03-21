@@ -105,13 +105,13 @@ impl<'a, W: WFunction, S: Step> RatioNumerov<'a, W, S> {
         self.prev_sol = self.solution.sol;
         self.solution.sol.0 = sol_new;
 
-        if let Some(w) = &mut self.wave_storage {
-            w.push(self.solution.r, &self.solution.sol.0);
-        }
-
         self.f_prev_last = self.f_last;
         self.f_last = self.f;
         self.f = f_new;
+
+        if let Some(w) = &mut self.wave_storage {
+            w.push(self.solution.r, &(f_new / self.f / self.solution.sol.0));
+        }
     }
 }
 

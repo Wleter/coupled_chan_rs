@@ -56,6 +56,7 @@ pub trait WithWaveStorage<T> {
 
 pub struct WaveStorage<T> {
     rs: Vec<f64>,
+    /// connection connecting value from r_n to r_{n-1}
     connections: Vec<T>,
 }
 
