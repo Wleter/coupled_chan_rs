@@ -48,7 +48,6 @@ mod tests {
     use cc_constants::units::atomic_units::{
         AuEnergy,
         AuMass,
-        Bohr,
         Kelvin,
     };
     use cc_math_utils::assert_approx_eq;
