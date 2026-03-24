@@ -1,6 +1,9 @@
 use cc_qol_utils::Composite;
 
-use crate::interaction::{AsymptoteDep, Interaction};
+use crate::interaction::{
+    AsymptoteDep,
+    Interaction,
+};
 
 /// Potential of the form d0 * r^n
 #[derive(Debug, Clone, Copy)]
@@ -19,13 +22,13 @@ impl Interaction for PowerLaw {
     fn value(&self, r: f64) -> f64 {
         self.d0 * r.powi(self.n)
     }
-    
+
     fn asymptote_dep(&self) -> super::AsymptoteDep {
         match self.n {
             0 => AsymptoteDep::Const,
-            -255 .. 0 => AsymptoteDep::PowerLawVanishing((-self.n) as u8),
-            i32::MIN .. -255 => AsymptoteDep::PowerLawVanishing((-self.n) as u8),
-            1 ..= i32::MAX => AsymptoteDep::Growing
+            -255..0 => AsymptoteDep::PowerLawVanishing((-self.n) as u8),
+            i32::MIN..-255 => AsymptoteDep::PowerLawVanishing((-self.n) as u8),
+            1..=i32::MAX => AsymptoteDep::Growing,
         }
     }
 }

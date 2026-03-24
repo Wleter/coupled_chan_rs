@@ -65,7 +65,10 @@ mod tests {
     use std::f64::consts::PI;
 
     use cc_math_utils::assert_approx_eq;
-    use faer::{col, mat};
+    use faer::{
+        col,
+        mat,
+    };
 
     use crate::{
         Boundary,
@@ -109,7 +112,7 @@ mod tests {
 
         let k2_mid = (k1 * k1 + k2 * k2) / 2.;
         let k2_diff = (k2 * k2 - k1 * k1) / 2.;
-        let w_matrix = SingleValue(mat![[k2_mid, k2_diff],[k2_diff, k2_mid]]);
+        let w_matrix = SingleValue(mat![[k2_mid, k2_diff], [k2_diff, k2_mid]]);
 
         let u = mat![[1., 1.], [-1., 1.]] / f64::sqrt(2.);
         let start = &u * mat![[1.], [0.]].col(0);
@@ -118,17 +121,16 @@ mod tests {
             r_start: 0.,
             direction: Direction::Outwards,
             value: mat![[1., 0.], [0., 1.]],
-            derivative: mat![[0., 0.],[0., 0.]],
+            derivative: mat![[0., 0.], [0., 0.]],
         };
 
-        let analytic = |x: f64, dx: f64| &u * mat![
-            [f64::cos(k1 * (x)) / f64::cos(k1 * (x - dx)), 0.],
-            [0., f64::cos(k2 * (x)) / f64::cos(k2 * (x - dx))],
-        ] * u.transpose();
-        let analytic_val = |x: f64| (&u * col![
-            f64::cos(k1 * x),
-            0.,
-        ]).iter().copied().collect::<Vec<f64>>();
+        let analytic = |x: f64, dx: f64| {
+            &u * mat![
+                [f64::cos(k1 * (x)) / f64::cos(k1 * (x - dx)), 0.],
+                [0., f64::cos(k2 * (x)) / f64::cos(k2 * (x - dx))],
+            ] * u.transpose()
+        };
+        let analytic_val = |x: f64| (&u * col![f64::cos(k1 * x), 0.,]).iter().copied().collect::<Vec<f64>>();
 
         let mut numerov = RatioNumerov::new(&w_matrix, SingleStep::new(1e-4), boundary);
         numerov.init_wave_storage();
@@ -154,7 +156,7 @@ mod tests {
 
         let k2_mid = (k1 * k1 + k2 * k2) / 2.;
         let k2_diff = (k2 * k2 - k1 * k1) / 2.;
-        let w_matrix = SingleValue(mat![[k2_mid, k2_diff],[k2_diff, k2_mid]]);
+        let w_matrix = SingleValue(mat![[k2_mid, k2_diff], [k2_diff, k2_mid]]);
 
         let u = mat![[1., 1.], [-1., 1.]] / f64::sqrt(2.);
         let start = &u * mat![[1.], [0.]].col(0);
@@ -163,17 +165,11 @@ mod tests {
             r_start: 0.,
             direction: Direction::Outwards,
             value: mat![[1., 0.], [0., 1.]],
-            derivative: mat![[0., 0.],[0., 0.]],
+            derivative: mat![[0., 0.], [0., 0.]],
         };
 
-        let analytic = |x: f64| &u * mat![
-            [-k1 * f64::tan(k1 * x), 0.],
-            [0., -k2 * f64::tan(k2 * x)],
-        ] * u.transpose();
-        let analytic_val = |x: f64| (&u * col![
-            f64::cos(k1 * x),
-            0.,
-        ]).iter().copied().collect::<Vec<f64>>();
+        let analytic = |x: f64| &u * mat![[-k1 * f64::tan(k1 * x), 0.], [0., -k2 * f64::tan(k2 * x)],] * u.transpose();
+        let analytic_val = |x: f64| (&u * col![f64::cos(k1 * x), 0.,]).iter().copied().collect::<Vec<f64>>();
 
         let mut log_deriv = JohnsonLogDerivative::new(&w_matrix, SingleStep::new(1e-3), boundary);
         log_deriv.init_wave_storage();
@@ -196,7 +192,7 @@ mod tests {
 
         let k2_mid = (k1 * k1 + k2 * k2) / 2.;
         let k2_diff = (k2 * k2 - k1 * k1) / 2.;
-        let w_matrix = SingleValue(mat![[k2_mid, k2_diff],[k2_diff, k2_mid]]);
+        let w_matrix = SingleValue(mat![[k2_mid, k2_diff], [k2_diff, k2_mid]]);
 
         let u = mat![[1., 1.], [-1., 1.]] / f64::sqrt(2.);
         let start = &u * mat![[1.], [0.]].col(0);
@@ -205,17 +201,11 @@ mod tests {
             r_start: 0.,
             direction: Direction::Outwards,
             value: mat![[1., 0.], [0., 1.]],
-            derivative: mat![[0., 0.],[0., 0.]],
+            derivative: mat![[0., 0.], [0., 0.]],
         };
 
-        let analytic = |x: f64| &u * mat![
-            [-k1 * f64::tan(k1 * x), 0.],
-            [0., -k2 * f64::tan(k2 * x)],
-        ] * u.transpose();
-        let analytic_val = |x: f64| (&u * col![
-            f64::cos(k1 * x),
-            0.,
-        ]).iter().copied().collect::<Vec<f64>>();
+        let analytic = |x: f64| &u * mat![[-k1 * f64::tan(k1 * x), 0.], [0., -k2 * f64::tan(k2 * x)],] * u.transpose();
+        let analytic_val = |x: f64| (&u * col![f64::cos(k1 * x), 0.,]).iter().copied().collect::<Vec<f64>>();
 
         let mut log_deriv = ManolopoulosLogDerivative::new(&w_matrix, SingleStep::new(1e-3), boundary);
         log_deriv.init_wave_storage();

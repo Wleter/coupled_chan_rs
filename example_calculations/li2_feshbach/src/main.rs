@@ -2,9 +2,14 @@ use cc_problems::{
     AngularMomentum,
     atom_structure::AtomBasisRecipe,
     coupled_chan::{
-        CollisionWFunction, Composite, dispersion::PowerLaw, log_derivative::diabatic::Johnson, single_chan::{
-            self, s_matrix::SValue,
-        }
+        CollisionWFunction,
+        Composite,
+        dispersion::PowerLaw,
+        log_derivative::diabatic::Johnson,
+        single_chan::{
+            self,
+            s_matrix::SValue,
+        },
     },
     homo_diatom_basis::{
         AlkaliHomoDiatom,

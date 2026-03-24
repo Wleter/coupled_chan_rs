@@ -2,7 +2,10 @@ use std::f64::consts::PI;
 
 use spline_interpolation::UniformSpline;
 
-use crate::interaction::{AsymptoteDep, Interaction};
+use crate::interaction::{
+    AsymptoteDep,
+    Interaction,
+};
 pub use spline_interpolation;
 
 #[derive(Clone)]
@@ -12,7 +15,7 @@ impl Interaction for InterpolatedPotential {
     fn value(&self, r: f64) -> f64 {
         self.0.eval(r)
     }
-    
+
     fn asymptote_dep(&self) -> super::AsymptoteDep {
         AsymptoteDep::Unknown
     }
@@ -62,7 +65,7 @@ where
             (1. - a) * self.near.value(r) + a * self.far.value(r)
         }
     }
-    
+
     fn asymptote_dep(&self) -> AsymptoteDep {
         self.far.asymptote_dep()
     }

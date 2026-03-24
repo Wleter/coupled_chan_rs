@@ -1,10 +1,24 @@
 use std::f64::consts::PI;
 
-use cc_math_utils::bessel::{riccati_j, riccati_j_deriv, riccati_n, riccati_n_deriv};
-use cc_propagator::{LogDeriv, Ratio, Solution, single_channel::WFunction};
+use cc_math_utils::bessel::{
+    riccati_j,
+    riccati_j_deriv,
+    riccati_n,
+    riccati_n_deriv,
+};
+use cc_propagator::{
+    LogDeriv,
+    Ratio,
+    Solution,
+    single_channel::WFunction,
+};
 use num_complex::Complex64;
 
-use crate::interaction::{AsymptoteDep, CollisionWFunction, Interaction};
+use crate::interaction::{
+    AsymptoteDep,
+    CollisionWFunction,
+    Interaction,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub struct SValue {
@@ -44,9 +58,9 @@ impl SValue {
         let k_matrix = -(wave_ratio * j_prev_last - j_last) / (wave_ratio * n_prev_last - n_last);
         let s_matrix = Complex64::new(1.0, k_matrix) / Complex64::new(1.0, -k_matrix);
 
-        SValue { 
-            value: s_matrix, 
-            momentum 
+        SValue {
+            value: s_matrix,
+            momentum,
         }
     }
 
@@ -74,9 +88,9 @@ impl SValue {
         let k_matrix = -(log_deriv * j - j_deriv) / (log_deriv * n - n_deriv);
         let s_matrix = Complex64::new(1.0, k_matrix) / Complex64::new(1.0, -k_matrix);
 
-        SValue { 
-            value: s_matrix, 
-            momentum 
+        SValue {
+            value: s_matrix,
+            momentum,
         }
     }
 

@@ -27,7 +27,7 @@ impl<I: Interaction> Interaction for Scaled<I> {
     fn value(&self, r: f64) -> f64 {
         self.scaling * self.interaction.value(r)
     }
-    
+
     fn asymptote_dep(&self) -> super::AsymptoteDep {
         self.interaction.asymptote_dep()
     }

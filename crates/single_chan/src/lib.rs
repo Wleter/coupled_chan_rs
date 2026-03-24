@@ -1,5 +1,7 @@
 pub mod interaction;
 pub mod s_matrix;
 
-pub use cc_propagator::single_channel::*;
-pub use cc_propagator;
+pub use cc_propagator::{
+    self,
+    single_channel::*,
+};

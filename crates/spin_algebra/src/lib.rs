@@ -97,6 +97,12 @@ pub trait SpinLike: PartialEq + Copy {
     }
 }
 
+impl<S: SpinLike> SpinMagLike for S {
+    fn s(&self) -> HalfU32 {
+        SpinLike::s(self)
+    }
+}
+
 impl SpinLike for Spin {
     #[inline]
     fn s(&self) -> HalfU32 {
@@ -201,6 +207,16 @@ where
 
 pub mod ops {
     use super::*;
+
+    #[inline]
+    pub fn s_sqr(spin: Braket<impl SpinMagLike>) -> f64 {
+        if spin.bra == spin.ket {
+            let s = spin.bra.s().value();
+            s * (s + 1.)
+        } else {
+            0.0
+        }
+    }
 
     #[inline]
     pub fn proj_z(spin: Braket<impl SpinLike>) -> f64 {

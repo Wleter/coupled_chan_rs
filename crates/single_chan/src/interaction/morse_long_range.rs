@@ -1,5 +1,7 @@
 use crate::interaction::{
-    AsymptoteDep, Interaction, dispersion::PowerLaw
+    AsymptoteDep,
+    Interaction,
+    dispersion::PowerLaw,
 };
 
 #[derive(Clone, Debug)]
@@ -20,7 +22,10 @@ impl MorseLongRangeBuilder {
     pub fn new(d0: f64, r_e: f64, tail: Vec<PowerLaw>) -> Self {
         assert!(!tail.is_empty(), "Tail is empty");
         for t in &tail {
-            assert!(matches!(t.asymptote_dep(), AsymptoteDep::PowerLawVanishing(_)), "Tail should e power law vanishing")
+            assert!(
+                matches!(t.asymptote_dep(), AsymptoteDep::PowerLawVanishing(_)),
+                "Tail should e power law vanishing"
+            )
         }
 
         Self {
@@ -131,14 +136,15 @@ impl Interaction for MorseLongRange {
 
         self.d0 * (1. - self.u_lr(r) / self.tail_re * exponent).powi(2) - self.d0
     }
-    
+
     fn asymptote_dep(&self) -> super::AsymptoteDep {
-        let smallest = self.tail.iter()
-            .min_by_key(|x| if let AsymptoteDep::PowerLawVanishing(w) = x.asymptote_dep() {
+        let smallest = self.tail.iter().min_by_key(|x| {
+            if let AsymptoteDep::PowerLawVanishing(w) = x.asymptote_dep() {
                 w
             } else {
                 unreachable!("builder asserts power law vanishing")
-            });
+            }
+        });
 
         // builder asserts at least 1 element
         smallest.unwrap().asymptote_dep()

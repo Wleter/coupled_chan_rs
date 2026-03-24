@@ -15,7 +15,7 @@ use crate::{
     step_strategy::Step,
 };
 
-/// based on multi-channel log_derivative with manolopoulos imbedding 
+/// based on multi-channel log_derivative with manolopoulos imbedding
 pub struct LogDerivative<'a, W: WFunction, S: Step> {
     w_function: &'a W,
     step: S,

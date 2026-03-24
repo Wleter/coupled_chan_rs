@@ -97,7 +97,7 @@ impl<P: Interaction, V: Interaction> Interaction for Pair<P, V> {
     fn value(&self, r: f64) -> f64 {
         self.first.value(r) + self.second.value(r)
     }
-    
+
     fn asymptote_dep(&self) -> AsymptoteDep {
         if self.first.asymptote_dep() < self.second.asymptote_dep() {
             self.second.asymptote_dep()
@@ -139,7 +139,7 @@ impl Interaction for DynInteraction {
     fn value(&self, r: f64) -> f64 {
         self.0.value(r)
     }
-    
+
     fn asymptote_dep(&self) -> AsymptoteDep {
         self.0.asymptote_dep()
     }

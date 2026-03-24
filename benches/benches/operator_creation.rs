@@ -1,12 +1,12 @@
 use diol::prelude::*;
 use hilbert_space::faer::Mat;
 use spin_algebra::{
-    ops::dot,
     get_spin_basis,
     half_integer::{
         HalfI32,
         HalfU32,
     },
+    ops::dot,
 };
 
 fn main() -> eyre::Result<()> {

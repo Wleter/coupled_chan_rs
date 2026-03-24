@@ -59,7 +59,9 @@ mod tests {
     };
     use faer::mat;
     use single_chan::interaction::{
-        AsymptoteDep, dispersion::lennard_jones, func_potential::FuncPotential
+        AsymptoteDep,
+        dispersion::lennard_jones,
+        func_potential::FuncPotential,
     };
 
     use crate::{
@@ -89,7 +91,10 @@ mod tests {
         let x0 = 11.;
         let sigma = 2.;
 
-        let coupling = FuncPotential::new(move |x| k * f64::exp(-0.5 * ((x - x0) / sigma).powi(2)), AsymptoteDep::ExpVanishing);
+        let coupling = FuncPotential::new(
+            move |x| k * f64::exp(-0.5 * ((x - x0) / sigma).powi(2)),
+            AsymptoteDep::ExpVanishing,
+        );
 
         let coupling = Masked::new(coupling, Operator::new(mat![[0., 1.], [1., 0.]]));
         let potential = Diagonal::new(vec![potential_lj1, potential_lj2]);
