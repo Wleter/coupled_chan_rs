@@ -13,7 +13,6 @@ use std::{
         Deref,
         Index,
     },
-    ptr,
 };
 
 use crate::cast_variant;
@@ -97,7 +96,6 @@ impl<Type: DynSubspaceElement> SubspaceBasisOf<Type> {
     pub fn forget(self) -> (SubspaceBasis, BasisId<Type>) {
         let basis = SubspaceBasis {
             basis: self.basis,
-            id: self.id.0,
         };
 
         (basis, self.id)
@@ -106,18 +104,7 @@ impl<Type: DynSubspaceElement> SubspaceBasisOf<Type> {
 
 #[derive(Clone, Debug)]
 pub struct SubspaceBasis {
-    basis: Vec<SubspaceElement>,
-    id: Id,
-}
-
-impl Eq for SubspaceBasis {}
-
-impl PartialEq for SubspaceBasis {
-    fn eq(&self, other: &Self) -> bool {
-        let elements_same = self.basis.iter().zip(other.basis.iter()).all(|(a, b)| ptr::eq(a, b));
-
-        self.basis.len() == other.basis.len() && elements_same && self.id == other.id
-    }
+    basis: Vec<SubspaceElement>
 }
 
 impl SubspaceBasis {
