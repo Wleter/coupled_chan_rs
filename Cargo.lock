@@ -1928,7 +1928,6 @@ dependencies = [
 name = "single_chan"
 version = "0.1.0"
 dependencies = [
- "cc_constants",
  "cc_math_utils",
  "cc_propagator",
  "cc_qol_utils",

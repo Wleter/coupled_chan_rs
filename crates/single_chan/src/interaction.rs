@@ -8,6 +8,8 @@ pub mod interpolated;
 pub mod morse_long_range;
 pub mod scaled;
 
+/// Asymptotic (r going to infinity) 
+/// behavior for the [`Interaction`]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AsymptoteDep {
     Const,
@@ -42,11 +44,48 @@ impl PartialOrd for AsymptoteDep {
     }
 }
 
+/// Trait for modeling interaction V(R)
+/// in the Hamiltonian p^2/2m + V(R)
 pub trait Interaction {
     fn value(&self, r: f64) -> f64;
     fn asymptote_dep(&self) -> AsymptoteDep;
 }
 
+pub use cc_qol_utils::Pair;
+impl<P: Interaction, V: Interaction> Interaction for Pair<P, V> {
+    fn value(&self, r: f64) -> f64 {
+        self.first.value(r) + self.second.value(r)
+    }
+
+    fn asymptote_dep(&self) -> AsymptoteDep {
+        if self.first.asymptote_dep() < self.second.asymptote_dep() {
+            self.second.asymptote_dep()
+        } else {
+            self.first.asymptote_dep()
+        }
+    }
+}
+
+pub use cc_qol_utils::Composite;
+impl<P: Interaction> Interaction for Composite<P> {
+    fn value(&self, r: f64) -> f64 {
+        self.components.iter().fold(0., |acc, p| acc + p.value(r))
+    }
+
+    fn asymptote_dep(&self) -> AsymptoteDep {
+        let mut maximal = AsymptoteDep::Const;
+        for c in &self.components {
+            let dep = c.asymptote_dep();
+            if dep > maximal {
+                maximal = dep;
+            }
+        }
+
+        maximal
+    }
+}
+
+/// Reduced centrifugal term l(l+1) / R^2
 pub struct RedCentrifugal(u32);
 
 impl WFunction for RedCentrifugal {
@@ -55,6 +94,8 @@ impl WFunction for RedCentrifugal {
     }
 }
 
+/// Struct describing [`WFunction`] in a collision scenerio with
+/// given mass, energy, angular momentum and interaction
 pub struct CollisionWFunction<I> {
     mass: f64,
     energy: f64,
@@ -92,42 +133,15 @@ impl<I: Interaction> WFunction for CollisionWFunction<I> {
     }
 }
 
-pub use cc_qol_utils::Pair;
-impl<P: Interaction, V: Interaction> Interaction for Pair<P, V> {
-    fn value(&self, r: f64) -> f64 {
-        self.first.value(r) + self.second.value(r)
-    }
-
-    fn asymptote_dep(&self) -> AsymptoteDep {
-        if self.first.asymptote_dep() < self.second.asymptote_dep() {
-            self.second.asymptote_dep()
-        } else {
-            self.second.asymptote_dep()
-        }
-    }
-}
-
-pub use cc_qol_utils::Composite;
-impl<P: Interaction> Interaction for Composite<P> {
-    fn value(&self, r: f64) -> f64 {
-        self.components.iter().fold(0., |acc, p| acc + p.value(r))
-    }
-
-    fn asymptote_dep(&self) -> AsymptoteDep {
-        let mut maximal = AsymptoteDep::Const;
-        for c in &self.components {
-            let dep = c.asymptote_dep();
-            if dep > maximal {
-                maximal = dep;
-            }
-        }
-
-        maximal
-    }
-}
-
+/// Type erased [`Interaction`] implementation.
 #[derive(Clone)]
 pub struct DynInteraction(Arc<dyn Interaction + Send + Sync>);
+
+impl std::fmt::Debug for DynInteraction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DynInteraction").finish()
+    }
+}
 
 impl DynInteraction {
     pub fn new<P: Interaction + 'static + Send + Sync>(potential: P) -> Self {
