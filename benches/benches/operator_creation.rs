@@ -1,7 +1,7 @@
 use diol::prelude::*;
 use hilbert_space::faer::Mat;
 use spin_algebra::{
-    dot,
+    ops::dot,
     get_spin_basis,
     half_integer::{
         HalfI32,
