@@ -41,7 +41,7 @@ impl WaveStorage<Mat<f64>> {
         values.push(wave_init.iter().copied().collect());
         let rs = if last_first {
             for c in self.connections.iter().skip(1).rev() {
-                wave_recent = c * &wave_recent;
+                wave_recent = c * wave_recent;
                 values.push(wave_recent.iter().copied().collect())
             }
 
@@ -65,7 +65,7 @@ mod tests {
     use std::f64::consts::PI;
 
     use cc_math_utils::assert_approx_eq;
-    use faer::mat;
+    use faer::{col, mat};
 
     use crate::{
         Boundary,
@@ -104,85 +104,130 @@ mod tests {
 
     #[test]
     pub fn test_multi_chan_numerov() {
-        let k = 5.;
+        let k1 = 5.;
+        let k2 = 9.;
 
-        let w_function = SingleValue(mat![[k * k]]);
+        let k2_mid = (k1 * k1 + k2 * k2) / 2.;
+        let k2_diff = (k2 * k2 - k1 * k1) / 2.;
+        let w_matrix = SingleValue(mat![[k2_mid, k2_diff],[k2_diff, k2_mid]]);
+
+        let u = mat![[1., 1.], [-1., 1.]] / f64::sqrt(2.);
+        let start = &u * mat![[1.], [0.]].col(0);
+
         let boundary = Boundary {
             r_start: 0.,
             direction: Direction::Outwards,
-            value: mat![[1.]],
-            derivative: mat![[0.]],
+            value: mat![[1., 0.], [0., 1.]],
+            derivative: mat![[0., 0.],[0., 0.]],
         };
 
-        let mut numerov = RatioNumerov::new(&w_function, SingleStep::new(1e-4), boundary);
-        numerov.init_wave_storage();
-        let analytic = |x: f64, dx: f64| mat![[f64::cos(k * (x)) / f64::cos(k * (x - dx))]];
-        let analytic_val = |x: f64| vec![f64::cos(k * x)];
+        let analytic = |x: f64, dx: f64| &u * mat![
+            [f64::cos(k1 * (x)) / f64::cos(k1 * (x - dx)), 0.],
+            [0., f64::cos(k2 * (x)) / f64::cos(k2 * (x - dx))],
+        ] * u.transpose();
+        let analytic_val = |x: f64| (&u * col![
+            f64::cos(k1 * x),
+            0.,
+        ]).iter().copied().collect::<Vec<f64>>();
 
-        let sol = numerov.propagate_to(1. / 3. * PI / k);
-        assert_approx_eq!(mat => analytic(sol.r, sol.dr), sol.sol.0, 1e-4);
-        let (rs, wave) = numerov.get_wave_storage().unwrap().reconstruct(mat![[1.]].col(0), false);
+        let mut numerov = RatioNumerov::new(&w_matrix, SingleStep::new(1e-4), boundary);
+        numerov.init_wave_storage();
+
+        let sol = numerov.propagate_to(1. / 3. * PI / k1);
+        assert_approx_eq!(analytic(sol.r, sol.dr)[(0, 0)], sol.sol.0[(0, 0)], 1e-4);
+        assert_approx_eq!(analytic(sol.r, sol.dr)[(1, 1)], sol.sol.0[(1, 1)], 1e-4);
+
+        let (rs, wave) = numerov.get_wave_storage().unwrap().reconstruct(start.as_ref(), false);
         assert_approx_eq!(iter => wave.last().unwrap(), analytic_val(*rs.last().unwrap()), 1e-3);
 
-        let sol = numerov.propagate_to(2. / 3. * PI / k);
-        assert_approx_eq!(mat => analytic(sol.r, sol.dr), sol.sol.0, 1e-4);
-        let (rs, wave) = numerov.get_wave_storage().unwrap().reconstruct(mat![[1.]].col(0), false);
+        let sol = numerov.propagate_to(2. / 3. * PI / k1);
+        assert_approx_eq!(analytic(sol.r, sol.dr)[(0, 0)], sol.sol.0[(0, 0)], 1e-4);
+        assert_approx_eq!(analytic(sol.r, sol.dr)[(1, 1)], sol.sol.0[(1, 1)], 1e-4);
+        let (rs, wave) = numerov.get_wave_storage().unwrap().reconstruct(start.as_ref(), false);
         assert_approx_eq!(iter => wave.last().unwrap(), analytic_val(*rs.last().unwrap()), 1e-3);
     }
 
     #[test]
     pub fn test_multi_chan_log_derivative_johnson() {
-        let k = 5.;
+        let k1 = 5.;
+        let k2 = 9.;
 
-        let w_function = SingleValue(mat![[k * k]]);
+        let k2_mid = (k1 * k1 + k2 * k2) / 2.;
+        let k2_diff = (k2 * k2 - k1 * k1) / 2.;
+        let w_matrix = SingleValue(mat![[k2_mid, k2_diff],[k2_diff, k2_mid]]);
+
+        let u = mat![[1., 1.], [-1., 1.]] / f64::sqrt(2.);
+        let start = &u * mat![[1.], [0.]].col(0);
+
         let boundary = Boundary {
             r_start: 0.,
             direction: Direction::Outwards,
-            value: mat![[1.]],
-            derivative: mat![[0.]],
+            value: mat![[1., 0.], [0., 1.]],
+            derivative: mat![[0., 0.],[0., 0.]],
         };
 
-        let mut log_deriv = JohnsonLogDerivative::new(&w_function, SingleStep::new(1e-3), boundary);
-        log_deriv.init_wave_storage();
-        let analytic = |x: f64| mat![[-k * f64::tan(k * x)]];
-        let analytic_val = |x: f64| vec![f64::cos(k * x)];
+        let analytic = |x: f64| &u * mat![
+            [-k1 * f64::tan(k1 * x), 0.],
+            [0., -k2 * f64::tan(k2 * x)],
+        ] * u.transpose();
+        let analytic_val = |x: f64| (&u * col![
+            f64::cos(k1 * x),
+            0.,
+        ]).iter().copied().collect::<Vec<f64>>();
 
-        let sol = log_deriv.propagate_to(1. / 3. * PI / k);
+        let mut log_deriv = JohnsonLogDerivative::new(&w_matrix, SingleStep::new(1e-3), boundary);
+        log_deriv.init_wave_storage();
+
+        let sol = log_deriv.propagate_to(1. / 3. * PI / k1);
         assert_approx_eq!(mat => analytic(sol.r), sol.sol.0, 1e-4);
-        let (rs, wave) = log_deriv.get_wave_storage().unwrap().reconstruct(mat![[1.]].col(0), false);
+        let (rs, wave) = log_deriv.get_wave_storage().unwrap().reconstruct(start.as_ref(), false);
         assert_approx_eq!(iter => wave.last().unwrap(), analytic_val(*rs.last().unwrap()), 1e-4);
 
-        let sol = log_deriv.propagate_to(2. / 3. * PI / k);
+        let sol = log_deriv.propagate_to(2. / 3. * PI / k1);
         assert_approx_eq!(mat => analytic(sol.r), sol.sol.0, 1e-4);
-        let (rs, wave) = log_deriv.get_wave_storage().unwrap().reconstruct(mat![[1.]].col(0), false);
+        let (rs, wave) = log_deriv.get_wave_storage().unwrap().reconstruct(start.as_ref(), false);
         assert_approx_eq!(iter => wave.last().unwrap(), analytic_val(*rs.last().unwrap()), 1e-4);
     }
 
     #[test]
     pub fn test_multi_chan_log_derivative_manolopoulos() {
-        let k = 5.;
+        let k1 = 5.;
+        let k2 = 9.;
 
-        let w_function = SingleValue(mat![[k * k]]);
+        let k2_mid = (k1 * k1 + k2 * k2) / 2.;
+        let k2_diff = (k2 * k2 - k1 * k1) / 2.;
+        let w_matrix = SingleValue(mat![[k2_mid, k2_diff],[k2_diff, k2_mid]]);
+
+        let u = mat![[1., 1.], [-1., 1.]] / f64::sqrt(2.);
+        let start = &u * mat![[1.], [0.]].col(0);
+
         let boundary = Boundary {
             r_start: 0.,
             direction: Direction::Outwards,
-            value: mat![[1.]],
-            derivative: mat![[0.]],
+            value: mat![[1., 0.], [0., 1.]],
+            derivative: mat![[0., 0.],[0., 0.]],
         };
 
-        let mut log_deriv = ManolopoulosLogDerivative::new(&w_function, SingleStep::new(1e-3), boundary);
-        log_deriv.init_wave_storage();
-        let analytic = |x: f64| mat![[-k * f64::tan(k * x)]];
-        let analytic_val = |x: f64| vec![f64::cos(k * x)];
+        let analytic = |x: f64| &u * mat![
+            [-k1 * f64::tan(k1 * x), 0.],
+            [0., -k2 * f64::tan(k2 * x)],
+        ] * u.transpose();
+        let analytic_val = |x: f64| (&u * col![
+            f64::cos(k1 * x),
+            0.,
+        ]).iter().copied().collect::<Vec<f64>>();
 
-        let sol = log_deriv.propagate_to(1. / 3. * PI / k);
+        let mut log_deriv = ManolopoulosLogDerivative::new(&w_matrix, SingleStep::new(1e-3), boundary);
+        log_deriv.init_wave_storage();
+
+        let sol = log_deriv.propagate_to(1. / 3. * PI / k1);
         assert_approx_eq!(mat => analytic(sol.r), sol.sol.0, 1e-4);
-        let (rs, wave) = log_deriv.get_wave_storage().unwrap().reconstruct(mat![[1.]].col(0), false);
+        let (rs, wave) = log_deriv.get_wave_storage().unwrap().reconstruct(start.as_ref(), false);
         assert_approx_eq!(iter => wave.last().unwrap(), analytic_val(*rs.last().unwrap()), 1e-4);
 
-        let sol = log_deriv.propagate_to(2. / 3. * PI / k);
+        let sol = log_deriv.propagate_to(2. / 3. * PI / k1);
         assert_approx_eq!(mat => analytic(sol.r), sol.sol.0, 1e-4);
-        let (rs, wave) = log_deriv.get_wave_storage().unwrap().reconstruct(mat![[1.]].col(0), false);
+        let (rs, wave) = log_deriv.get_wave_storage().unwrap().reconstruct(start.as_ref(), false);
         assert_approx_eq!(iter => wave.last().unwrap(), analytic_val(*rs.last().unwrap()), 1e-4);
     }
 }
