@@ -13,7 +13,7 @@ use coupled_chan::{
         masked::Masked,
         pair::Pair,
     },
-    scaled_interaction::ScaledInteraction,
+    scaled::Scaled,
 };
 use hilbert_space::{
     operator_mel,
@@ -114,7 +114,7 @@ impl AtomRotorTRAMBasis {
 }
 #[derive(Debug, Clone)]
 pub struct PotentialSurface<P: Interaction> {
-    pub surface: Interaction2D<ScaledInteraction<P>>,
+    pub surface: Interaction2D<Scaled<P>>,
     pub operator: Vec<Operator>,
 }
 
@@ -133,7 +133,7 @@ impl<P: Interaction> PotentialSurface<P> {
             .filter(|a: &Operator| a.0 != zeros.0)
             .collect();
 
-        let surface = Interaction2D(surface.0.into_iter().map(|x| (x.0, ScaledInteraction::new(x.1))).collect());
+        let surface = Interaction2D(surface.0.into_iter().map(|x| (x.0, Scaled::new(x.1))).collect());
 
         Self { surface, operator }
     }
@@ -162,7 +162,7 @@ impl<P: Interaction> PotentialSurface<P> {
             .filter(|a: &Operator| a.0 != zeros.0)
             .collect();
 
-        let surface = Interaction2D(surface.0.into_iter().map(|x| (x.0, ScaledInteraction::new(x.1))).collect());
+        let surface = Interaction2D(surface.0.into_iter().map(|x| (x.0, Scaled::new(x.1))).collect());
 
         Self { surface, operator }
     }
@@ -191,13 +191,13 @@ impl<P: Interaction> PotentialSurface<P> {
             .filter(|a: &Operator| a.0 != zeros.0)
             .collect();
 
-        let surface = Interaction2D(surface.0.into_iter().map(|x| (x.0, ScaledInteraction::new(x.1))).collect());
+        let surface = Interaction2D(surface.0.into_iter().map(|x| (x.0, Scaled::new(x.1))).collect());
 
         Self { surface, operator }
     }
 }
 
-pub type PESCoupling<P> = Composite<Masked<ScaledInteraction<P>>>;
+pub type PESCoupling<P> = Composite<Masked<Scaled<P>>>;
 
 impl<P: Interaction + Clone> PotentialSurface<P> {
     pub fn hamiltonian(&self) -> PESCoupling<P> {

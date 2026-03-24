@@ -2,14 +2,9 @@ use cc_problems::{
     AngularMomentum,
     atom_structure::AtomBasisRecipe,
     coupled_chan::{
-        Composite,
-        RedInteraction,
-        dispersion::Dispersion,
-        log_derivative::diabatic::Johnson,
-        single_chan::{
-            self,
-            ratio_numerov::get_s_matrix,
-        },
+        CollisionWFunction, Composite, dispersion::PowerLaw, log_derivative::diabatic::Johnson, single_chan::{
+            self, s_matrix::SValue,
+        }
     },
     homo_diatom_basis::{
         AlkaliHomoDiatom,
@@ -228,7 +223,7 @@ impl Problems {
 
         DependenceProblem::new(potential).dependence(scalings, |potential, &scaling| {
             potential.scaling = scaling;
-            let w_matrix = RedInteraction::new(potential, params.mass, params.energy, 0);
+            let w_matrix = CollisionWFunction::new(potential.clone(), params.mass.value(), params.energy.value(), 0);
             let scattering = li2_scattering();
             let boundary = Boundary {
                 r_start: scattering.r_min.value(),
@@ -238,11 +233,11 @@ impl Problems {
             };
             let step = LocalWavelengthStep::new(1e-4, f64::INFINITY, 500.);
 
-            let mut numerov = single_chan::ratio_numerov::RatioNumerov::new(&w_matrix, step, boundary);
+            let mut numerov = single_chan::numerov::RatioNumerov::new(&w_matrix, step, boundary);
             let sol = numerov.propagate_to(scattering.r_max.value());
-            let s_matrix = get_s_matrix(sol, &w_matrix);
+            let s_matrix = SValue::from_ratio(sol, &w_matrix);
 
-            saver.send([scaling, s_matrix.get_scattering_length().re]);
+            saver.send([scaling, s_matrix.scattering_length().re]);
 
             Ok(())
         })?;
@@ -252,8 +247,8 @@ impl Problems {
 }
 
 pub fn li2_problem(recipe: HomoDiatomRecipe) -> AlkaliHomoDiatom<impl Interaction + Clone, impl Interaction + Clone> {
-    let triplet = Composite::new(vec![Dispersion::new(-1381., -6), Dispersion::new(2.19348e8, -12)]);
-    let singlet = Composite::new(vec![Dispersion::new(-1381., -6), Dispersion::new(1.112e7, -12)]);
+    let triplet = Composite::new(vec![PowerLaw::new(-1381., -6), PowerLaw::new(2.19348e8, -12)]);
+    let singlet = Composite::new(vec![PowerLaw::new(-1381., -6), PowerLaw::new(1.112e7, -12)]);
 
     let mut diatom = AlkaliHomoDiatom::new(triplet, singlet, recipe);
 

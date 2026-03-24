@@ -60,8 +60,7 @@ mod tests {
     };
     use faer::mat;
     use single_chan::interaction::{
-        dispersion::lennard_jones,
-        func_potential::FuncPotential,
+        AsymptoteDep, dispersion::lennard_jones, func_potential::FuncPotential
     };
 
     use crate::{
@@ -84,14 +83,14 @@ mod tests {
     };
 
     pub fn get_red_coupling() -> RedCoupling<impl VanishingCoupling> {
-        let potential_lj1 = lennard_jones(0.002 * AuEnergy, 9. * Bohr);
-        let potential_lj2 = lennard_jones(0.0021 * AuEnergy, 8.9 * Bohr);
+        let potential_lj1 = lennard_jones(0.002, 9.);
+        let potential_lj2 = lennard_jones(0.0021, 8.9);
 
         let k = (10. * Kelvin).to(AuEnergy).value();
-        let x0 = (11. * Bohr).value();
-        let sigma = (2. * Bohr).value();
+        let x0 = 11.;
+        let sigma = 2.;
 
-        let coupling = FuncPotential::new(move |x| k * f64::exp(-0.5 * ((x - x0) / sigma).powi(2)));
+        let coupling = FuncPotential::new(move |x| k * f64::exp(-0.5 * ((x - x0) / sigma).powi(2)), AsymptoteDep::ExpVanishing);
 
         let coupling = Masked::new(coupling, Operator::new(mat![[0., 1.], [1., 0.]]));
         let potential = Diagonal::new(vec![potential_lj1, potential_lj2]);

@@ -1,13 +1,13 @@
 use crate::interaction::Interaction;
 
 #[derive(Debug, Clone)]
-pub struct ScaledInteraction<P: Interaction> {
+pub struct Scaled<I: Interaction> {
     pub scaling: f64,
-    pub interaction: P,
+    pub interaction: I,
 }
 
-impl<P: Interaction> ScaledInteraction<P> {
-    pub fn new(interaction: P) -> Self {
+impl<I: Interaction> Scaled<I> {
+    pub fn new(interaction: I) -> Self {
         Self {
             interaction,
             scaling: 1.,
@@ -23,8 +23,12 @@ impl<P: Interaction> ScaledInteraction<P> {
     }
 }
 
-impl<P: Interaction> Interaction for ScaledInteraction<P> {
+impl<I: Interaction> Interaction for Scaled<I> {
     fn value(&self, r: f64) -> f64 {
         self.scaling * self.interaction.value(r)
+    }
+    
+    fn asymptote_dep(&self) -> super::AsymptoteDep {
+        self.interaction.asymptote_dep()
     }
 }

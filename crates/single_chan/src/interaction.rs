@@ -1,38 +1,109 @@
 use std::sync::Arc;
 
-use cc_constants::{
-    Unit,
-    units::{
-        Quantity,
-        atomic_units::{
-            AuEnergy,
-            AuMass,
-        },
-    },
-};
-
-use crate::interaction::dispersion::Centrifugal;
+use cc_propagator::single_channel::WFunction;
 
 pub mod dispersion;
 pub mod func_potential;
 pub mod interpolated;
 pub mod morse_long_range;
-pub mod scaled_interaction;
+pub mod scaled;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum AsymptoteDep {
+    Const,
+    ExpVanishing,
+    PowerLawVanishing(u8),
+    Growing,
+    Other,
+    Unknown,
+}
+
+impl PartialOrd for AsymptoteDep {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        let order_self = match self {
+            AsymptoteDep::Const => i32::MIN,
+            AsymptoteDep::ExpVanishing => i32::MIN + 1,
+            AsymptoteDep::PowerLawVanishing(n) => -(*n as i32),
+            AsymptoteDep::Growing => 0,
+            AsymptoteDep::Other => return None,
+            AsymptoteDep::Unknown => return None,
+        };
+
+        let order_other = match &other {
+            AsymptoteDep::Const => i32::MIN,
+            AsymptoteDep::ExpVanishing => i32::MIN + 1,
+            AsymptoteDep::PowerLawVanishing(n) => -(*n as i32),
+            AsymptoteDep::Growing => 0,
+            AsymptoteDep::Other => return None,
+            AsymptoteDep::Unknown => return None,
+        };
+
+        Some(order_self.cmp(&order_other))
+    }
+}
 
 pub trait Interaction {
     fn value(&self, r: f64) -> f64;
+    fn asymptote_dep(&self) -> AsymptoteDep;
 }
 
-pub trait WFunction {
-    fn value(&self, r: f64) -> f64;
-    fn asymptote(&self) -> f64;
-    fn l(&self) -> u32;
+pub struct RedCentrifugal(u32);
+
+impl WFunction for RedCentrifugal {
+    fn value(&self, r: f64) -> f64 {
+        ((self.0 + 1) * self.0) as f64 / (r * r)
+    }
+}
+
+pub struct CollisionWFunction<I> {
+    mass: f64,
+    energy: f64,
+    interaction: I,
+    centrifugal: RedCentrifugal,
+}
+
+impl<I: Interaction> CollisionWFunction<I> {
+    pub fn new(interaction: I, mass: f64, energy: f64, l: u32) -> Self {
+        Self {
+            centrifugal: RedCentrifugal(l),
+            mass,
+            energy,
+            interaction,
+        }
+    }
+
+    pub fn l(&self) -> u32 {
+        self.centrifugal.0
+    }
+
+    /// value without centrifugal term
+    pub fn value_interaction(&self, r: f64) -> f64 {
+        2.0 * self.mass * (self.energy - self.interaction.value(r))
+    }
+
+    pub fn interaction_asymptote_dep(&self) -> AsymptoteDep {
+        self.interaction.asymptote_dep()
+    }
+}
+
+impl<I: Interaction> WFunction for CollisionWFunction<I> {
+    fn value(&self, r: f64) -> f64 {
+        self.value_interaction(r) + self.centrifugal.value(r)
+    }
 }
 
 pub use cc_qol_utils::Pair;
 impl<P: Interaction, V: Interaction> Interaction for Pair<P, V> {
     fn value(&self, r: f64) -> f64 {
         self.first.value(r) + self.second.value(r)
+    }
+    
+    fn asymptote_dep(&self) -> AsymptoteDep {
+        if self.first.asymptote_dep() < self.second.asymptote_dep() {
+            self.second.asymptote_dep()
+        } else {
+            self.second.asymptote_dep()
+        }
     }
 }
 
@@ -41,42 +112,17 @@ impl<P: Interaction> Interaction for Composite<P> {
     fn value(&self, r: f64) -> f64 {
         self.components.iter().fold(0., |acc, p| acc + p.value(r))
     }
-}
 
-pub struct RedInteraction<'a, P: Interaction> {
-    energy: f64,
-    mass: f64,
-    interaction: &'a P,
-    centrifugal: Centrifugal,
-}
-
-impl<'a, P: Interaction> RedInteraction<'a, P> {
-    pub fn new(
-        interaction: &'a P,
-        mass: Quantity<impl Unit<Base = AuMass>>,
-        energy: Quantity<impl Unit<Base = AuEnergy>>,
-        l: u32,
-    ) -> Self {
-        Self {
-            energy: energy.to(AuEnergy).value(),
-            mass: mass.to(AuMass).value(),
-            interaction,
-            centrifugal: Centrifugal::new(l, mass),
+    fn asymptote_dep(&self) -> AsymptoteDep {
+        let mut maximal = AsymptoteDep::Const;
+        for c in &self.components {
+            let dep = c.asymptote_dep();
+            if dep > maximal {
+                maximal = dep;
+            }
         }
-    }
-}
 
-impl<'a, P: Interaction> WFunction for RedInteraction<'a, P> {
-    fn value(&self, r: f64) -> f64 {
-        2. * self.mass * (self.energy - self.interaction.value(r) - self.centrifugal.value(r))
-    }
-
-    fn asymptote(&self) -> f64 {
-        2. * self.mass * self.energy
-    }
-
-    fn l(&self) -> u32 {
-        self.centrifugal.l
+        maximal
     }
 }
 
@@ -92,5 +138,9 @@ impl DynInteraction {
 impl Interaction for DynInteraction {
     fn value(&self, r: f64) -> f64 {
         self.0.value(r)
+    }
+    
+    fn asymptote_dep(&self) -> AsymptoteDep {
+        self.0.asymptote_dep()
     }
 }

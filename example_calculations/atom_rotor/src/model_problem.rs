@@ -5,7 +5,7 @@ use cc_problems::{
     },
     coupled_chan::{
         Composite,
-        dispersion::Dispersion,
+        dispersion::PowerLaw,
         log_derivative::diabatic::Johnson,
     },
     prelude::*,
@@ -130,12 +130,12 @@ const C12_0: f64 = 2e9;
 
 fn get_problem(recipe: AtomRotorTRAMRecipe) -> SinglePESAtomRotorTRAM<impl Interaction + Clone + std::fmt::Debug> {
     let pes_iso = Composite::new(vec![
-        Dispersion::new(C6_0, -6),
-        Dispersion::new(C8_0, -8),
-        Dispersion::new(C12_0, -12),
+        PowerLaw::new(C6_0, -6),
+        PowerLaw::new(C8_0, -8),
+        PowerLaw::new(C12_0, -12),
     ]);
 
-    let pes_aniso_1 = Composite::new(vec![Dispersion::new(C7_1, -7), Dispersion::new(C9_1, -9)]);
+    let pes_aniso_1 = Composite::new(vec![PowerLaw::new(C7_1, -7), PowerLaw::new(C9_1, -9)]);
 
     let pes = Interaction2D(vec![(0, pes_iso), (1, pes_aniso_1)]);
 

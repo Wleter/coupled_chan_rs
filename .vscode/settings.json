@@ -17,6 +17,7 @@
         "matmul",
         "ncols",
         "nrows",
-        "Numerov"
+        "Numerov",
+        "riccati"
     ],
 }

@@ -1,20 +1,12 @@
-use cc_constants::units::{
-    Quantity,
-    atomic_units::{
-        AuEnergy,
-        Bohr,
-    },
-};
-
 use crate::interaction::{
-    Interaction,
-    dispersion::Dispersion,
+    AsymptoteDep, Interaction, dispersion::PowerLaw
 };
 
+#[derive(Clone, Debug)]
 pub struct MorseLongRangeBuilder {
     d0: f64,
     r_e: f64,
-    tail: Vec<Dispersion>,
+    tail: Vec<PowerLaw>,
 
     p: Option<i32>,
     q: Option<i32>,
@@ -25,14 +17,19 @@ pub struct MorseLongRangeBuilder {
 }
 
 impl MorseLongRangeBuilder {
-    pub fn new(d0: Quantity<AuEnergy>, r_e: Quantity<Bohr>, tail: Vec<Dispersion>) -> Self {
+    pub fn new(d0: f64, r_e: f64, tail: Vec<PowerLaw>) -> Self {
+        assert!(!tail.is_empty(), "Tail is empty");
+        for t in &tail {
+            assert!(matches!(t.asymptote_dep(), AsymptoteDep::PowerLawVanishing(_)), "Tail should e power law vanishing")
+        }
+
         Self {
-            d0: d0.value(),
+            d0,
             tail,
             p: None,
             q: None,
             r_ref: None,
-            r_e: r_e.value(),
+            r_e,
             rho: None,
             betas: vec![],
         }
@@ -86,10 +83,10 @@ impl MorseLongRangeBuilder {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MorseLongRange {
     d0: f64,
-    tail: Vec<Dispersion>,
+    tail: Vec<PowerLaw>,
     p: i32,
     q: i32,
     r_ref: f64,
@@ -133,6 +130,18 @@ impl Interaction for MorseLongRange {
         let exponent = (-self.beta(r) * y_func(r, self.p, self.r_e)).exp();
 
         self.d0 * (1. - self.u_lr(r) / self.tail_re * exponent).powi(2) - self.d0
+    }
+    
+    fn asymptote_dep(&self) -> super::AsymptoteDep {
+        let smallest = self.tail.iter()
+            .min_by_key(|x| if let AsymptoteDep::PowerLawVanishing(w) = x.asymptote_dep() {
+                w
+            } else {
+                unreachable!("builder asserts power law vanishing")
+            });
+
+        // builder asserts at least 1 element
+        smallest.unwrap().asymptote_dep()
     }
 }
 

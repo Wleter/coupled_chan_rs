@@ -11,7 +11,7 @@ use coupled_chan::{
         masked::Masked,
         pair::Pair,
     },
-    scaled_interaction::ScaledInteraction,
+    scaled::Scaled,
 };
 use hilbert_space::{
     operator_diag_mel,
@@ -92,11 +92,11 @@ impl DiatomBasis {
     }
 }
 
-pub type PotentialCurveCoupling<T> = Masked<ScaledInteraction<T>>;
+pub type PotentialCurveCoupling<T> = Masked<Scaled<T>>;
 
 #[derive(Debug, Clone)]
 pub struct PotentialCurve<P: Interaction> {
-    pub potential: ScaledInteraction<P>,
+    pub potential: Scaled<P>,
     pub operator: Operator,
 }
 
@@ -107,7 +107,7 @@ impl<P: Interaction> PotentialCurve<P> {
         });
 
         Self {
-            potential: ScaledInteraction::new(triplet),
+            potential: Scaled::new(triplet),
             operator,
         }
     }
@@ -118,7 +118,7 @@ impl<P: Interaction> PotentialCurve<P> {
         });
 
         Self {
-            potential: ScaledInteraction::new(singlet),
+            potential: Scaled::new(singlet),
             operator,
         }
     }
@@ -129,7 +129,7 @@ impl<P: Interaction> PotentialCurve<P> {
         });
 
         Self {
-            potential: ScaledInteraction::new(triplet),
+            potential: Scaled::new(triplet),
             operator,
         }
     }
@@ -140,14 +140,14 @@ impl<P: Interaction> PotentialCurve<P> {
         });
 
         Self {
-            potential: ScaledInteraction::new(singlet),
+            potential: Scaled::new(singlet),
             operator,
         }
     }
 }
 
 impl<P: Interaction + Clone> PotentialCurve<P> {
-    pub fn hamiltonian(&self) -> Masked<ScaledInteraction<P>> {
+    pub fn hamiltonian(&self) -> Masked<Scaled<P>> {
         Masked::new(self.potential.clone(), self.operator.clone())
     }
 }

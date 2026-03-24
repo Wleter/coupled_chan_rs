@@ -6,7 +6,7 @@ use coupled_chan::{
         atomic_units::AuEnergy,
     },
     coupling::AngularBlocks,
-    scaled_interaction::ScaledInteraction,
+    scaled::Scaled,
 };
 use hilbert_space::{
     operator_diag_mel,
@@ -96,7 +96,7 @@ impl DistortionEnergy {
 #[derive(Clone, Debug)]
 pub struct Interaction2D<I: Interaction>(pub Vec<(u32, I)>);
 
-impl<I: Interaction> Interaction2D<ScaledInteraction<I>> {
+impl<I: Interaction> Interaction2D<Scaled<I>> {
     pub fn scale(&mut self, scaling: PESScaling) {
         match scaling {
             PESScaling::Composite(scalings) => {
