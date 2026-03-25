@@ -127,6 +127,18 @@ impl<S: SpinMagLike, I: SpinMagLike> SpinPair<S, I> {
     }
 }
 
+impl<S: SpinMagLike, I: SpinMagLike> SpinLike for SpinPair<S, I> {
+    #[inline]
+    fn s(&self) -> HalfU32 {
+        self.spin.s
+    }
+
+    #[inline]
+    fn m(&self) -> HalfI32 {
+        self.spin.m
+    }
+}
+
 impl<S, I> std::fmt::Debug for SpinPair<S, I>
 where
     S: SpinMagLike + std::fmt::Debug,
@@ -135,6 +147,48 @@ where
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "({:?}, {:?}) {:?}", self.pair.0, self.pair.1, self.spin)
     }
+}
+
+#[macro_export]
+macro_rules! spin {
+    ( ( $($inner:tt)* ) ) => {
+        spin!( $($inner)* )
+    };
+
+    // 1. Both left and right are nested tuples (tt)
+    (($s1:tt, $s2:tt), $s_tot:expr, $m_tot:expr) => {
+        $crate::SpinPair::new((spin!($s1), spin!($s2)), Spin::new($s_tot, $m_tot))
+    };
+    (($s1:tt, $s2:tt), $s_tot:expr) => {
+        $crate::SpinPairMag::new((spin!($s1), spin!($s2)), $s_tot)
+    };
+
+    // 2. Only left is a nested tuple (tt)
+    (($s1:tt, $s2:expr), $s_tot:expr, $m_tot:expr) => {
+        $crate::SpinPair::new((spin!($s1), $s2), Spin::new($s_tot, $m_tot))
+    };
+    (($s1:tt, $s2:expr), $s_tot:expr) => {
+        $crate::SpinPairMag::new((spin!($s1), $s2), $s_tot)
+    };
+
+    // 3. Only right is a nested tuple (tt)
+    (($s1:expr, $s2:tt), $s_tot:expr, $m_tot:expr) => {
+        $crate::SpinPair::new(($s1, spin!($s2)), Spin::new($s_tot, $m_tot))
+    };
+    (($s1:expr, $s2:tt), $s_tot:expr) => {
+        $crate::SpinPairMag::new(($s1, spin!($s2)), $s_tot)
+    };
+
+    // 4. Base cases: both are flat expressions (expr)
+    (($s1:expr, $s2:expr), $s_tot:expr, $m_tot:expr) => {
+        $crate::SpinPair::new(($s1, $s2), Spin::new($s_tot, $m_tot))
+    };
+    (($s1:expr, $s2:expr), $s_tot:expr) => {
+        $crate::SpinPairMag::new(($s1, $s2), $s_tot)
+    };
+    ($s_tot:expr, $m_tot:expr) => {
+        $crate::Spin::new($s_tot, $m_tot)
+    };
 }
 
 /// Creates vector containing spin basis |s m_s >
@@ -331,52 +385,52 @@ mod tests {
 
         let f_tot = get_spin_pair_magnitudes(s_tot, i_tot);
         let expected = [
-            "((1/2, 0) 1/2, (3/2, 1) 1/2) 0",
-            "((1/2, 0) 1/2, (3/2, 1) 1/2) 1",
-            "((1/2, 0) 1/2, (3/2, 1) 3/2) 1",
-            "((1/2, 0) 1/2, (3/2, 1) 3/2) 2",
-            "((1/2, 0) 1/2, (3/2, 1) 5/2) 2",
-            "((1/2, 0) 1/2, (3/2, 1) 5/2) 3",
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(1/2))), hu32!(0)),
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(1/2))), hu32!(1)),
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(3/2))), hu32!(1)),
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(3/2))), hu32!(2)),
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(5/2))), hu32!(2)),
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(5/2))), hu32!(3)),
         ];
         for (f, exp) in f_tot.iter().zip(&expected) {
-            assert_eq!(&format!("{f:?}"), exp)
+            assert_eq!(f, exp)
         }
 
         let f_mf = get_spin_pair_basis(f_tot);
         let expected = [
-            "((1/2, 0) 1/2, (3/2, 1) 1/2) 0 0",
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(1/2))), hu32!(0), hi32!(0)),
 
-            "((1/2, 0) 1/2, (3/2, 1) 1/2) 1 -1",
-            "((1/2, 0) 1/2, (3/2, 1) 1/2) 1 0",
-            "((1/2, 0) 1/2, (3/2, 1) 1/2) 1 1",
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(1/2))), hu32!(1), hi32!(-1)),
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(1/2))), hu32!(1), hi32!(0)),
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(1/2))), hu32!(1), hi32!(1)),
 
-            "((1/2, 0) 1/2, (3/2, 1) 3/2) 1 -1",
-            "((1/2, 0) 1/2, (3/2, 1) 3/2) 1 0",
-            "((1/2, 0) 1/2, (3/2, 1) 3/2) 1 1",
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(3/2))), hu32!(1), hi32!(-1)),
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(3/2))), hu32!(1), hi32!(0)),
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(3/2))), hu32!(1), hi32!(1)),
 
-            "((1/2, 0) 1/2, (3/2, 1) 3/2) 2 -2",
-            "((1/2, 0) 1/2, (3/2, 1) 3/2) 2 -1",
-            "((1/2, 0) 1/2, (3/2, 1) 3/2) 2 0",
-            "((1/2, 0) 1/2, (3/2, 1) 3/2) 2 1",
-            "((1/2, 0) 1/2, (3/2, 1) 3/2) 2 2",
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(3/2))), hu32!(2), hi32!(-2)),
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(3/2))), hu32!(2), hi32!(-1)),
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(3/2))), hu32!(2), hi32!(0)),
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(3/2))), hu32!(2), hi32!(1)),
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(3/2))), hu32!(2), hi32!(2)),
 
-            "((1/2, 0) 1/2, (3/2, 1) 5/2) 2 -2",
-            "((1/2, 0) 1/2, (3/2, 1) 5/2) 2 -1",
-            "((1/2, 0) 1/2, (3/2, 1) 5/2) 2 0",
-            "((1/2, 0) 1/2, (3/2, 1) 5/2) 2 1",
-            "((1/2, 0) 1/2, (3/2, 1) 5/2) 2 2",
-            
-            "((1/2, 0) 1/2, (3/2, 1) 5/2) 3 -3",
-            "((1/2, 0) 1/2, (3/2, 1) 5/2) 3 -2",
-            "((1/2, 0) 1/2, (3/2, 1) 5/2) 3 -1",
-            "((1/2, 0) 1/2, (3/2, 1) 5/2) 3 0",
-            "((1/2, 0) 1/2, (3/2, 1) 5/2) 3 1",
-            "((1/2, 0) 1/2, (3/2, 1) 5/2) 3 2",
-            "((1/2, 0) 1/2, (3/2, 1) 5/2) 3 3",
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(5/2))), hu32!(2), hi32!(-2)),
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(5/2))), hu32!(2), hi32!(-1)),
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(5/2))), hu32!(2), hi32!(0)),
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(5/2))), hu32!(2), hi32!(1)),
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(5/2))), hu32!(2), hi32!(2)),
+
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(5/2))), hu32!(3), hi32!(-3)),
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(5/2))), hu32!(3), hi32!(-2)),
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(5/2))), hu32!(3), hi32!(-1)),
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(5/2))), hu32!(3), hi32!(0)),
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(5/2))), hu32!(3), hi32!(1)),
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(5/2))), hu32!(3), hi32!(2)),
+            spin!((((hu32!(1/2), hu32!(0)), hu32!(1/2)), ((hu32!(3/2), hu32!(1)), hu32!(5/2))), hu32!(3), hi32!(3)),
         ];
 
         for (f_mf, exp) in f_mf.iter().zip(&expected) {
-            assert_eq!(&format!("{f_mf:?}"), exp)
+            assert_eq!(f_mf, exp)
         }
     }
 }
