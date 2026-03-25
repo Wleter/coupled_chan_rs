@@ -22,15 +22,11 @@ impl<P: RCoupling, C: RCoupling> RCoupling for Pair<P, C> {
 
         self.first.size()
     }
-    
+
     fn asymptote_dep(&self) -> single_chan::interaction::AsymptoteDep {
         let first = self.first.asymptote_dep();
         let second = self.second.asymptote_dep();
 
-        if first < second {
-            second
-        } else {
-            first
-        }
+        if first < second { second } else { first }
     }
 }

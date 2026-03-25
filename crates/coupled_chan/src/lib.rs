@@ -1,10 +1,12 @@
+pub mod bound_states;
 pub mod coupling;
 pub mod s_matrix;
-pub mod bound_states;
 
-pub use cc_propagator;
-pub use cc_propagator::multi_channel;
 use cc_propagator::multi_channel::Matrix;
+pub use cc_propagator::{
+    self,
+    multi_channel,
+};
 pub use single_chan::{
     self,
     interaction::*,

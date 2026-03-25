@@ -3,11 +3,12 @@ use faer::{
     unzip,
     zip,
 };
-use single_chan::interaction::{AsymptoteDep, Interaction};
-
-use crate::{
-    coupling::RCoupling,
+use single_chan::interaction::{
+    AsymptoteDep,
+    Interaction,
 };
+
+use crate::coupling::RCoupling;
 
 #[derive(Debug, Clone)]
 pub struct Masked<P: Interaction> {
@@ -46,7 +47,7 @@ impl<P: Interaction> RCoupling for Masked<P> {
         assert_eq!(self.masking.nrows(), self.masking.ncols(), "Masking is not square");
         self.masking.nrows()
     }
-    
+
     fn asymptote_dep(&self) -> AsymptoteDep {
         self.interaction.asymptote_dep()
     }

@@ -13,7 +13,11 @@ use cc_math_utils::bessel::{
 use cc_propagator::{
     LogDeriv,
     Ratio,
-    Solution, multi_channel::{Matrix, WMatrix},
+    Solution,
+    multi_channel::{
+        Matrix,
+        WMatrix,
+    },
 };
 use faer::{
     Mat,
@@ -23,7 +27,10 @@ use faer::{
 };
 use num_complex::Complex64;
 
-use crate::coupling::{CollisionWMatrix, RCoupling};
+use crate::coupling::{
+    CollisionWMatrix,
+    RCoupling,
+};
 
 #[derive(Debug, Clone)]
 pub struct SMatrix {

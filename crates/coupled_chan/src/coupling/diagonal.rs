@@ -53,7 +53,7 @@ impl<P: Interaction> RCoupling for Diagonal<P> {
     fn size(&self) -> usize {
         self.couplings.len()
     }
-    
+
     fn asymptote_dep(&self) -> single_chan::interaction::AsymptoteDep {
         todo!()
     }

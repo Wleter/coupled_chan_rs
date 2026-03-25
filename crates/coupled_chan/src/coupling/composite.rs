@@ -34,7 +34,7 @@ impl<P: RCoupling> RCoupling for Composite<P> {
             0
         }
     }
-    
+
     fn asymptote_dep(&self) -> single_chan::interaction::AsymptoteDep {
         todo!()
     }

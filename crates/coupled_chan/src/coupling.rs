@@ -9,7 +9,10 @@ use std::{
 };
 
 use cc_matrix_utils::faer::diagonalize;
-use cc_propagator::multi_channel::{Matrix, WMatrix};
+use cc_propagator::multi_channel::{
+    Matrix,
+    WMatrix,
+};
 use faer::{
     Mat,
     unzip,
@@ -70,7 +73,7 @@ impl RCoupling for DynRCoupling {
     fn size(&self) -> usize {
         self.0.size()
     }
-    
+
     fn asymptote_dep(&self) -> AsymptoteDep {
         self.0.asymptote_dep()
     }
@@ -199,7 +202,7 @@ pub struct Asymptote {
     pub energy: f64,
 
     asymptote_channels: Matrix,
-    centrifugal: RedMultiCentrifugal
+    centrifugal: RedMultiCentrifugal,
 }
 
 impl Asymptote {
@@ -220,7 +223,7 @@ impl Asymptote {
 
             transformation: None,
             asymptote_channels,
-            centrifugal
+            centrifugal,
         }
     }
 
@@ -301,9 +304,7 @@ impl RedMultiCentrifugal {
             (levels.l[i] * (levels.l[i] + 1)) as f64
         });
 
-        Self {
-            mask,
-        }
+        Self { mask }
     }
 
     pub fn new_general(levels: &Levels, transformation: &Matrix) -> Self {
@@ -316,9 +317,7 @@ impl RedMultiCentrifugal {
         });
         let mask = crate::transform(&mask, transformation);
 
-        Self {
-            mask,
-        }
+        Self { mask }
     }
 
     pub fn value_inplace_add(&self, r: f64, channels: &mut Matrix) {
@@ -361,9 +360,8 @@ impl<V: RCoupling> WMatrix<f64> for CollisionWMatrix<V> {
     fn value_inplace(&self, r: f64, value: &mut Matrix) {
         self.coupling.value_inplace(r, value);
         *value += &self.asymptote.asymptote_channels;
-        zip!(value.as_mut(), self.id.as_ref()).for_each(|unzip!(c, i)| {
-            *c = 2.0 * self.asymptote.system_params.mass * (self.asymptote.energy * i - *c)
-        });
+        zip!(value.as_mut(), self.id.as_ref())
+            .for_each(|unzip!(c, i)| *c = 2.0 * self.asymptote.system_params.mass * (self.asymptote.energy * i - *c));
 
         self.asymptote.centrifugal.value_inplace_add(r, value);
     }
