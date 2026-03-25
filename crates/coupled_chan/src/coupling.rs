@@ -361,11 +361,11 @@ impl<V: RCoupling> WMatrix<f64> for CollisionWMatrix<V> {
     fn value_inplace(&self, r: f64, value: &mut Matrix) {
         self.coupling.value_inplace(r, value);
         *value += &self.asymptote.asymptote_channels;
-        self.asymptote.centrifugal.value_inplace_add(r, value);
-
         zip!(value.as_mut(), self.id.as_ref()).for_each(|unzip!(c, i)| {
             *c = 2.0 * self.asymptote.system_params.mass * (self.asymptote.energy * i - *c)
         });
+
+        self.asymptote.centrifugal.value_inplace_add(r, value);
     }
 
     fn size(&self) -> usize {
