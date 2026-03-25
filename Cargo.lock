@@ -216,6 +216,7 @@ name = "cc_problems"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "cc_constants",
  "cc_math_utils",
  "cc_qol_utils",
  "coupled_chan",
@@ -341,7 +342,6 @@ dependencies = [
 name = "coupled_chan"
 version = "0.1.0"
 dependencies = [
- "cc_constants",
  "cc_math_utils",
  "cc_matrix_utils",
  "cc_propagator",

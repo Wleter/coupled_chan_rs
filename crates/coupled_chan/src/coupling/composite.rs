@@ -1,9 +1,10 @@
-use crate::coupling::VanishingCoupling;
+use crate::coupling::RCoupling;
 
+use cc_propagator::multi_channel::Matrix;
 pub use cc_qol_utils::Composite;
 
-impl<P: VanishingCoupling> VanishingCoupling for Composite<P> {
-    fn value_inplace(&self, r: f64, channels: &mut crate::Operator) {
+impl<P: RCoupling> RCoupling for Composite<P> {
+    fn value_inplace(&self, r: f64, channels: &mut Matrix) {
         let mut couplings = self.components.iter();
 
         if let Some(c) = couplings.next() {
@@ -15,7 +16,7 @@ impl<P: VanishingCoupling> VanishingCoupling for Composite<P> {
         }
     }
 
-    fn value_inplace_add(&self, r: f64, channels: &mut crate::Operator) {
+    fn value_inplace_add(&self, r: f64, channels: &mut Matrix) {
         for c in self.components.iter() {
             c.value_inplace_add(r, channels);
         }
@@ -32,5 +33,9 @@ impl<P: VanishingCoupling> VanishingCoupling for Composite<P> {
         } else {
             0
         }
+    }
+    
+    fn asymptote_dep(&self) -> single_chan::interaction::AsymptoteDep {
+        todo!()
     }
 }

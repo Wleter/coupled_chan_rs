@@ -353,7 +353,7 @@ mod tests {
             let w_matrix = li2_problem.w_matrix();
             let s_matrix = li2_scattering.get_s_matrix(&w_matrix, |w, s, b| RatioNumerov::new(w, s, b));
 
-            assert_approx_eq!(s_matrix.get_scattering_length().re, result, 1e-6);
+            assert_approx_eq!(s_matrix.scattering_length().re, result, 1e-6);
         }
     }
 
@@ -369,7 +369,7 @@ mod tests {
             let w_matrix = li2_problem.w_matrix();
             let s_matrix = li2_scattering.get_s_matrix(&w_matrix, |w, s, b| JohnsonLogDerivative::new(w, s, b));
 
-            assert_approx_eq!(s_matrix.get_scattering_length().re, result, 1e-6);
+            assert_approx_eq!(s_matrix.scattering_length().re, result, 1e-6);
         }
     }
 
@@ -384,7 +384,7 @@ mod tests {
             let w_matrix = li2_problem.w_matrix();
             let s_matrix = li2_scattering.get_s_matrix(&w_matrix, |w, s, b| ManolopoulosLogDerivative::new(w, s, b));
 
-            assert_approx_eq!(s_matrix.get_scattering_length().re, result, 1e-6);
+            assert_approx_eq!(s_matrix.scattering_length().re, result, 1e-6);
         }
     }
 

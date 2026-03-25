@@ -8,7 +8,7 @@ pub mod interpolated;
 pub mod morse_long_range;
 pub mod scaled;
 
-/// Asymptotic (r going to infinity) 
+/// Asymptotic (r going to infinity)
 /// behavior for the [`Interaction`]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AsymptoteDep {

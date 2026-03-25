@@ -8,8 +8,7 @@ num-complex = {workspace = true}
 faer = {workspace = true}
 cc_matrix_utils = {path = "../cc_matrix_utils", features = ["faer"]}
 single_chan = {path = "../single_chan"}
-cc_propagator = {path = "../cc_propagator"}
-cc_constants = {path = "../cc_constants"}
+cc_propagator = {path = "../cc_propagator", features = ["multi_channel"]}
 cc_math_utils = {path = "../cc_math_utils"}
 cc_qol_utils = {path = "../cc_qol_utils"}
-hilbert_space = {path = "../hilbert_space"}
+hilbert_space = {path = "../hilbert_space", features = ["faer"]}

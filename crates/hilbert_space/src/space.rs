@@ -94,9 +94,7 @@ impl<Type: DynSubspaceElement> SubspaceBasisOf<Type> {
     }
 
     pub fn forget(self) -> (SubspaceBasis, BasisId<Type>) {
-        let basis = SubspaceBasis {
-            basis: self.basis,
-        };
+        let basis = SubspaceBasis { basis: self.basis };
 
         (basis, self.id)
     }
@@ -104,7 +102,7 @@ impl<Type: DynSubspaceElement> SubspaceBasisOf<Type> {
 
 #[derive(Clone, Debug)]
 pub struct SubspaceBasis {
-    basis: Vec<SubspaceElement>
+    basis: Vec<SubspaceElement>,
 }
 
 impl SubspaceBasis {

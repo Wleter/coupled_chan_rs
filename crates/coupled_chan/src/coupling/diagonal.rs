@@ -1,6 +1,7 @@
+use cc_propagator::multi_channel::Matrix;
 use single_chan::interaction::Interaction;
 
-use crate::coupling::VanishingCoupling;
+use crate::coupling::RCoupling;
 
 #[derive(Debug, Clone)]
 pub struct Diagonal<P: Interaction> {
@@ -19,13 +20,13 @@ impl<P: Interaction> Diagonal<P> {
     }
 }
 
-impl<P: Interaction> VanishingCoupling for Diagonal<P> {
-    fn value_inplace(&self, r: f64, channels: &mut crate::Operator) {
-        assert_eq!(channels.size(), self.size(), "Number mismatch between channels and coupling");
-        channels.0.fill(0.);
+impl<P: Interaction> RCoupling for Diagonal<P> {
+    fn value_inplace(&self, r: f64, channels: &mut Matrix) {
+        assert_eq!(channels.nrows(), self.size(), "Number mismatch between channels and coupling");
+        assert_eq!(channels.ncols(), self.size(), "Number mismatch between channels and coupling");
+        channels.fill(0.);
 
         for (c, a) in channels
-            .0
             .diagonal_mut()
             .column_vector_mut()
             .iter_mut()
@@ -35,11 +36,11 @@ impl<P: Interaction> VanishingCoupling for Diagonal<P> {
         }
     }
 
-    fn value_inplace_add(&self, r: f64, channels: &mut crate::Operator) {
-        assert_eq!(channels.size(), self.size(), "Number mismatch between channels and coupling");
+    fn value_inplace_add(&self, r: f64, channels: &mut Matrix) {
+        assert_eq!(channels.nrows(), self.size(), "Number mismatch between channels and coupling");
+        assert_eq!(channels.ncols(), self.size(), "Number mismatch between channels and coupling");
 
         for (c, a) in channels
-            .0
             .diagonal_mut()
             .column_vector_mut()
             .iter_mut()
@@ -51,5 +52,9 @@ impl<P: Interaction> VanishingCoupling for Diagonal<P> {
 
     fn size(&self) -> usize {
         self.couplings.len()
+    }
+    
+    fn asymptote_dep(&self) -> single_chan::interaction::AsymptoteDep {
+        todo!()
     }
 }

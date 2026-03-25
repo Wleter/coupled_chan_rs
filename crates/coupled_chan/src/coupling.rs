@@ -8,40 +8,41 @@ use std::{
     sync::Arc,
 };
 
-use cc_constants::units::{
-    Quantity,
-    atomic_units::{
-        AuEnergy,
-        AuMass,
-    },
-};
 use cc_matrix_utils::faer::diagonalize;
+use cc_propagator::multi_channel::{Matrix, WMatrix};
 use faer::{
     Mat,
     unzip,
     zip,
 };
+use single_chan::interaction::AsymptoteDep;
 
-use crate::Operator;
+#[derive(Debug, Clone, Copy)]
+pub struct SystemParams {
+    pub mass: f64,
+    pub energy: f64,
+    pub entrance: usize,
+}
 
-pub trait VanishingCoupling {
-    fn value_inplace_add(&self, r: f64, channels: &mut Operator);
+pub trait RCoupling {
+    fn value_inplace_add(&self, r: f64, channels: &mut Matrix);
     fn size(&self) -> usize;
+    fn asymptote_dep(&self) -> AsymptoteDep;
 
-    fn value_inplace(&self, r: f64, channels: &mut Operator) {
+    fn value_inplace(&self, r: f64, channels: &mut Matrix) {
         channels.fill(0.);
         self.value_inplace_add(r, channels);
     }
 
-    fn value(&self, r: f64) -> Operator {
-        let mut operator = Operator::zeros(self.size());
+    fn value(&self, r: f64) -> Matrix {
+        let mut operator = Matrix::zeros(self.size(), self.size());
         self.value_inplace(r, &mut operator);
 
         operator
     }
 
     fn adiabats(&self, r: f64) -> Vec<f64> {
-        let mut operator = Operator::zeros(self.size());
+        let mut operator = Matrix::zeros(self.size(), self.size());
         self.value_inplace(r, &mut operator);
 
         operator.self_adjoint_eigenvalues(faer::Side::Lower).unwrap()
@@ -49,25 +50,29 @@ pub trait VanishingCoupling {
 }
 
 #[derive(Clone)]
-pub struct DynVanishingCoupling(Arc<dyn VanishingCoupling + Send + Sync>);
+pub struct DynRCoupling(Arc<dyn RCoupling + Send + Sync>);
 
-impl DynVanishingCoupling {
-    pub fn new<T: VanishingCoupling + Send + Sync + 'static>(coupling: T) -> Self {
+impl DynRCoupling {
+    pub fn new<T: RCoupling + Send + Sync + 'static>(coupling: T) -> Self {
         Self(Arc::new(coupling))
     }
 }
 
-impl VanishingCoupling for DynVanishingCoupling {
-    fn value_inplace(&self, r: f64, channels: &mut Operator) {
+impl RCoupling for DynRCoupling {
+    fn value_inplace(&self, r: f64, channels: &mut Matrix) {
         self.0.value_inplace(r, channels);
     }
 
-    fn value_inplace_add(&self, r: f64, channels: &mut Operator) {
+    fn value_inplace_add(&self, r: f64, channels: &mut Matrix) {
         self.0.value_inplace_add(r, channels);
     }
 
     fn size(&self) -> usize {
         self.0.size()
+    }
+    
+    fn asymptote_dep(&self) -> AsymptoteDep {
+        self.0.asymptote_dep()
     }
 }
 
@@ -78,10 +83,10 @@ pub struct Levels {
 }
 
 impl Levels {
-    pub fn as_channels(&self) -> Operator {
-        let mut channels = Operator::zeros(self.l.len());
+    pub fn as_matrix(&self) -> Matrix {
+        let mut channels = Matrix::zeros(self.l.len(), self.l.len());
 
-        for (c, &a) in channels.0.diagonal_mut().column_vector_mut().iter_mut().zip(&self.asymptote) {
+        for (c, &a) in channels.diagonal_mut().column_vector_mut().iter_mut().zip(&self.asymptote) {
             *c = a
         }
 
@@ -92,18 +97,18 @@ impl Levels {
 #[derive(Clone, Debug)]
 pub struct AngularBlocks {
     pub l: Vec<u32>,
-    pub angular_blocks: Vec<Operator>,
+    pub angular_blocks: Vec<Matrix>,
 }
 
 impl AngularBlocks {
     pub fn size(&self) -> usize {
-        self.angular_blocks.iter().map(|b| b.size()).sum()
+        self.angular_blocks.iter().map(|b| b.nrows()).sum()
     }
 
     pub fn scale(&self, scaling: f64) -> Self {
         AngularBlocks {
             l: self.l.clone(),
-            angular_blocks: self.angular_blocks.iter().map(|x| Operator::new(scaling * &x.0)).collect(),
+            angular_blocks: self.angular_blocks.iter().map(|x| scaling * x).collect(),
         }
     }
 
@@ -116,26 +121,26 @@ impl AngularBlocks {
                 .angular_blocks
                 .iter()
                 .zip(&transform.angular_blocks)
-                .map(|(x, t)| x.transform(t))
+                .map(|(x, t)| crate::transform(x, t))
                 .collect(),
         }
     }
 
-    pub fn diagonalized(&self) -> (Levels, Operator) {
+    pub fn diagonalized(&self) -> (Levels, Matrix) {
         let n = self.size();
         let mut energies = Vec::with_capacity(n);
         let mut ls = Vec::with_capacity(n);
-        let mut eigenstates = Operator::zeros(n);
+        let mut eigenstates = Matrix::zeros(n, n);
 
         let mut block_index = 0;
         for (block, l) in self.angular_blocks.iter().zip(&self.l) {
-            let n_block = block.size();
+            let n_block = block.nrows();
 
-            let (energies_block, eigenstates_block) = diagonalize(block.0.as_ref());
+            let (energies_block, eigenstates_block) = diagonalize(block.as_ref());
 
             energies.extend(energies_block);
             ls.extend(vec![l; n_block]);
-            let sub_matrix = eigenstates.0.submatrix_mut(block_index, block_index, n_block, n_block);
+            let sub_matrix = eigenstates.submatrix_mut(block_index, block_index, n_block, n_block);
             zip!(sub_matrix, eigenstates_block.as_ref()).for_each(|unzip!(s, &e)| *s = e);
 
             block_index += n_block;
@@ -149,16 +154,16 @@ impl AngularBlocks {
         (levels, eigenstates)
     }
 
-    pub fn operator(&self) -> Operator {
+    pub fn as_matrix(&self) -> Matrix {
         let n = self.size();
-        let mut channels = Operator::zeros(n);
+        let mut channels = Matrix::zeros(n, n);
 
         let mut block_index = 0;
         for block in &self.angular_blocks {
-            let n_block = block.size();
+            let n_block = block.nrows();
 
-            let sub_matrix = channels.0.submatrix_mut(block_index, block_index, n_block, n_block);
-            zip!(sub_matrix, block.0.as_ref()).for_each(|unzip!(s, &e)| *s = e);
+            let sub_matrix = channels.submatrix_mut(block_index, block_index, n_block, n_block);
+            zip!(sub_matrix, block.as_ref()).for_each(|unzip!(s, &e)| *s = e);
 
             block_index += n_block;
         }
@@ -188,18 +193,17 @@ impl Add for AngularBlocks {
 #[derive(Clone, Debug)]
 pub struct Asymptote {
     levels: Levels,
-    transformation: Option<Operator>,
+    transformation: Option<Matrix>,
 
-    pub entrance_level: usize,
-    pub red_mass: f64,
+    system_params: SystemParams,
     pub energy: f64,
 
-    asymptote_channels: Operator,
-    centrifugal: MultiCentrifugal,
+    asymptote_channels: Matrix,
+    centrifugal: RedMultiCentrifugal
 }
 
 impl Asymptote {
-    pub fn new_diagonal(mass: Quantity<AuMass>, energy: Quantity<AuEnergy>, levels: Levels, entrance_level: usize) -> Self {
+    pub fn new_diagonal(levels: Levels, system_params: SystemParams) -> Self {
         let asymptote_channels = Mat::from_fn(levels.asymptote.len(), levels.asymptote.len(), |i, j| {
             if i != j {
                 return 0.;
@@ -207,64 +211,46 @@ impl Asymptote {
 
             levels.asymptote[i]
         });
-
-        let centrifugal = MultiCentrifugal::new_diagonal(&levels, mass);
+        let centrifugal = RedMultiCentrifugal::new_diagonal(&levels);
 
         Self {
-            red_mass: mass.value(),
-            energy: levels.asymptote[entrance_level] + energy.value(),
-
-            entrance_level,
+            system_params,
+            energy: levels.asymptote[system_params.entrance] + system_params.energy,
             levels,
 
             transformation: None,
-            asymptote_channels: Operator::new(asymptote_channels),
-            centrifugal,
+            asymptote_channels,
+            centrifugal
         }
     }
 
-    pub fn new_angular_blocks(
-        mass: Quantity<AuMass>,
-        energy: Quantity<AuEnergy>,
-        angular_blocks: AngularBlocks,
-        entrance_level: usize,
-    ) -> Self {
+    pub fn new_angular_blocks(angular_blocks: AngularBlocks, system_params: SystemParams) -> Self {
         let (levels, transformation) = angular_blocks.diagonalized();
-        let centrifugal = MultiCentrifugal::new_diagonal(&levels, mass);
+        let centrifugal = RedMultiCentrifugal::new_diagonal(&levels);
 
         Self {
-            red_mass: mass.value(),
-            energy: levels.asymptote[entrance_level] + energy.value(),
-
-            entrance_level,
+            system_params,
+            energy: levels.asymptote[system_params.entrance] + system_params.energy,
             levels,
+            centrifugal,
 
             transformation: Some(transformation),
-            asymptote_channels: angular_blocks.operator(),
-            centrifugal,
+            asymptote_channels: angular_blocks.as_matrix(),
         }
     }
 
-    pub fn new_general(
-        mass: Quantity<AuMass>,
-        energy: Quantity<AuEnergy>,
-        levels: Levels,
-        transformation: Operator,
-        entrance_level: usize,
-    ) -> Self {
-        let centrifugal = MultiCentrifugal::new_diagonal(&levels, mass);
-        let channels = levels.as_channels().transform(&transformation);
+    pub fn new_general(levels: Levels, transformation: Matrix, system_params: SystemParams) -> Self {
+        let channels = crate::transform(&levels.as_matrix(), &transformation);
+        let centrifugal = RedMultiCentrifugal::new_general(&levels, &transformation);
 
         Self {
-            red_mass: mass.value(),
-            energy: levels.asymptote[entrance_level] + energy.value(),
-
-            entrance_level,
+            system_params,
+            energy: levels.asymptote[system_params.entrance] + system_params.energy,
             levels,
+            centrifugal,
 
             transformation: Some(transformation),
             asymptote_channels: channels,
-            centrifugal,
         }
     }
 
@@ -272,28 +258,41 @@ impl Asymptote {
         &self.levels
     }
 
+    pub fn set_energy(&mut self, energy: f64) {
+        self.system_params.energy = energy;
+        self.energy = self.levels.asymptote[self.system_params.entrance] + energy
+    }
+
+    pub fn set_entrance(&mut self, entrance: usize) {
+        self.system_params.entrance = entrance;
+        self.energy = self.levels.asymptote[self.system_params.entrance] + self.system_params.energy
+    }
+
+    pub fn set_mass(&mut self, mass: f64) {
+        self.system_params.mass = mass
+    }
+
+    pub fn system_params(&self) -> &SystemParams {
+        &self.system_params
+    }
+
     pub fn entrance_energy(&self) -> f64 {
-        self.levels.asymptote[self.entrance_level]
+        self.levels.asymptote[self.system_params.entrance]
     }
 
-    pub fn transformation(&self) -> &Option<Operator> {
+    pub fn transformation(&self) -> &Option<Matrix> {
         &self.transformation
-    }
-
-    pub fn set_energy(&mut self, energy: Quantity<AuEnergy>) {
-        self.energy = self.levels.asymptote[self.entrance_level] + energy.value();
     }
 }
 
 /// Multichannel centrifugal term L^2 / (2 m r^2)
 #[derive(Clone, Debug)]
-pub struct MultiCentrifugal {
-    mask: Operator,
-    mass: f64,
+pub struct RedMultiCentrifugal {
+    mask: Matrix,
 }
 
-impl MultiCentrifugal {
-    pub fn new_diagonal(levels: &Levels, mass: Quantity<AuMass>) -> Self {
+impl RedMultiCentrifugal {
+    pub fn new_diagonal(levels: &Levels) -> Self {
         let mask = Mat::from_fn(levels.l.len(), levels.l.len(), |i, j| {
             if i != j {
                 return 0.;
@@ -303,106 +302,73 @@ impl MultiCentrifugal {
         });
 
         Self {
-            mask: Operator::new(mask),
-            mass: mass.value(),
+            mask,
         }
     }
 
-    pub fn value_inplace_add(&self, r: f64, channels: &mut Operator) {
-        zip!(channels.0.as_mut(), self.mask.0.as_ref()).for_each(|unzip!(o, m)| *o += m / (2. * self.mass * r * r));
-    }
-}
+    pub fn new_general(levels: &Levels, transformation: &Matrix) -> Self {
+        let mask = Mat::from_fn(levels.l.len(), levels.l.len(), |i, j| {
+            if i != j {
+                return 0.;
+            }
 
-pub trait WMatrix {
-    fn size(&self) -> usize;
-    fn value_inplace(&self, r: f64, channels: &mut Operator);
+            (levels.l[i] * (levels.l[i] + 1)) as f64
+        });
+        let mask = crate::transform(&mask, transformation);
 
-    fn id(&self) -> &Operator;
-    fn asymptote(&self) -> &Asymptote;
-
-    fn value(&self, r: f64) -> Operator {
-        let mut operator = Operator::zeros(self.size());
-        self.value_inplace(r, &mut operator);
-
-        operator
+        Self {
+            mask,
+        }
     }
 
-    fn adiabats(&self, r: f64) -> Vec<f64> {
-        let mut operator = Operator::zeros(self.size());
-        self.value_inplace(r, &mut operator);
-
-        operator.self_adjoint_eigenvalues(faer::Side::Lower).unwrap()
-    }
-}
-
-pub struct DynWMatrix(Box<dyn WMatrix>);
-
-impl DynWMatrix {
-    pub fn new<W: WMatrix + 'static>(w_matrix: W) -> Self {
-        Self(Box::new(w_matrix))
-    }
-}
-
-impl WMatrix for DynWMatrix {
-    fn size(&self) -> usize {
-        self.0.size()
-    }
-
-    fn value_inplace(&self, r: f64, channels: &mut Operator) {
-        self.0.value_inplace(r, channels);
-    }
-
-    fn id(&self) -> &Operator {
-        self.0.id()
-    }
-
-    fn asymptote(&self) -> &Asymptote {
-        self.0.asymptote()
+    pub fn value_inplace_add(&self, r: f64, channels: &mut Matrix) {
+        zip!(channels.as_mut(), self.mask.as_ref()).for_each(|unzip!(o, m)| *o += m / (r * r));
     }
 }
 
 #[derive(Clone)]
-pub struct RedCoupling<P: VanishingCoupling> {
+pub struct CollisionWMatrix<P: RCoupling> {
     pub coupling: P,
     pub asymptote: Asymptote,
-    pub id: Operator,
+    id: Matrix,
 }
 
-impl<P: VanishingCoupling> RedCoupling<P> {
+impl<P: RCoupling> CollisionWMatrix<P> {
     pub fn new(coupling: P, asymptote: Asymptote) -> Self {
         assert_eq!(
             coupling.size(),
-            asymptote.asymptote_channels.size(),
+            asymptote.asymptote_channels.nrows(),
             "mismatched sizes between asymptote and coupling"
         );
 
         Self {
-            id: Operator::identity(coupling.size()),
+            id: Matrix::identity(coupling.size(), coupling.size()),
             coupling,
             asymptote,
         }
     }
+
+    pub fn id(&self) -> &Matrix {
+        &self.id
+    }
+
+    pub fn asymptote(&self) -> &Asymptote {
+        &self.asymptote
+    }
 }
 
-impl<V: VanishingCoupling> WMatrix for RedCoupling<V> {
-    fn value_inplace(&self, r: f64, channels: &mut Operator) {
-        self.coupling.value_inplace(r, channels);
-        channels.0 += &self.asymptote.asymptote_channels.0;
-        self.asymptote.centrifugal.value_inplace_add(r, channels);
+impl<V: RCoupling> WMatrix<f64> for CollisionWMatrix<V> {
+    fn value_inplace(&self, r: f64, value: &mut Matrix) {
+        self.coupling.value_inplace(r, value);
+        *value += &self.asymptote.asymptote_channels;
+        self.asymptote.centrifugal.value_inplace_add(r, value);
 
-        zip!(channels.0.as_mut(), self.id.0.as_ref())
-            .for_each(|unzip!(c, i)| *c = 2.0 * self.asymptote.red_mass * (self.asymptote.energy * i - *c));
+        zip!(value.as_mut(), self.id.as_ref()).for_each(|unzip!(c, i)| {
+            *c = 2.0 * self.asymptote.system_params.mass * (self.asymptote.energy * i - *c)
+        });
     }
 
     fn size(&self) -> usize {
         self.coupling.size()
-    }
-
-    fn id(&self) -> &Operator {
-        &self.id
-    }
-
-    fn asymptote(&self) -> &Asymptote {
-        &self.asymptote
     }
 }
