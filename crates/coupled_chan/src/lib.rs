@@ -12,8 +12,6 @@ pub use single_chan::{
     interaction::*,
 };
 
-pub type Operator = hilbert_space::operator::Operator<Matrix>;
-
 /// Perform U O U^T
 pub fn transform(m: &Matrix, transformation: &Matrix) -> Matrix {
     transformation * m * transformation.transpose()

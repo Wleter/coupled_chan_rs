@@ -9,55 +9,37 @@ use spin_algebra::{
     wigner_6j,
 };
 
-use crate::AngularMomentum;
+use crate::Angular;
 
 #[rustfmt::skip]
-pub fn percival_coef(lambda: u32, l: Braket<&AngularMomentum>, n: Braket<&AngularMomentum>, n_tot: HalfU32) -> f64 {
+pub fn percival_coef(lambda: u32, l: Braket<Angular>, n: Braket<Angular>, n_tot: HalfU32) -> f64 {
     let lambda = lambda.into();
 
-    let l_spin = Braket {
-        bra: l.bra.0.into(),
-        ket: l.ket.0.into(),
-    };
-    let n_spin = Braket {
-        bra: n.bra.0.into(),
-        ket: n.ket.0.into(),
-    };
-
-    let sign = (-1.0f64).powi((l.bra.0 + l.ket.0) as i32 - n_tot.double_value() as i32 / 2);
+    let sign = (-1.0f64).powi(((l.bra.l + l.ket.l).double_value() as i32 - n_tot.double_value() as i32) / 2);
         
-    let prefactor = p1_factor(n_spin.bra) * p1_factor(n_spin.ket)
-        * p1_factor(l_spin.bra) * p1_factor(l_spin.ket);
+    let prefactor = p1_factor(n.bra.l) * p1_factor(n.ket.l)
+        * p1_factor(l.bra.l) * p1_factor(l.ket.l);
 
-    let wigners = wigner_3j(l_spin.bra, lambda, l_spin.ket, hi32!(0), hi32!(0), hi32!(0))
-        * wigner_3j(n_spin.bra, lambda, n_spin.ket, hi32!(0), hi32!(0), hi32!(0))
-        * wigner_6j(l_spin.bra, lambda, l_spin.ket, n_spin.ket, n_tot, n_spin.bra);
+    let wigners = wigner_3j(l.bra.l, lambda, l.ket.l, hi32!(0), hi32!(0), hi32!(0))
+        * wigner_3j(n.bra.l, lambda, n.ket.l, hi32!(0), hi32!(0), hi32!(0))
+        * wigner_6j(l.bra.l, lambda, l.ket.l, n.ket.l, n_tot, n.bra.l);
 
     sign * prefactor * wigners
 }
 
 #[rustfmt::skip]
-pub fn percival_coef_tram_mel(lambda: u32, l: Braket<AngularMomentum>, n: Braket<AngularMomentum>, n_tot: Braket<Spin>) -> f64 {
+pub fn percival_coef_tram_mel(lambda: u32, l: Braket<Angular>, n: Braket<Angular>, n_tot: Braket<Angular>) -> f64 {
     if n_tot.bra == n_tot.ket {
         let lambda = lambda.into();
-
-        let l_spin = Braket {
-            bra: l.bra.0.into(),
-            ket: l.ket.0.into(),
-        };
-        let n_spin = Braket {
-            bra: n.bra.0.into(),
-            ket: n.ket.0.into(),
-        };
             
-        let sign = (-1.0f64).powi((l.bra.0 + l.ket.0) as i32 - n_tot.bra.s.double_value() as i32 / 2);
+        let sign = (-1.0f64).powi(((l.bra.l + l.ket.l).double_value() as i32 - n_tot.bra.l.double_value() as i32) / 2);
             
-        let prefactor = p1_factor(n_spin.bra) * p1_factor(n_spin.ket)
-            * p1_factor(l_spin.bra) * p1_factor(l_spin.ket);
+        let prefactor = p1_factor(n.bra.l) * p1_factor(n.ket.l)
+            * p1_factor(l.bra.l) * p1_factor(l.ket.l);
 
-        let wigners = wigner_3j(l_spin.bra, lambda, l_spin.ket, hi32!(0), hi32!(0), hi32!(0))
-            * wigner_3j(n_spin.bra, lambda, n_spin.ket, hi32!(0), hi32!(0), hi32!(0))
-            * wigner_6j(l_spin.bra, lambda, l_spin.ket, n_spin.ket, n_tot.bra.s, n_spin.bra);
+        let wigners = wigner_3j(l.bra.l, lambda, l.ket.l, hi32!(0), hi32!(0), hi32!(0))
+            * wigner_3j(n.bra.l, lambda, n.ket.l, hi32!(0), hi32!(0), hi32!(0))
+            * wigner_6j(l.bra.l, lambda, l.ket.l, n.ket.l, n_tot.bra.l, n.bra.l);
 
         sign * prefactor * wigners
     } else {
@@ -84,10 +66,10 @@ pub fn triplet_projection_uncoupled(s1: Braket<Spin>, s2: Braket<Spin>) -> f64 {
 }
 
 #[rustfmt::skip]
-pub fn spin_rot_tram_mel(l: Braket<&AngularMomentum>, n: Braket<&AngularMomentum>, n_tot: Braket<Spin>, s: Braket<Spin>) -> f64 {
+pub fn spin_rot_tram_mel(l: Braket<Angular>, n: Braket<Angular>, n_tot: Braket<Spin>, s: Braket<Spin>) -> f64 {
     if l.bra == l.ket && n.bra == n.ket && s.bra.s == s.ket.s {
-        let l = l.bra.0.into();
-        let n = n.bra.0.into();
+        let l = l.bra.l;
+        let n = n.bra.l;
 
         let factor = p1_factor(n_tot.ket.s) * p1_factor(n_tot.bra.s)
             * p3_factor(n) 
@@ -113,17 +95,17 @@ pub fn spin_rot_tram_mel(l: Braket<&AngularMomentum>, n: Braket<&AngularMomentum
 
 #[rustfmt::skip]
 pub fn aniso_hifi_tram_mel(
-    l: Braket<&AngularMomentum>, 
-    n: Braket<&AngularMomentum>, 
+    l: Braket<Angular>, 
+    n: Braket<Angular>, 
     n_tot: Braket<Spin>, 
     s: Braket<Spin>, 
     i: Braket<Spin>
 ) -> f64 {
     if l.bra == l.ket && s.bra.s == s.ket.s && i.bra.s == i.ket.s {
-        let l: HalfU32 = l.bra.0.into();
+        let l: HalfU32 = l.bra.l;
         let n = Braket {
-            bra: n.bra.0.into(),
-            ket: n.ket.0.into(),
+            bra: n.bra.l,
+            ket: n.ket.l,
         };
 
         let factor = p1_factor(n_tot.ket.s) * p1_factor(n_tot.bra.s)
@@ -154,17 +136,17 @@ pub fn aniso_hifi_tram_mel(
 
 #[rustfmt::skip]
 pub fn dipole_dipole_tram_mel(
-    l: Braket<&AngularMomentum>, 
-    n: Braket<&AngularMomentum>, 
+    l: Braket<Angular>, 
+    n: Braket<Angular>, 
     n_tot: Braket<Spin>, 
     s_r: Braket<Spin>,
     s_a: Braket<Spin>
 ) -> f64 {
     if n.bra == n.ket && s_r.bra.s == s_r.ket.s && s_a.bra.s == s_a.ket.s {
-        let n = n.bra.0.into();
+        let n = n.bra.l;
         let l = Braket {
-            bra: l.bra.0.into(),
-            ket: l.ket.0.into(),
+            bra: l.bra.l,
+            ket: l.ket.l,
         };
 
         let factor = p1_factor(n_tot.bra.s) * p1_factor(n_tot.ket.s)

@@ -1,347 +1,115 @@
-pub mod atom_rotor_basis;
-pub mod atom_structure;
-pub mod bound_states;
+pub mod atom_basis;
 pub mod diatom_basis;
-pub mod homo_diatom_basis;
 pub mod operator_mel;
-pub mod prelude;
-pub mod problems;
-pub mod rotor_structure;
-pub mod system_structure;
-pub mod tram_basis;
+pub mod hamiltonian;
 
-pub use anyhow;
-use anyhow::bail;
-pub use cc_math_utils::{
-    linspace,
-    logspace,
-};
 pub use cc_qol_utils;
-pub use coupled_chan;
-pub use hilbert_space;
-pub use rayon;
-use serde::{
-    Deserialize,
-    Serialize,
-};
-use serde_json::Value;
-pub use spin_algebra;
-
-pub use serde;
-pub use serde_json;
-
-use coupled_chan::{
-    CoupledPropagator,
-    Operator,
-    cc_constants::{
-        Bohr,
-        Quantity,
-    },
-    cc_propagator::{
-        Boundary,
-        Direction,
-        Propagator,
-        Repr,
-        Solution,
-        step_strategy::Step,
-    },
-    coupling::{
-        AngularBlocks,
-        Asymptote,
-        Levels,
-        VanishingCoupling,
-        WMatrix,
-    },
-    log_derivative::diabatic::{
-        DiabaticLogDerivative,
-        LogDerivativeReference,
-    },
-    s_matrix::{
-        SMatrix,
-        SMatrixGetter,
-    },
-    vanishing_boundary,
-};
 use hilbert_space::space::{
-    BasisElementIndices,
-    BasisElements,
-    BasisElementsRef,
     BasisId,
-    DynSubspaceElement,
+    SpaceBasis,
+    SubspaceBasis,
+};
+use spin_algebra::{
+    Spin, SpinLike, get_spin_basis, half_integer::{HalfI32, HalfU32}
 };
 
-use crate::{
-    bound_states::BoundState,
-    prelude::{
-        BoundStatesFinder,
-        NodeMonotony,
-        NodeRangeTarget,
-    },
-    system_structure::AngularBasis,
-};
+#[derive(Clone, Copy, PartialEq, Default, Hash)]
+pub struct Angular {
+    pub l: HalfU32,
+    pub m: HalfI32,
+}
 
-#[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default, Serialize, Deserialize)]
-pub struct AngularMomentum(pub u32);
-
-impl std::fmt::Debug for AngularMomentum {
+impl std::fmt::Debug for Angular {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        write!(f, "{} {}", self.l, self.m)
     }
 }
 
-#[derive(Clone)]
-pub struct AngularBasisElements {
-    pub full_basis: BasisElements,
-    ls: Vec<AngularMomentum>,
-    separated_basis_indices: Vec<Vec<BasisElementIndices>>,
-}
+impl SpinLike for Angular {
+    fn s(&self) -> HalfU32 {
+        self.l
+    }
 
-impl std::fmt::Debug for AngularBasisElements {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AngularBasisElements")
-            .field("full_basis", &self.full_basis)
-            .finish()
+    fn m(&self) -> HalfI32 {
+        self.m
     }
 }
 
-impl AngularBasisElements {
-    pub fn new_angular(full_basis: BasisElements, system: &AngularBasis) -> Self {
-        Self::new(full_basis, system.l, |&a| a)
+impl From<Spin> for Angular {
+    fn from(value: Spin) -> Self {
+        assert!(value.s.double_value() & 1 == 0, "Can only convert non-half integers");
+        assert!(value.m.double_value() & 1 == 0, "Can only convert non-half integers");
+
+        Self { l: value.s, m: value.m }
     }
+}
 
-    pub fn new<T: DynSubspaceElement>(
-        full_basis: BasisElements,
-        l_index: BasisId<T>,
-        conversion: impl Fn(&T) -> AngularMomentum,
-    ) -> Self {
-        let basis = full_basis.basis;
+impl Into<Spin> for Angular {
+    fn into(self) -> Spin {
+        Spin::new(self.l, self.m)
+    }
+}
 
-        let mut angular_indices: Vec<(AngularMomentum, BasisElementIndices)> = full_basis
-            .elements_indices
-            .into_iter()
-            .map(|indices| (conversion(indices.index(l_index, &basis)), indices))
-            .collect();
-        angular_indices.sort_by_key(|(l, _)| *l);
-        let ordered_indices = angular_indices.iter().map(|x| x.1.clone()).collect();
+impl Angular {
+    pub fn new(l: u32, m: i32) -> Self {
+        Self { l: l.into(), m: m.into() }
+    }
+}
 
-        let ordered_basis = BasisElements {
-            basis,
-            elements_indices: ordered_indices,
-        };
+#[derive(Debug, Clone, Copy)]
+pub enum OrbitalRecipe {
+    /// Single l is still inserted into the basis
+    /// as |l 0>
+    Single(u32),
+    /// l = 0..=l_max is inserted into the basis
+    /// as |l 0>
+    LMax(u32),
+    /// l = 0..=l_max, m = -l..=l is inserted into the basis
+    /// as |l m>
+    LMaxProjections(u32),
+}
 
-        let mut l_prev: Option<AngularMomentum> = None;
-        let mut separated_basis_indices = vec![];
-        let mut ls = vec![];
-        for (l, index) in angular_indices {
-            let l_changed = if let Some(l_prev) = l_prev { l_prev != l } else { true };
-
-            if l_changed {
-                ls.push(l);
-                separated_basis_indices.push(vec![index])
-            } else {
-                separated_basis_indices.last_mut().unwrap().push(index)
+impl OrbitalRecipe {
+    pub fn basis(&self) -> Vec<Angular> {
+        match self {
+            OrbitalRecipe::Single(ang_l) => vec![Angular::new(*ang_l, 0)],
+            OrbitalRecipe::LMax(l_max) => {
+                angular_range(*l_max)
             }
-
-            l_prev = Some(l)
-        }
-
-        Self {
-            full_basis: ordered_basis,
-            ls,
-            separated_basis_indices,
-        }
-    }
-
-    pub fn angular_iter<'a>(&'a self) -> impl Iterator<Item = BasisElementsRef<'a>> {
-        self.separated_basis_indices.iter().map(|indices| BasisElementsRef {
-            basis: &self.full_basis.basis,
-            elements_indices: indices,
-        })
-    }
-
-    pub fn get_angular_blocks(&self, mut f: impl FnMut(&BasisElementsRef) -> Operator) -> AngularBlocks {
-        let blocks = self.angular_iter().map(|e| f(&e)).collect();
-
-        AngularBlocks {
-            l: self.ls.iter().map(|a| a.0).collect(),
-            angular_blocks: blocks,
-        }
-    }
-}
-
-pub trait Structure {
-    fn modify_parameter(&mut self, key: &str, value: Value) -> anyhow::Result<()>;
-
-    fn modify_parameters(&mut self, data: Value) -> anyhow::Result<()> {
-        if let Some(data) = data.as_object() {
-            for (key, value) in data {
-                self.modify_parameter(key.as_str(), value.clone())?
+            OrbitalRecipe::LMaxProjections(l_max) => {
+                get_spin_basis((*l_max).into()).into_iter()
+                    .map(|l| l.into())
+                    .collect()
             }
-        } else {
-            bail!("Expected map value")
         }
-
-        Ok(())
-    }
-}
-
-pub trait Hamiltonian: Structure {
-    type Coupling: VanishingCoupling;
-    type WMatrix: WMatrix;
-
-    fn asymptote(&self) -> Asymptote;
-
-    fn coupling(&self) -> Self::Coupling;
-
-    fn w_matrix(&self) -> Self::WMatrix;
-}
-
-pub struct DynHamiltonian<C, W>(Box<dyn Hamiltonian<Coupling = C, WMatrix = W>>);
-
-impl<C, W> Structure for DynHamiltonian<C, W> {
-    fn modify_parameter(&mut self, key: &str, value: Value) -> anyhow::Result<()> {
-        self.0.modify_parameter(key, value)
-    }
-}
-
-impl<C: VanishingCoupling, W: WMatrix> Hamiltonian for DynHamiltonian<C, W> {
-    type Coupling = C;
-    type WMatrix = W;
-
-    fn asymptote(&self) -> Asymptote {
-        self.0.asymptote()
     }
 
-    fn coupling(&self) -> Self::Coupling {
-        self.0.coupling()
-    }
-
-    fn w_matrix(&self) -> Self::WMatrix {
-        self.0.w_matrix()
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct ScatteringProblem<S: Step> {
-    pub r_min: Quantity<Bohr>,
-    pub r_max: Quantity<Bohr>,
-    pub step_strat: S,
-}
-
-impl<S: Step + Clone> ScatteringProblem<S> {
-    pub fn get_s_matrix<'a, W, R, P>(&self, w_matrix: &'a W, prop: impl Fn(&'a W, S, Boundary<Operator>) -> P) -> SMatrix
-    where
-        W: WMatrix,
-        R: Repr,
-        P: Propagator<R> + 'a,
-        Solution<R>: SMatrixGetter,
-        S: Step,
-    {
-        let boundary = vanishing_boundary(self.r_min.value(), Direction::Outwards, w_matrix);
-
-        let mut propagator = prop(w_matrix, self.step_strat.clone(), boundary);
-        let solution = propagator.propagate_to(self.r_max.value());
-
-        solution.get_s_matrix(w_matrix)
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct BoundProblem<S: Step> {
-    pub r_min: Quantity<Bohr>,
-    pub r_match: Quantity<Bohr>,
-    pub r_max: Quantity<Bohr>,
-    pub step_strat: S,
-
-    pub node_range: Option<NodeRangeTarget>,
-    pub node_monotony: NodeMonotony,
-}
-
-impl<S: Step + Clone> BoundProblem<S> {
-    pub fn get_bound_finder<'a, W, L>(
-        &'a self,
-        parameter_range: (f64, f64),
-        parameter_err: f64,
-        problem: impl Fn(f64) -> W + 'a,
-    ) -> BoundStatesFinder<'a, W, L, S>
-    where
-        W: WMatrix,
-        L: LogDerivativeReference,
-    {
-        let mut b = BoundStatesFinder::default()
-            .set_parameter_range([parameter_range.0, parameter_range.1], parameter_err)
-            .set_problem(problem)
-            .set_r_range([self.r_min, self.r_match, self.r_max])
-            .set_propagator(move |b, w| DiabaticLogDerivative::get_propagator(w, self.step_strat.clone(), b))
-            .set_node_monotony(self.node_monotony);
-
-        if let Some(node_range) = self.node_range {
-            b = b.set_node_range(node_range);
-        }
-
-        b
-    }
-}
-
-#[derive(Serialize)]
-pub struct SMatrixData<T> {
-    pub parameter: T,
-    pub s_length_re: f64,
-    pub s_length_im: f64,
-    pub elastic_cross_section: f64,
-    pub tot_inelastic_cross_section: f64,
-    pub inelastic_cross_sections: Vec<f64>,
-}
-
-impl<T> SMatrixData<T> {
-    pub fn new(parameter: T, s_matrix: SMatrix) -> Self {
-        let s_length = s_matrix.get_scattering_length();
-        let elastic_cross_section = s_matrix.get_elastic_cross_sect();
-        let tot_inelastic_cross_section = s_matrix.get_inelastic_cross_sect();
-        let inelastic_cross_sections = s_matrix.get_inelastic_cross_sects();
-
-        Self {
-            parameter,
-            s_length_re: s_length.re,
-            s_length_im: s_length.im,
-            elastic_cross_section,
-            tot_inelastic_cross_section,
-            inelastic_cross_sections,
+    pub fn magnitudes(&self) -> Vec<u32> {
+        match self {
+            OrbitalRecipe::Single(ang_l) => vec![*ang_l],
+            OrbitalRecipe::LMax(l_max) 
+            | OrbitalRecipe::LMaxProjections(l_max) => {
+                (0..=*l_max).collect()
+            }
         }
     }
 }
 
-#[derive(Serialize)]
-pub struct LevelsData<T> {
-    pub parameter: T,
-    pub levels: Vec<f64>,
+#[derive(Debug, Clone, Copy)]
+// Struct for storing |l m_l> state
+pub struct OrbitalBasis {
+    pub l: BasisId<Angular>
 }
 
-impl<T> LevelsData<T> {
-    pub fn new(parameter: T, levels: &Levels) -> Self {
-        Self {
-            parameter,
-            levels: levels.asymptote.clone(),
-        }
+impl OrbitalBasis {
+    pub fn new(recipe: OrbitalRecipe, basis: &mut SpaceBasis) -> Self {
+        let l = recipe.basis();
+        let l = basis.push_subspace(SubspaceBasis::new(l));
+
+        Self { l }
     }
 }
 
-#[derive(Serialize)]
-pub struct BoundStateData<T> {
-    pub parameter: T,
-
-    pub bound_parameter: f64,
-    pub nodes: u64,
-    pub occupations: Option<Vec<f64>>,
-}
-
-impl<T> BoundStateData<T> {
-    pub fn new(parameter: T, bound_state: BoundState) -> Self {
-        Self {
-            parameter,
-            bound_parameter: bound_state.parameter,
-            nodes: bound_state.node,
-            occupations: bound_state.occupations,
-        }
-    }
+pub fn angular_range(l_max: u32) -> Vec<Angular> {
+    (0..=l_max).map(|x| Angular::new(x, 0)).collect()
 }

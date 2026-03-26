@@ -1,244 +1,346 @@
-use coupled_chan::{
-    Interaction,
-    Operator,
-    cc_constants::{
-        Gauss,
-        Quantity,
-    },
-    coupling::{
-        Asymptote,
-        RedCoupling,
-        masked::Masked,
-        pair::Pair,
-    },
-    scaled::Scaled,
-};
-use hilbert_space::{
-    operator_diag_mel,
-    operator_mel,
-    space::SpaceBasis,
-};
-use serde::{
-    Deserialize,
-    Serialize,
+use hilbert_space::space::{
+    BasisId, SpaceBasis, SpaceElement, SubspaceBasis
 };
 use spin_algebra::{
-    half_integer::HalfI32,
-    hu32,
+    Spin, SpinPair, SpinPairMag, get_spin_pair_basis, get_spin_pair_magnitudes, half_integer::HalfU32
 };
 
 use crate::{
-    AngularBasisElements,
-    AngularMomentum,
-    Hamiltonian,
-    Structure,
-    atom_structure::{
-        AtomBasis,
-        AtomBasisRecipe,
-        AtomStructure,
-    },
-    operator_mel::{
-        singlet_projection_uncoupled,
-        triplet_projection_uncoupled,
-    },
-    system_structure::{
-        AngularBasis,
-        SystemParams,
-    },
+    Angular, OrbitalBasis, OrbitalRecipe, atom_basis::{
+        AtomRecipe, CoupledAtomBasis, TwiceSpin, UncoupledAtomBasis
+    }
 };
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct DiatomBasisRecipe {
-    pub atom_a: AtomBasisRecipe,
-    pub atom_b: AtomBasisRecipe,
-    pub l_max: AngularMomentum,
+pub type SpinSTot = SpinPairMag<HalfU32, HalfU32>;
+pub type SpinITot = SpinPairMag<HalfU32, HalfU32>;
+pub type SpinFTot = SpinPairMag<SpinSTot, SpinITot>;
 
-    pub tot_projection: HalfI32,
+#[derive(Debug, Clone, Copy)]
+pub struct DiatomRecipe {
+    pub atom_a: AtomRecipe,
+    pub atom_b: AtomRecipe,
+    pub l: OrbitalRecipe,
 }
 
-#[derive(Clone, Debug)]
-pub struct DiatomBasis {
-    pub atom_a: AtomBasis,
-    pub atom_b: AtomBasis,
-    pub angular: AngularBasis,
-
-    pub basis: AngularBasisElements,
+#[derive(Debug, Clone, Copy)]
+/// Struct for storing id of 
+/// |s1 m_s1>|i1 m_i1>|s2 m_s2>|i2 m_i2>|l m_l> state
+pub struct UncoupledDiatomBasis {
+    pub atom_a: UncoupledAtomBasis,
+    pub atom_b: UncoupledAtomBasis,
+    pub l: OrbitalBasis,
 }
 
-impl DiatomBasis {
-    pub fn new(recipe: DiatomBasisRecipe) -> Self {
+impl UncoupledDiatomBasis {
+    /// Adds |s1 m_s1>|i1 m_i1>|s2 m_s2>|i2 m_i2>|l m_l>
+    /// to the basis.
+    pub fn new(recipe: DiatomRecipe, basis: &mut SpaceBasis) -> Self {
+        let atom_a = UncoupledAtomBasis::new(recipe.atom_a, basis);
+        let atom_b = UncoupledAtomBasis::new(recipe.atom_b, basis);
+        let l = OrbitalBasis::new(recipe.l, basis);
+
+        Self { atom_a, atom_b, l }
+    }
+
+    pub fn filter<F>(&self, f: F) -> impl Fn(SpaceElement) -> bool 
+    where 
+        F: Fn(((Spin, Spin), (Spin, Spin), Angular)) -> bool 
+    {
+        move |x| {
+            let s_a = x[self.atom_a.s];
+            let i_a = x[self.atom_a.i];
+            let s_b = x[self.atom_b.s];
+            let i_b = x[self.atom_b.i];
+            let l = x[self.l.l];
+            
+            f(((s_a, i_a), (s_b, i_b), l))
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+/// Struct for storing id of 
+/// |(s1, i1) f1 m_f1>|(s2, i2) f2 m_f2>|l m_l> state.
+pub struct CoupledFDiatomBasis {
+    pub atom_a: CoupledAtomBasis,
+    pub atom_b: CoupledAtomBasis,
+    pub l: OrbitalBasis,
+}
+
+impl CoupledFDiatomBasis {
+    /// Adds |(s1, i1) f1 m_f1>|(s2, i2) f2 m_f2>|l m_l>
+    /// to the basis.
+    pub fn new(recipe: DiatomRecipe, basis: &mut SpaceBasis) -> Self {
+        let atom_a = CoupledAtomBasis::new(recipe.atom_a, basis);
+        let atom_b = CoupledAtomBasis::new(recipe.atom_b, basis);
+        let l = OrbitalBasis::new(recipe.l, basis);
+
+        Self { atom_a, atom_b, l }
+    }
+
+    pub fn filter<F>(&self, f: F) -> impl Fn(SpaceElement) -> bool 
+    where 
+        F: Fn((TwiceSpin, TwiceSpin, Angular)) -> bool 
+    {
+        move |x| f((x[self.atom_a.f], x[self.atom_b.f], x[self.l.l]))
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+/// Struct for storing id of 
+/// |(s1, s2) S M_S>|(i1, i2) I M_I>|l m_l> state.
+pub struct CoupledSIDiatomBasis {
+    pub s_tot: BasisId<TwiceSpin>,
+    pub i_tot: BasisId<TwiceSpin>,
+    pub l: OrbitalBasis,
+}
+
+impl CoupledSIDiatomBasis {
+    /// Adds |(s1, s2) S M_S>|(i1, i2) I M_I>|l m_l>
+    /// to the basis.
+    pub fn new(recipe: DiatomRecipe, basis: &mut SpaceBasis) -> Self {
+        let s_tot = get_spin_pair_magnitudes([recipe.atom_a.s], [recipe.atom_b.s]);
+        let s_tot = get_spin_pair_basis(s_tot);
+        let i_tot = get_spin_pair_magnitudes([recipe.atom_a.i], [recipe.atom_b.i]);
+        let i_tot = get_spin_pair_basis(i_tot);
+
+        let s_tot = basis.push_subspace(SubspaceBasis::new(s_tot));
+        let i_tot = basis.push_subspace(SubspaceBasis::new(i_tot));
+        let l = OrbitalBasis::new(recipe.l, basis);
+
+        Self { s_tot, i_tot, l }
+    }
+
+    pub fn filter<F>(&self, f: F) -> impl Fn(SpaceElement) -> bool 
+    where 
+        F: Fn((TwiceSpin, TwiceSpin, Angular)) -> bool 
+    {
+        move |x| f((x[self.s_tot], x[self.i_tot], x[self.l.l]))
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+/// Struct for storing id of 
+/// |((s1, s2) S, (i1, i2) I) F M_F>|l m_l> state
+pub struct CoupledFTotDiatomBasis {
+    pub f_tot: BasisId<SpinPair<SpinSTot, SpinITot>>,
+    pub l: OrbitalBasis,
+}
+
+impl CoupledFTotDiatomBasis {
+    /// Adds |((s1, s2) S, (i1, i2) I) F M_F>|l m_l>
+    /// to the basis.
+    pub fn new(recipe: DiatomRecipe, basis: &mut SpaceBasis) -> Self {
+        let s_tot = get_spin_pair_magnitudes([recipe.atom_a.s], [recipe.atom_b.s]);
+        let i_tot = get_spin_pair_magnitudes([recipe.atom_a.i], [recipe.atom_b.i]);
+        let f_tot = get_spin_pair_magnitudes(s_tot, i_tot);
+        let f_tot = get_spin_pair_basis(f_tot);
+
+        let f_tot = basis.push_subspace(SubspaceBasis::new(f_tot));
+        let l = OrbitalBasis::new(recipe.l, basis);
+
+        Self { f_tot, l }
+    }
+
+    pub fn filter<F>(&self, f: F) -> impl Fn(SpaceElement) -> bool 
+    where 
+        F: Fn((SpinPair<SpinSTot, SpinITot>, Angular)) -> bool 
+    {
+        move |x| f((x[self.f_tot], x[self.l.l]))
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+/// Struct for storing id of |(((s1, s2) S, (i1, i2) I) F, l) Fl M_Fl>
+/// state
+/// 
+/// Note: With this state all projections of l are alway included.
+pub struct CoupledDiatomBasis {
+    pub fl_tot: BasisId<SpinPair<SpinFTot, u32>>,
+}
+
+impl CoupledDiatomBasis {
+    /// Adds |(((s1, s2) S, (i1, i2) I) F, l) Fl M_Fl>
+    /// to the basis.
+    /// 
+    /// Note: With this basis all projections of l are alway included.
+    pub fn new(recipe: DiatomRecipe, basis: &mut SpaceBasis) -> Self {
+        let s_tot = get_spin_pair_magnitudes([recipe.atom_a.s], [recipe.atom_b.s]);
+        let i_tot = get_spin_pair_magnitudes([recipe.atom_a.i], [recipe.atom_b.i]);
+        let f_tot = get_spin_pair_magnitudes(s_tot, i_tot);
+        let l = recipe.l.magnitudes();
+
+        let fl_tot = get_spin_pair_magnitudes(f_tot, l);
+        let fl_tot = get_spin_pair_basis(fl_tot);
+
+        let fl_tot = basis.push_subspace(SubspaceBasis::new(fl_tot));
+
+        Self { fl_tot }
+    }
+
+    pub fn filter<F>(&self, f: F) -> impl Fn(SpaceElement) -> bool 
+    where 
+        F: Fn(SpinPair<SpinFTot, u32>) -> bool 
+    {
+        move |x| f(x[self.fl_tot])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use spin_algebra::{
+        SpinLike, hi32, hu32, spin
+    };
+
+    use super::*;
+
+    fn recipe() -> DiatomRecipe {
+        DiatomRecipe {
+            atom_a: AtomRecipe { s: hu32!(1/2), i: hu32!(0) },
+            atom_b: AtomRecipe { s: hu32!(1), i: hu32!(1/2) },
+            l: OrbitalRecipe::LMax(1),
+        }
+    }
+
+    #[test]
+    fn test_uncoupled_diatom_basis() {
         let mut basis = SpaceBasis::default();
-        let atom_a = AtomBasis::new(recipe.atom_a, &mut basis);
-        let atom_b = AtomBasis::new(recipe.atom_b, &mut basis);
-        let angular = AngularBasis::new(recipe.l_max, &mut basis);
+        let atoms = UncoupledDiatomBasis::new(recipe(), &mut basis);
 
-        let basis = basis.get_filtered_basis(|element| {
-            let s_a = element[atom_a.s];
-            let i_a = element[atom_a.i];
-            let s_b = element[atom_b.s];
-            let i_b = element[atom_b.i];
+        let elements = basis.get_filtered_basis(|x| 
+            atoms.filter(|((s_a, i_a), (s_b, i_b), l)| 
+                s_a.m + i_a.m + s_b.m + i_b.m + l.m == hi32!(1)
+            )(x)
+        );
 
-            s_a.m + i_a.m + s_b.m + i_b.m == recipe.tot_projection
-        });
+        assert_eq!(elements.len(), 6);
+        println!("{elements:?}");
 
-        let basis = AngularBasisElements::new_angular(basis, &angular);
+        let u_12 = hu32!(1 / 2);
+        let i_12 = hi32!(1 / 2);
+        let u_0 = hu32!(0);
+        let i_0 = hi32!(0);
+        let u_1 = hu32!(1);
 
-        Self {
-            atom_a,
-            atom_b,
-            angular,
-            basis,
-        }
-    }
-}
+        assert_eq!(elements[(0, atoms.atom_a.s)], spin!(u_12, i_12));
+        assert_eq!(elements[(0, atoms.atom_a.i)], spin!(u_0, i_0));
+        assert_eq!(elements[(0, atoms.atom_b.s)], spin!(u_1, hi32!(1)));
+        assert_eq!(elements[(0, atoms.atom_b.i)], spin!(u_12, hi32!(-1 / 2)));
+        assert_eq!(elements[(0, atoms.l.l)], Angular::new(0, 0));
 
-pub type PotentialCurveCoupling<T> = Masked<Scaled<T>>;
-
-#[derive(Debug, Clone)]
-pub struct PotentialCurve<P: Interaction> {
-    pub potential: Scaled<P>,
-    pub operator: Operator,
-}
-
-impl<P: Interaction> PotentialCurve<P> {
-    pub fn new_triplet(triplet: P, elements: &AngularBasisElements, atom_a: &AtomBasis, atom_b: &AtomBasis) -> Self {
-        let operator = operator_mel!(elements.full_basis, [atom_a.s, atom_b.s], |[s1, s2]| {
-            triplet_projection_uncoupled(s1, s2)
-        });
-
-        Self {
-            potential: Scaled::new(triplet),
-            operator,
-        }
+        assert_eq!(elements[(4, atoms.atom_a.s)], spin!(u_12, i_12));
+        assert_eq!(elements[(4, atoms.atom_a.i)], spin!(u_0, i_0));
+        assert_eq!(elements[(4, atoms.atom_b.s)], spin!(u_1, i_0));
+        assert_eq!(elements[(4, atoms.atom_b.i)], spin!(u_12, i_12));
+        assert_eq!(elements[(4, atoms.l.l)], Angular::new(1, 0));
     }
 
-    pub fn new_singlet(singlet: P, elements: &AngularBasisElements, atom_a: &AtomBasis, atom_b: &AtomBasis) -> Self {
-        let operator = operator_mel!(elements.full_basis, [atom_a.s, atom_b.s], |[s1, s2]| {
-            singlet_projection_uncoupled(s1, s2)
-        });
+    #[test]
+    fn test_coupled_f_diatom_basis() {
+        let mut basis = SpaceBasis::default();
+        let atoms = CoupledFDiatomBasis::new(recipe(), &mut basis);
 
-        Self {
-            potential: Scaled::new(singlet),
-            operator,
-        }
+        let elements = basis.get_filtered_basis(|x| 
+            atoms.filter(|(f_a, f_b, l)| 
+                f_a.m() + f_b.m() + l.m == hi32!(1)
+            )(x)
+        );
+
+        assert_eq!(elements.len(), 6);
+        println!("{elements:?}");
+
+        let u_12 = hu32!(1 / 2);
+        let i_12 = hi32!(1 / 2);
+        let u_0 = hu32!(0);
+        let u_1 = hu32!(1);
+
+        assert_eq!(elements[(0, atoms.atom_a.f)], spin!((u_12, u_0), u_12, i_12));
+        assert_eq!(elements[(0, atoms.atom_b.f)], spin!((u_1, u_12), u_12, i_12));
+        assert_eq!(elements[(0, atoms.l.l)], Angular::new(0, 0));
+
+        assert_eq!(elements[(4, atoms.atom_a.f)], spin!((u_12, u_0), u_12, i_12));
+        assert_eq!(elements[(4, atoms.atom_b.f)], spin!((u_1, u_12), hu32!(3/2), i_12));
+        assert_eq!(elements[(4, atoms.l.l)], Angular::new(1, 0));
     }
 
-    pub fn new_triplet_coupled(triplet: P, elements: &AngularBasisElements, atom_pair: &AtomBasis) -> Self {
-        let operator = operator_diag_mel!(elements.full_basis, [atom_pair.s], |[s]| {
-            if s.s == hu32!(1) { 1. } else { 0. }
-        });
+    #[test]
+    fn test_coupled_si_diatom_basis() {
+        let mut basis = SpaceBasis::default();
+        let atoms = CoupledSIDiatomBasis::new(recipe(), &mut basis);
 
-        Self {
-            potential: Scaled::new(triplet),
-            operator,
-        }
+        let elements = basis.get_filtered_basis(|x| 
+            atoms.filter(|(s, i, l)| 
+                s.m() + i.m() + l.m == hi32!(1)
+            )(x)
+        );
+
+        assert_eq!(elements.len(), 6);
+        println!("{elements:?}");
+
+        let u_12 = hu32!(1 / 2);
+        let i_12 = hi32!(1 / 2);
+        let u_0 = hu32!(0);
+        let u_1 = hu32!(1);
+        let u_32 = hu32!(3 / 2);
+        let i_32 = hi32!(3 / 2);
+
+        assert_eq!(elements[(0, atoms.s_tot)], spin!((u_12, u_1), u_32, i_32));
+        assert_eq!(elements[(0, atoms.i_tot)], spin!((u_0, u_12), u_12, -i_12));
+        assert_eq!(elements[(0, atoms.l.l)], Angular::new(0, 0));
+
+        assert_eq!(elements[(4, atoms.s_tot)], spin!((u_12, u_1), u_12, i_12));
+        assert_eq!(elements[(4, atoms.i_tot)], spin!((u_0, u_12), u_12, i_12));
+        assert_eq!(elements[(4, atoms.l.l)], Angular::new(1, 0));
     }
 
-    pub fn new_singlet_coupled(singlet: P, elements: &AngularBasisElements, atom_pair: &AtomBasis) -> Self {
-        let operator = operator_diag_mel!(elements.full_basis, [atom_pair.s], |[s]| {
-            if s.s == hu32!(0) { 1. } else { 0. }
-        });
+    #[test]
+    fn test_coupled_f_tot_diatom_basis() {
+        let mut basis = SpaceBasis::default();
+        let atoms = CoupledFTotDiatomBasis::new(recipe(), &mut basis);
 
-        Self {
-            potential: Scaled::new(singlet),
-            operator,
-        }
-    }
-}
+        let elements = basis.get_filtered_basis(|x| 
+            atoms.filter(|(f, l)| 
+                f.m() + l.m == hi32!(1)
+            )(x)
+        );
 
-impl<P: Interaction + Clone> PotentialCurve<P> {
-    pub fn hamiltonian(&self) -> Masked<Scaled<P>> {
-        Masked::new(self.potential.clone(), self.operator.clone())
-    }
-}
+        assert_eq!(elements.len(), 6);
+        println!("{elements:?}");
 
-#[derive(Clone, Debug)]
-pub struct AlkaliDiatom<T, S>
-where
-    T: Interaction,
-    S: Interaction,
-{
-    pub system_params: SystemParams,
-    pub atom_a: AtomStructure,
-    pub atom_b: AtomStructure,
+        let u_12 = hu32!(1 / 2);
+        let u_0 = hu32!(0);
+        let u_1 = hu32!(1);
+        let i_1 = hi32!(1);
+        let u_32 = hu32!(3 / 2);
 
-    pub triplet: PotentialCurve<T>,
-    pub singlet: PotentialCurve<S>,
+        assert_eq!(elements[(0, atoms.f_tot)], spin!((((u_12, u_1), u_12), ((u_0, u_12), u_12)), u_1, i_1));
+        assert_eq!(elements[(0, atoms.l.l)], Angular::new(0, 0));
 
-    pub basis: DiatomBasis,
-}
-
-impl<T, S> AlkaliDiatom<T, S>
-where
-    T: Interaction,
-    S: Interaction,
-{
-    pub fn new(triplet: T, singlet: S, recipe: DiatomBasisRecipe) -> Self {
-        assert!(recipe.atom_a.s == hu32!(1 / 2), "Expected open shell A atom");
-        assert!(recipe.atom_b.s == hu32!(1 / 2), "Expected open shell B atom");
-
-        let basis = DiatomBasis::new(recipe);
-
-        Self {
-            system_params: SystemParams::default(),
-            atom_a: AtomStructure::new(&basis.basis, &basis.atom_a),
-            atom_b: AtomStructure::new(&basis.basis, &basis.atom_b),
-            triplet: PotentialCurve::new_triplet(triplet, &basis.basis, &basis.atom_a, &basis.atom_b),
-            singlet: PotentialCurve::new_singlet(singlet, &basis.basis, &basis.atom_a, &basis.atom_b),
-            basis,
-        }
+        assert_eq!(elements[(4, atoms.f_tot)], spin!((((u_12, u_1), u_32), ((u_0, u_12), u_12)), u_1, i_1));
+        assert_eq!(elements[(4, atoms.l.l)], Angular::new(1, 0));
     }
 
-    pub fn set_b_field(&mut self, b_field: Quantity<Gauss>) {
-        self.atom_a.set_b_field(b_field);
-        self.atom_b.set_b_field(b_field);
-    }
-}
+    #[test]
+    fn test_coupled_diatom_basis() {
+        let mut basis = SpaceBasis::default();
+        let atoms = CoupledDiatomBasis::new(recipe(), &mut basis);
 
-impl<T, S> Structure for AlkaliDiatom<T, S>
-where
-    T: Interaction,
-    S: Interaction,
-{
-    fn modify_parameter(&mut self, key: &str, value: serde_json::Value) -> anyhow::Result<()> {
-        match key {
-            key if key.starts_with("system_params.") => self.system_params.modify_parameter(&key[14..], value)?,
-            key if key.starts_with("atom_a.") => self.atom_a.modify_parameter(&key[7..], value)?,
-            key if key.starts_with("atom_b.") => self.atom_b.modify_parameter(&key[7..], value)?,
-            "b_field" => self.set_b_field(serde_json::from_value(value)?),
-            "triplet_scaling" => self.triplet.potential.scale(serde_json::from_value(value)?),
-            "singlet_scaling" => self.singlet.potential.scale(serde_json::from_value(value)?),
-            _ => anyhow::bail!("Could not find {key} in AlkaliDiatom"),
-        }
+        let elements = basis.get_filtered_basis(|x| 
+            atoms.filter(|fl| 
+                fl.m() == hi32!(1)
+            )(x)
+        );
 
-        Ok(())
-    }
-}
+        assert_eq!(elements.len(), 11);
+        println!("{elements:?}");
 
-impl<T, S> Hamiltonian for AlkaliDiatom<T, S>
-where
-    T: Interaction + Clone,
-    S: Interaction + Clone,
-{
-    type Coupling = Pair<PotentialCurveCoupling<T>, PotentialCurveCoupling<S>>;
-    type WMatrix = RedCoupling<Self::Coupling>;
+        let u_12 = hu32!(1 / 2);
+        let u_0 = hu32!(0);
+        let u_1 = hu32!(1);
+        let i_1 = hi32!(1);
+        let u_32 = hu32!(3 / 2);
 
-    fn asymptote(&self) -> Asymptote {
-        let angular_blocks = self.atom_a.hamiltonian() + self.atom_b.hamiltonian();
-
-        Asymptote::new_angular_blocks(
-            self.system_params.mass,
-            self.system_params.energy,
-            angular_blocks,
-            self.system_params.entrance_channel,
-        )
-    }
-
-    fn coupling(&self) -> Self::Coupling {
-        Pair::new(self.triplet.hamiltonian(), self.singlet.hamiltonian())
-    }
-
-    fn w_matrix(&self) -> Self::WMatrix {
-        RedCoupling::new(self.coupling(), self.asymptote())
+        assert_eq!(elements[(0, atoms.fl_tot)], spin!((((((u_12, u_1), u_12), ((u_0, u_12), u_12)), u_1), 0), u_1, i_1));
+        assert_eq!(elements[(4, atoms.fl_tot)], spin!((((((u_12, u_1), u_32), ((u_0, u_12), u_12)), u_1), 1), u_1, i_1));
     }
 }

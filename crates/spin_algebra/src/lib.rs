@@ -11,7 +11,7 @@ pub enum SpinType {
     Bosonic,
 }
 
-pub trait SpinMagLike: PartialEq + Copy {
+pub trait SpinMagLike: PartialEq + Copy + std::fmt::Debug + Send + Sync + 'static {
     fn s(&self) -> HalfU32;
 
     fn spin_type(&self) -> SpinType {
@@ -21,12 +21,26 @@ pub trait SpinMagLike: PartialEq + Copy {
             SpinType::Bosonic
         }
     }
+
+    #[inline]
+    fn squared(&self) -> f64 {
+        let s = self.s().value();
+
+        s * (s + 1.)
+    }
 }
 
 impl SpinMagLike for HalfU32 {
     #[inline]
     fn s(&self) -> HalfU32 {
         *self
+    }
+}
+
+impl SpinMagLike for u32 {
+    #[inline]
+    fn s(&self) -> HalfU32 {
+        (*self).into()
     }
 }
 
@@ -84,7 +98,7 @@ impl Spin {
     }
 }
 
-pub trait SpinLike: PartialEq + Copy {
+pub trait SpinLike: PartialEq + Copy + std::fmt::Debug + Send + Sync + 'static {
     fn s(&self) -> HalfU32;
     fn m(&self) -> HalfI32;
 
@@ -97,12 +111,6 @@ pub trait SpinLike: PartialEq + Copy {
     }
 }
 
-impl<S: SpinLike> SpinMagLike for S {
-    fn s(&self) -> HalfU32 {
-        SpinLike::s(self)
-    }
-}
-
 impl SpinLike for Spin {
     #[inline]
     fn s(&self) -> HalfU32 {
@@ -112,6 +120,12 @@ impl SpinLike for Spin {
     #[inline]
     fn m(&self) -> HalfI32 {
         self.m
+    }
+}
+
+impl<S: SpinLike> SpinMagLike for S {
+    fn s(&self) -> HalfU32 {
+        self.s()
     }
 }
 
@@ -151,43 +165,42 @@ where
 
 #[macro_export]
 macro_rules! spin {
-    ( ( $($inner:tt)* ) ) => {
-        spin!( $($inner)* )
+    // 1. Both left and right are parenthesized (they are nested sub-trees)
+    ((($($s1:tt)+), ($($s2:tt)+)), $s:expr, $m:expr) => {
+        $crate::SpinPair::new((spin!($($s1)+), spin!($($s2)+)), Spin::new($s, $m))
+    };
+    ((($($s1:tt)+), ($($s2:tt)+)), $s:expr) => {
+        $crate::SpinPairMag::new((spin!($($s1)+), spin!($($s2)+)), $s)
     };
 
-    // 1. Both left and right are nested tuples (tt)
-    (($s1:tt, $s2:tt), $s_tot:expr, $m_tot:expr) => {
-        $crate::SpinPair::new((spin!($s1), spin!($s2)), Spin::new($s_tot, $m_tot))
+    // 2. Only one is parenthesized
+    ((($($s1:tt)+), $s2:expr), $s:expr, $m:expr) => {
+        $crate::SpinPair::new((spin!($($s1)+), $s2), Spin::new($s, $m))
     };
-    (($s1:tt, $s2:tt), $s_tot:expr) => {
-        $crate::SpinPairMag::new((spin!($s1), spin!($s2)), $s_tot)
+    ((($($s1:tt)+), $s2:expr), $s:expr) => {
+        $crate::SpinPairMag::new((spin!($($s1)+), $s2), $s)
     };
-
-    // 2. Only left is a nested tuple (tt)
-    (($s1:tt, $s2:expr), $s_tot:expr, $m_tot:expr) => {
-        $crate::SpinPair::new((spin!($s1), $s2), Spin::new($s_tot, $m_tot))
+    (($s1:expr, ($($s2:tt)+)), $s:expr, $m:expr) => {
+        $crate::SpinPair::new(($s1, spin!($($s2)+)), Spin::new($s, $m))
     };
-    (($s1:tt, $s2:expr), $s_tot:expr) => {
-        $crate::SpinPairMag::new((spin!($s1), $s2), $s_tot)
+    (($s1:expr, ($($s2:tt)+)), $s:expr) => {
+        $crate::SpinPairMag::new(($s1, spin!($($s2)+)), $s)
     };
 
-    // 3. Only right is a nested tuple (tt)
-    (($s1:expr, $s2:tt), $s_tot:expr, $m_tot:expr) => {
-        $crate::SpinPair::new(($s1, spin!($s2)), Spin::new($s_tot, $m_tot))
+    // 4. Base cases: Neither is parenthesized (they are leaf nodes)
+    (($s1:expr, $s2:expr), $s:expr, $m:expr) => {
+        $crate::SpinPair::new(($s1, $s2), $crate::Spin::new($s, $m))
     };
-    (($s1:expr, $s2:tt), $s_tot:expr) => {
-        $crate::SpinPairMag::new(($s1, spin!($s2)), $s_tot)
+    (($s1:expr, $s2:expr), $s:expr) => {
+        $crate::SpinPairMag::new(($s1, $s2), $s)
+    };
+    ($s1:expr, $s2:expr) => {
+        $crate::Spin::new($s1, $s2)
     };
 
-    // 4. Base cases: both are flat expressions (expr)
-    (($s1:expr, $s2:expr), $s_tot:expr, $m_tot:expr) => {
-        $crate::SpinPair::new(($s1, $s2), Spin::new($s_tot, $m_tot))
-    };
-    (($s1:expr, $s2:expr), $s_tot:expr) => {
-        $crate::SpinPairMag::new(($s1, $s2), $s_tot)
-    };
-    ($s_tot:expr, $m_tot:expr) => {
-        $crate::Spin::new($s_tot, $m_tot)
+    // 5. Fallback for single expressions (safeguard for leaf nodes)
+    ($e:expr) => {
+        $e
     };
 }
 
@@ -264,12 +277,7 @@ pub mod ops {
 
     #[inline]
     pub fn s_sqr(spin: Braket<impl SpinMagLike>) -> f64 {
-        if spin.bra == spin.ket {
-            let s = spin.bra.s().value();
-            s * (s + 1.)
-        } else {
-            0.0
-        }
+        if spin.bra == spin.ket { spin.bra.squared() } else { 0.0 }
     }
 
     #[inline]
