@@ -7,6 +7,7 @@
         "coef",
         "Diabatic",
         "dspin",
+        "eckart",
         "eigen",
         "faer",
         "Fermionic",

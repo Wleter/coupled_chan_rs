@@ -2,7 +2,7 @@ use hilbert_space::space::{
     BasisId, SpaceBasis, SpaceElement, SubspaceBasis
 };
 use spin_algebra::{
-    Spin, SpinPair, SpinPairMag, get_spin_pair_basis, get_spin_pair_magnitudes, half_integer::HalfU32
+    Spin, SpinMagLike, SpinPair, SpinPairMag, get_spin_pair_basis, get_spin_pair_magnitudes, half_integer::HalfU32
 };
 
 use crate::{
@@ -117,6 +117,16 @@ impl CoupledSIDiatomBasis {
     {
         move |x| f((x[self.s_tot], x[self.i_tot], x[self.l.l]))
     }
+
+    pub fn filter_homo_nuclear_symmetry(&self) -> impl Fn(SpaceElement) -> bool {
+        move |x| {
+            let s_tot = x[self.s_tot].as_spin_pair_mag();
+            let i_tot = x[self.i_tot].as_spin_pair_mag();
+            let l = x[self.l.l].l_value();
+
+            homo_nuclear_symmetry(s_tot, i_tot, l)
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -147,6 +157,17 @@ impl CoupledFTotDiatomBasis {
         F: Fn((SpinPair<SpinSTot, SpinITot>, Angular)) -> bool 
     {
         move |x| f((x[self.f_tot], x[self.l.l]))
+    }
+
+    pub fn filter_homo_nuclear_symmetry(&self) -> impl Fn(SpaceElement) -> bool {
+        move |x| {
+            let f_tot = x[self.f_tot];
+            let s_tot = f_tot.pair.0;
+            let i_tot = f_tot.pair.1;
+            let l = x[self.l.l].l_value();
+
+            homo_nuclear_symmetry(s_tot, i_tot, l)
+        }
     }
 }
 
@@ -184,6 +205,42 @@ impl CoupledDiatomBasis {
     {
         move |x| f(x[self.fl_tot])
     }
+
+    pub fn filter_homo_nuclear_symmetry(&self) -> impl Fn(SpaceElement) -> bool {
+        move |x| {
+            let fl_tot = x[self.fl_tot];
+            let s_tot = fl_tot.pair.0.pair.0;
+            let i_tot = fl_tot.pair.0.pair.1;
+            let l = fl_tot.pair.1;
+
+            homo_nuclear_symmetry(s_tot, i_tot, l)
+        }
+    }
+}
+
+pub fn homo_nuclear_symmetry<S, I>(s_tot: SpinPairMag<S, S>, i_tot: SpinPairMag<I, I>, l: u32) -> bool
+where
+    S: SpinMagLike,
+    I: SpinMagLike,
+{
+    assert_eq!(s_tot.pair.0, s_tot.pair.1, "Different spins in a homo nuclear system");
+    assert_eq!(i_tot.pair.0, i_tot.pair.1, "Different spins in a homo nuclear system");
+
+    let f = s_tot.pair.0.s() + i_tot.pair.0.s();
+    let s_max = s_tot.pair.0.s() + s_tot.pair.1.s();
+    let i_max = i_tot.pair.0.s() + i_tot.pair.1.s();
+
+    let s_tot = s_tot.s();
+    let i_tot = i_tot.s();
+    assert!(s_max >= s_tot, "combined S is larger than s1 + s2");
+    assert!(i_max >= i_tot, "combined I is larger than i1 + i2");
+
+    let symmetry = (-1i32).pow(l + (s_max + i_max - s_tot - i_tot).double_value() / 2);
+
+    match f.spin_type() {
+        spin_algebra::SpinType::Fermionic => symmetry == -1,
+        spin_algebra::SpinType::Bosonic => symmetry == 1,
+    }
 }
 
 #[cfg(test)]
@@ -213,8 +270,8 @@ mod tests {
             )(x)
         );
 
-        assert_eq!(elements.len(), 6);
         println!("{elements:?}");
+        assert_eq!(elements.len(), 6);
 
         let u_12 = hu32!(1 / 2);
         let i_12 = hi32!(1 / 2);
@@ -246,8 +303,8 @@ mod tests {
             )(x)
         );
 
-        assert_eq!(elements.len(), 6);
         println!("{elements:?}");
+        assert_eq!(elements.len(), 6);
 
         let u_12 = hu32!(1 / 2);
         let i_12 = hi32!(1 / 2);
@@ -274,8 +331,8 @@ mod tests {
             )(x)
         );
 
-        assert_eq!(elements.len(), 6);
         println!("{elements:?}");
+        assert_eq!(elements.len(), 6);
 
         let u_12 = hu32!(1 / 2);
         let i_12 = hi32!(1 / 2);
@@ -304,8 +361,8 @@ mod tests {
             )(x)
         );
 
-        assert_eq!(elements.len(), 6);
         println!("{elements:?}");
+        assert_eq!(elements.len(), 6);
 
         let u_12 = hu32!(1 / 2);
         let u_0 = hu32!(0);
@@ -331,8 +388,8 @@ mod tests {
             )(x)
         );
 
-        assert_eq!(elements.len(), 11);
         println!("{elements:?}");
+        assert_eq!(elements.len(), 11);
 
         let u_12 = hu32!(1 / 2);
         let u_0 = hu32!(0);
@@ -340,7 +397,46 @@ mod tests {
         let i_1 = hi32!(1);
         let u_32 = hu32!(3 / 2);
 
-        assert_eq!(elements[(0, atoms.fl_tot)], spin!((((((u_12, u_1), u_12), ((u_0, u_12), u_12)), u_1), 0), u_1, i_1));
-        assert_eq!(elements[(4, atoms.fl_tot)], spin!((((((u_12, u_1), u_32), ((u_0, u_12), u_12)), u_1), 1), u_1, i_1));
+        assert_eq!(elements[(0, atoms.fl_tot)], spin!((((((u_12, u_1), u_12), ((u_0, u_12), u_12)), u_0), 1), u_1, i_1));
+        assert_eq!(elements[(4, atoms.fl_tot)], spin!((((((u_12, u_1), u_32), ((u_0, u_12), u_12)), u_1), 0), u_1, i_1));
+    }
+
+    #[test]
+    fn test_homo_nuclear_filter() {
+        let mut basis = SpaceBasis::default();
+
+        let atom_recipe = AtomRecipe { s: hu32!(1/2), i: hu32!(1) };
+        let recipe = DiatomRecipe {
+            atom_a: atom_recipe,
+            atom_b: atom_recipe,
+            l: OrbitalRecipe::LMax(2),
+        };
+        let atoms = CoupledFTotDiatomBasis::new(recipe, &mut basis);
+
+        let elements = basis.get_filtered_basis(|x| 
+            atoms.filter_homo_nuclear_symmetry()(x) 
+                && atoms.filter(|(f, l)| f.m() + l.m() == hi32!(1))(x)
+        );
+        
+        println!("{elements:?}");
+        assert_eq!(elements.len(), 11);
+
+        let mut basis = SpaceBasis::default();
+
+        let atom_recipe = AtomRecipe { s: hu32!(1/2), i: hu32!(3/2) };
+        let recipe = DiatomRecipe {
+            atom_a: atom_recipe,
+            atom_b: atom_recipe,
+            l: OrbitalRecipe::LMax(2),
+        };
+        let atoms = CoupledFTotDiatomBasis::new(recipe, &mut basis);
+
+        let elements = basis.get_filtered_basis(|x| 
+            atoms.filter_homo_nuclear_symmetry()(x) 
+                && atoms.filter(|(f, l)| f.m() + l.m() == hi32!(2))(x)
+        );
+        
+        println!("{elements:?}");
+        assert_eq!(elements.len(), 13);
     }
 }

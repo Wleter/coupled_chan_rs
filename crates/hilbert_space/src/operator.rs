@@ -19,6 +19,12 @@ impl<T> Braket<T> {
     }
 }
 
+impl<T: Copy> Braket<T> {
+    pub fn map<V>(&self, f: impl Fn(T) -> V) -> Braket<V> {
+        Braket { bra: f(self.bra), ket: f(self.ket) }
+    }
+}
+
 impl<T: PartialEq> Braket<T> {
     pub fn is_diagonal(&self) -> bool {
         self.ket == self.bra
