@@ -22,9 +22,9 @@ pub struct DiatomRecipe {
     pub l: OrbitalRecipe,
 }
 
-#[derive(Debug, Clone, Copy)]
 /// Struct for storing id of 
 /// |s1 m_s1>|i1 m_i1>|s2 m_s2>|i2 m_i2>|l m_l> state
+#[derive(Debug, Clone, Copy)]
 pub struct UncoupledDiatomBasis {
     pub atom_a: UncoupledAtomBasis,
     pub atom_b: UncoupledAtomBasis,
@@ -58,9 +58,9 @@ impl UncoupledDiatomBasis {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
 /// Struct for storing id of 
 /// |(s1, i1) f1 m_f1>|(s2, i2) f2 m_f2>|l m_l> state.
+#[derive(Debug, Clone, Copy)]
 pub struct CoupledFDiatomBasis {
     pub atom_a: CoupledAtomBasis,
     pub atom_b: CoupledAtomBasis,
@@ -86,9 +86,9 @@ impl CoupledFDiatomBasis {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
 /// Struct for storing id of 
 /// |(s1, s2) S M_S>|(i1, i2) I M_I>|l m_l> state.
+#[derive(Debug, Clone, Copy)]
 pub struct CoupledSIDiatomBasis {
     pub s_tot: BasisId<TwiceSpin>,
     pub i_tot: BasisId<TwiceSpin>,
@@ -129,9 +129,9 @@ impl CoupledSIDiatomBasis {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
 /// Struct for storing id of 
 /// |((s1, s2) S, (i1, i2) I) F M_F>|l m_l> state
+#[derive(Debug, Clone, Copy)]
 pub struct CoupledFTotDiatomBasis {
     pub f_tot: BasisId<SpinPair<SpinSTot, SpinITot>>,
     pub l: OrbitalBasis,
@@ -171,11 +171,11 @@ impl CoupledFTotDiatomBasis {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
 /// Struct for storing id of |(((s1, s2) S, (i1, i2) I) F, l) Fl M_Fl>
 /// state
 /// 
 /// Note: With this state all projections of l are alway included.
+#[derive(Debug, Clone, Copy)]
 pub struct CoupledDiatomBasis {
     pub fl_tot: BasisId<SpinPair<SpinFTot, u32>>,
 }
@@ -190,6 +190,9 @@ impl CoupledDiatomBasis {
         let i_tot = get_spin_pair_magnitudes([recipe.atom_a.i], [recipe.atom_b.i]);
         let f_tot = get_spin_pair_magnitudes(s_tot, i_tot);
         let l = recipe.l.magnitudes();
+        if let OrbitalRecipe::LMax(_) | OrbitalRecipe::Single(_) = recipe.l {
+            println!("warning: All orbital projections used when using fully coupled diatom basis")
+        }
 
         let fl_tot = get_spin_pair_magnitudes(f_tot, l);
         let fl_tot = get_spin_pair_basis(fl_tot);
@@ -403,7 +406,6 @@ mod tests {
 
     #[test]
     fn test_homo_nuclear_filter() {
-        let mut basis = SpaceBasis::default();
 
         let atom_recipe = AtomRecipe { s: hu32!(1/2), i: hu32!(1) };
         let recipe = DiatomRecipe {
@@ -411,17 +413,24 @@ mod tests {
             atom_b: atom_recipe,
             l: OrbitalRecipe::LMax(2),
         };
-        let atoms = CoupledFTotDiatomBasis::new(recipe, &mut basis);
 
+        let mut basis = SpaceBasis::default();
+        let atoms = CoupledFTotDiatomBasis::new(recipe, &mut basis);
         let elements = basis.get_filtered_basis(|x| 
             atoms.filter_homo_nuclear_symmetry()(x) 
                 && atoms.filter(|(f, l)| f.m() + l.m() == hi32!(1))(x)
         );
-        
         println!("{elements:?}");
         assert_eq!(elements.len(), 11);
 
         let mut basis = SpaceBasis::default();
+        let atoms = CoupledDiatomBasis::new(recipe, &mut basis);
+        let elements = basis.get_filtered_basis(|x| 
+            atoms.filter_homo_nuclear_symmetry()(x) 
+                && atoms.filter(|f| f.m() == hi32!(1))(x)
+        );
+        println!("{elements:?}");
+        assert_eq!(elements.len(), 28);
 
         let atom_recipe = AtomRecipe { s: hu32!(1/2), i: hu32!(3/2) };
         let recipe = DiatomRecipe {
@@ -429,8 +438,9 @@ mod tests {
             atom_b: atom_recipe,
             l: OrbitalRecipe::LMax(2),
         };
-        let atoms = CoupledFTotDiatomBasis::new(recipe, &mut basis);
 
+        let mut basis = SpaceBasis::default();
+        let atoms = CoupledFTotDiatomBasis::new(recipe, &mut basis);
         let elements = basis.get_filtered_basis(|x| 
             atoms.filter_homo_nuclear_symmetry()(x) 
                 && atoms.filter(|(f, l)| f.m() + l.m() == hi32!(2))(x)
@@ -438,5 +448,15 @@ mod tests {
         
         println!("{elements:?}");
         assert_eq!(elements.len(), 13);
+
+        let mut basis = SpaceBasis::default();
+        let atoms = CoupledDiatomBasis::new(recipe, &mut basis);
+        let elements = basis.get_filtered_basis(|x| 
+            atoms.filter_homo_nuclear_symmetry()(x) 
+                && atoms.filter(|f| f.m() == hi32!(2))(x)
+        );
+        
+        println!("{elements:?}");
+        assert_eq!(elements.len(), 38);
     }
 }
