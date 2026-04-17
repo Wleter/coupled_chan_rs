@@ -406,7 +406,6 @@ mod tests {
 
     #[test]
     fn test_homo_nuclear_filter() {
-
         let atom_recipe = AtomRecipe { s: hu32!(1/2), i: hu32!(1) };
         let recipe = DiatomRecipe {
             atom_a: atom_recipe,
@@ -420,8 +419,7 @@ mod tests {
             atoms.filter_homo_nuclear_symmetry()(x) 
                 && atoms.filter(|(f, l)| f.m() + l.m() == hi32!(1))(x)
         );
-        println!("{elements:?}");
-        assert_eq!(elements.len(), 11);
+        assert_eq!(elements.len(), 11, "{elements}");
 
         let mut basis = SpaceBasis::default();
         let atoms = CoupledDiatomBasis::new(recipe, &mut basis);
@@ -429,8 +427,7 @@ mod tests {
             atoms.filter_homo_nuclear_symmetry()(x) 
                 && atoms.filter(|f| f.m() == hi32!(1))(x)
         );
-        println!("{elements:?}");
-        assert_eq!(elements.len(), 28);
+        assert_eq!(elements.len(), 28, "{elements}");
 
         let atom_recipe = AtomRecipe { s: hu32!(1/2), i: hu32!(3/2) };
         let recipe = DiatomRecipe {
@@ -445,9 +442,7 @@ mod tests {
             atoms.filter_homo_nuclear_symmetry()(x) 
                 && atoms.filter(|(f, l)| f.m() + l.m() == hi32!(2))(x)
         );
-        
-        println!("{elements:?}");
-        assert_eq!(elements.len(), 13);
+        assert_eq!(elements.len(), 13, "{elements}");
 
         let mut basis = SpaceBasis::default();
         let atoms = CoupledDiatomBasis::new(recipe, &mut basis);
@@ -455,8 +450,6 @@ mod tests {
             atoms.filter_homo_nuclear_symmetry()(x) 
                 && atoms.filter(|f| f.m() == hi32!(2))(x)
         );
-        
-        println!("{elements:?}");
-        assert_eq!(elements.len(), 38);
+        assert_eq!(elements.len(), 38, "{elements}");
     }
 }
