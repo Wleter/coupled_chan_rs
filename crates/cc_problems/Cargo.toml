@@ -18,3 +18,4 @@ cc_math_utils = {path = "../cc_math_utils"}
 
 rayon = {workspace = true}
 indicatif = {version = "0.18", features = ["rayon"]}
+smallvec = {version = "1.15", features = ["union"]}

@@ -1,15 +1,29 @@
 pub mod atom_basis;
 pub mod diatom_basis;
-pub mod operator_mel;
 pub mod hamiltonian;
+pub mod hamiltonian_terms;
+pub mod operator_mel;
 
 pub use cc_qol_utils;
 use coupled_chan::coupling::AngularBlocks;
 use hilbert_space::space::{
-    BasisElementIndices, BasisElements, BasisElementsRef, BasisId, DynSubspaceElement, SpaceBasis, SubspaceBasis
+    BasisElementIndices,
+    BasisElements,
+    BasisElementsRef,
+    BasisId,
+    DynSubspaceElement,
+    SpaceBasis,
+    SubspaceBasis,
 };
 use spin_algebra::{
-    Spin, SpinLike, SpinMagLike, get_spin_basis, half_integer::{HalfI32, HalfU32}
+    Spin,
+    SpinLike,
+    SpinMagLike,
+    get_spin_basis,
+    half_integer::{
+        HalfI32,
+        HalfU32,
+    },
 };
 
 use crate::hamiltonian::Operator;
@@ -57,7 +71,10 @@ impl Into<Spin> for Angular {
 
 impl Angular {
     pub fn new(l: u32, m: i32) -> Self {
-        Self { l: l.into(), m: m.into() }
+        Self {
+            l: l.into(),
+            m: m.into(),
+        }
     }
 
     pub fn l_value(&self) -> u32 {
@@ -86,24 +103,15 @@ impl OrbitalRecipe {
     pub fn basis(&self) -> Vec<Angular> {
         match self {
             OrbitalRecipe::Single(ang_l) => vec![Angular::new(*ang_l, 0)],
-            OrbitalRecipe::LMax(l_max) => {
-                angular_range(*l_max)
-            }
-            OrbitalRecipe::LMaxProjections(l_max) => {
-                get_spin_basis((*l_max).into()).into_iter()
-                    .map(|l| l.into())
-                    .collect()
-            }
+            OrbitalRecipe::LMax(l_max) => angular_range(*l_max),
+            OrbitalRecipe::LMaxProjections(l_max) => get_spin_basis((*l_max).into()).into_iter().map(|l| l.into()).collect(),
         }
     }
 
     pub fn magnitudes(&self) -> Vec<u32> {
         match self {
             OrbitalRecipe::Single(ang_l) => vec![*ang_l],
-            OrbitalRecipe::LMax(l_max) 
-            | OrbitalRecipe::LMaxProjections(l_max) => {
-                (0..=*l_max).collect()
-            }
+            OrbitalRecipe::LMax(l_max) | OrbitalRecipe::LMaxProjections(l_max) => (0..=*l_max).collect(),
         }
     }
 }
@@ -111,7 +119,7 @@ impl OrbitalRecipe {
 #[derive(Debug, Clone, Copy)]
 // Struct for storing |l m_l> state
 pub struct OrbitalBasis {
-    pub l: BasisId<Angular>
+    pub l: BasisId<Angular>,
 }
 
 impl OrbitalBasis {
@@ -128,7 +136,7 @@ pub fn angular_range(l_max: u32) -> Vec<Angular> {
 }
 
 #[derive(Clone)]
-/// Struct for storing basis elements with sorted and 
+/// Struct for storing basis elements with sorted and
 /// separated by orbital angular momentum number elements.
 pub struct OrbitalBasisElements {
     pub full_basis: BasisElements,
@@ -192,17 +200,23 @@ impl OrbitalBasisElements {
         }
     }
 
-    pub fn angular_iter<'a>(&'a self) -> impl Iterator<Item = (u32, BasisElementsRef<'a>)> {
-        self.ls.iter()
-            .zip(&self.separated_basis_indices)
-            .map(|(&l, indices)| {
-                let elements = BasisElementsRef {
-                    basis: &self.full_basis.basis,
-                    elements_indices: indices,
-                };
+    pub fn new_implicit(full_basis: BasisElements, l: u32) -> Self {
+        Self {
+            separated_basis_indices: vec![full_basis.elements_indices.clone()],
+            full_basis,
+            ls: vec![l],
+        }
+    }
 
-                (l, elements)
-            })
+    pub fn angular_iter<'a>(&'a self) -> impl Iterator<Item = (u32, BasisElementsRef<'a>)> {
+        self.ls.iter().zip(&self.separated_basis_indices).map(|(&l, indices)| {
+            let elements = BasisElementsRef {
+                basis: &self.full_basis.basis,
+                elements_indices: indices,
+            };
+
+            (l, elements)
+        })
     }
 
     pub fn get_angular_blocks(&self, mut f: impl FnMut(u32, BasisElementsRef) -> Operator) -> AngularBlocks {
@@ -210,7 +224,7 @@ impl OrbitalBasisElements {
 
         AngularBlocks {
             l: self.ls.clone(),
-            angular_blocks: blocks,
+            blocks,
         }
     }
 }

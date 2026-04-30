@@ -24,6 +24,14 @@ impl<P: Interaction> Masked<P> {
     pub fn masking(&self) -> &Matrix {
         &self.masking
     }
+
+    pub fn interaction(&self) -> &P {
+        &self.interaction
+    }
+
+    pub fn interaction_mut(&mut self) -> &mut P {
+        &mut self.interaction
+    }
 }
 
 impl<P: Interaction> RCoupling for Masked<P> {

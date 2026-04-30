@@ -4,7 +4,11 @@ pub mod masked;
 pub mod pair;
 
 use std::{
-    ops::Add,
+    iter::Sum,
+    ops::{
+        Add,
+        AddAssign,
+    },
     sync::Arc,
 };
 
@@ -100,18 +104,18 @@ impl Levels {
 #[derive(Clone, Debug)]
 pub struct AngularBlocks {
     pub l: Vec<u32>,
-    pub angular_blocks: Vec<Matrix>,
+    pub blocks: Vec<Matrix>,
 }
 
 impl AngularBlocks {
     pub fn size(&self) -> usize {
-        self.angular_blocks.iter().map(|b| b.nrows()).sum()
+        self.blocks.iter().map(|b| b.nrows()).sum()
     }
 
     pub fn scale(&self, scaling: f64) -> Self {
         AngularBlocks {
             l: self.l.clone(),
-            angular_blocks: self.angular_blocks.iter().map(|x| scaling * x).collect(),
+            blocks: self.blocks.iter().map(|x| scaling * x).collect(),
         }
     }
 
@@ -120,10 +124,10 @@ impl AngularBlocks {
 
         Self {
             l: self.l.clone(),
-            angular_blocks: self
-                .angular_blocks
+            blocks: self
+                .blocks
                 .iter()
-                .zip(&transform.angular_blocks)
+                .zip(&transform.blocks)
                 .map(|(x, t)| crate::transform(x, t))
                 .collect(),
         }
@@ -136,7 +140,7 @@ impl AngularBlocks {
         let mut eigenstates = Matrix::zeros(n, n);
 
         let mut block_index = 0;
-        for (block, l) in self.angular_blocks.iter().zip(&self.l) {
+        for (block, l) in self.blocks.iter().zip(&self.l) {
             let n_block = block.nrows();
 
             let (energies_block, eigenstates_block) = diagonalize(block.as_ref());
@@ -162,7 +166,7 @@ impl AngularBlocks {
         let mut channels = Matrix::zeros(n, n);
 
         let mut block_index = 0;
-        for block in &self.angular_blocks {
+        for block in &self.blocks {
             let n_block = block.nrows();
 
             let sub_matrix = channels.submatrix_mut(block_index, block_index, n_block, n_block);
@@ -183,13 +187,30 @@ impl Add for AngularBlocks {
 
         Self {
             l: self.l,
-            angular_blocks: self
-                .angular_blocks
-                .into_iter()
-                .zip(rhs.angular_blocks)
-                .map(|(x, y)| x + y)
-                .collect(),
+            blocks: self.blocks.into_iter().zip(rhs.blocks).map(|(x, y)| x + y).collect(),
         }
+    }
+}
+
+impl AddAssign for AngularBlocks {
+    fn add_assign(&mut self, rhs: Self) {
+        assert!(self.l.iter().zip(&rhs.l).all(|(a, b)| a == b));
+
+        for (s, r) in self.blocks.iter_mut().zip(&rhs.blocks) {
+            *s += r;
+        }
+    }
+}
+
+impl Sum for AngularBlocks {
+    fn sum<I: Iterator<Item = Self>>(mut iter: I) -> Self {
+        let mut first = iter.next().expect("zero element sum");
+
+        for el in iter {
+            first += el;
+        }
+
+        first
     }
 }
 

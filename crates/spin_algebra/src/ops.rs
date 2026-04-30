@@ -45,11 +45,20 @@ pub fn clebsch_gordan_coef(s1: impl SpinLike, s2: impl SpinLike, s3: impl SpinLi
     clebsch_gordan::clebsch_gordan(s1.s(), s1.m(), s2.s(), s2.m(), s3.s(), s3.m())
 }
 
+/// Checks for triangle inequality of 3 spins
+pub fn triangle_condition(s1: impl SpinMagLike, s2: impl SpinMagLike, s3: impl SpinMagLike) -> bool {
+    let ds1 = s1.s().double_value();
+    let ds2 = s2.s().double_value();
+    let ds3 = s3.s().double_value();
+
+    return (ds3 <= ds1 + ds2) && (ds1 <= ds2 + ds3) && (ds2 <= ds3 + ds1) && (ds1 + ds2 + ds3) % 2 == 0;
+}
+
 ///Returns right hand side of the equation
 /// without reduced matrix element
-/// 
+///
 /// ```text
-///                          (s' - m') ⎧s'  k s⎫ 
+///                          (s' - m') ⎧s'  k s⎫
 /// <s' m'|T^k_q|s m> = (-1)^          ⎩-m' q m⎭ <s'||T^(k)||s>
 /// ```
 #[inline]
@@ -59,14 +68,14 @@ pub fn wigner_eckart_factor(s: Braket<impl SpinLike>, k: impl SpinLike) -> f64 {
 
 /// Returns right hand side of the equation
 /// without reduced matrix element.
-/// 
-/// 
+///
+///
 /// ```text
-///                                          (s1' + s2 + S + k) ⎧S' s2  S⎫ 
+///                                          (s1' + s2 + S + k) ⎧S' s2  S⎫
 /// <(s1' s2) S'||T^k(s1)||(s1 s2) S> = (-1)^                   ⎩s1 k s1'⎭ ((2S + 1) (2S' + 1)).sqrt() <s1'||T^k(s1)||s1>
 /// ```
 pub fn red_first_subsystem_mel_factor(
-    s: Braket<SpinPairMag<impl SpinMagLike, impl SpinMagLike>>, 
+    s: Braket<SpinPairMag<impl SpinMagLike, impl SpinMagLike>>,
     k: impl SpinMagLike,
 ) -> f64 {
     let s_bra_1 = s.bra.pair.1.s();
@@ -77,7 +86,6 @@ pub fn red_first_subsystem_mel_factor(
         let s_ket_0 = s.ket.pair.0.s();
         let s_bra = s.bra.summed;
         let s_ket = s.ket.summed;
-
 
         let phase = (-1.0f64).powi((s_bra_0 + s_bra_1 + s_ket + k).double_value() as i32 / 2);
         let factor = red_id_mel(s_bra) * red_id_mel(s_ket);
@@ -91,14 +99,14 @@ pub fn red_first_subsystem_mel_factor(
 
 /// Returns right hand side of the equation
 /// without reduced matrix element.
-/// 
-/// 
+///
+///
 /// ```text
-///                                          (s1 + s2 + S' + k) ⎧S' s1  S⎫ 
+///                                          (s1 + s2 + S' + k) ⎧S' s1  S⎫
 /// <(s1 s2') S'||T^k(s2)||(s1 s2) S> = (-1)^                   ⎩s2 k s2'⎭ ((2S + 1) (2S' + 1)).sqrt() <s2'||T^k(s2)||s2>
 /// ```
 pub fn red_second_subsystem_mel_factor(
-    s: Braket<SpinPairMag<impl SpinMagLike, impl SpinMagLike>>, 
+    s: Braket<SpinPairMag<impl SpinMagLike, impl SpinMagLike>>,
     k: impl SpinMagLike,
 ) -> f64 {
     let s_bra_0 = s.bra.pair.0.s();
@@ -110,7 +118,6 @@ pub fn red_second_subsystem_mel_factor(
         let s_ket_1 = s.ket.pair.1.s();
         let s_bra = s.bra.summed;
         let s_ket = s.ket.summed;
-
 
         let phase = (-1.0f64).powi((s_ket_0 + s_ket_1 + s_bra + k).double_value() as i32 / 2);
         let factor = red_id_mel(s_bra) * red_id_mel(s_ket);
@@ -143,8 +150,7 @@ pub fn red_harmonics_mel(l: Braket<impl SpinMagLike>, l_sph: impl SpinMagLike) -
     let l_bra = l.bra.s();
     let l_ket = l.ket.s();
 
-    f64::sqrt((l_sph.dim() * l_ket.dim()) as f64 / (4. * PI)) 
-        * wigner_3j(l_bra, l_sph, l_ket, hi32!(0), hi32!(0), hi32!(0))
+    f64::sqrt((l_sph.dim() * l_ket.dim()) as f64 / (4. * PI)) * wigner_3j(l_bra, l_sph, l_ket, hi32!(0), hi32!(0), hi32!(0))
 }
 
 #[cfg(test)]
@@ -153,10 +159,13 @@ mod tests {
         hi32,
         hu32,
     };
-    use hilbert_space::operator::{Braket, kron_delta};
+    use hilbert_space::operator::{
+        Braket,
+        kron_delta,
+    };
 
-    use crate::Spin;
     use super::*;
+    use crate::Spin;
 
     #[test]
     fn test_spin_operators() {
@@ -204,8 +213,7 @@ mod tests {
         let s1 = Spin::new(hu32!(7 / 2), hi32!(3 / 2));
         let s2 = Spin::new(hu32!(7 / 2), hi32!(5 / 2));
 
-        let s_z = wigner_eckart_factor(Braket::new(s1, s1), Spin::new(hu32!(1), hi32!(0)))
-            * red_spin_mel(s1);
+        let s_z = wigner_eckart_factor(Braket::new(s1, s1), Spin::new(hu32!(1), hi32!(0))) * red_spin_mel(s1);
         assert_eq!(s_z, s1.m.value());
 
         let mel = -ladder_plus(Braket::new(s2, s1)) / f64::sqrt(2.);
@@ -214,18 +222,19 @@ mod tests {
             * red_spin_mel(s2);
         assert_eq!(mel, mel_eckart);
 
-        let s1 = hu32!(1/2);
+        let s1 = hu32!(1 / 2);
         let s2 = hu32!(1);
 
-        let f1 = SpinPair::new((s1, s2), Spin::new(hu32!(3/2), hi32!(1/2)));
-        let f2 = SpinPair::new((s1, s2), Spin::new(hu32!(3/2), hi32!(1/2)));
+        let f1 = SpinPair::new((s1, s2), Spin::new(hu32!(3 / 2), hi32!(1 / 2)));
+        let f2 = SpinPair::new((s1, s2), Spin::new(hu32!(3 / 2), hi32!(1 / 2)));
         let braket = Braket::new(f1, f2);
 
         let mel_eckart_1 = wigner_eckart_factor(braket, Spin::new(hu32!(1), hi32!(0)))
             * red_first_subsystem_mel_factor(braket.map(|x| x.as_spin_pair_mag()), hu32!(1))
             * red_spin_mel(s1);
 
-        let mel: f64 = get_spin_basis(s1).iter()
+        let mel: f64 = get_spin_basis(s1)
+            .iter()
             .map(|&spin| {
                 clebsch_gordan(s1, spin.m, s2, f1.m() - spin.m, f1.s(), f1.m())
                     * clebsch_gordan(s1, spin.m, s2, f1.m() - spin.m, f2.s(), f2.m())
@@ -239,14 +248,15 @@ mod tests {
             * red_second_subsystem_mel_factor(braket.map(|x| x.as_spin_pair_mag()), hu32!(1))
             * red_spin_mel(s2);
 
-        let mel: f64 = get_spin_basis(s2).iter()
+        let mel: f64 = get_spin_basis(s2)
+            .iter()
             .map(|&spin| {
                 clebsch_gordan(s1, f1.m() - spin.m, s2, spin.m, f1.s(), f1.m())
                     * clebsch_gordan(s1, f1.m() - spin.m, s2, spin.m, f2.s(), f2.m())
                     * spin.m.value()
             })
             .sum();
-        
+
         assert_eq!(mel_eckart_2, mel);
 
         assert_eq!(mel_eckart_1 + mel_eckart_2, proj_z(braket))

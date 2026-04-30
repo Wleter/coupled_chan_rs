@@ -273,6 +273,10 @@ impl<U: Unit> Quantity<U> {
     pub fn to<V: Unit<Base = U::Base>>(&self, unit: V) -> Quantity<V> {
         Quantity(self.0 * (U::TO_BASE / V::TO_BASE), unit)
     }
+
+    pub fn to_base(&self) -> f64 {
+        self.0 * U::TO_BASE
+    }
 }
 
 impl<U: Unit> Add for Quantity<U> {
