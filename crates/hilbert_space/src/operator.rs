@@ -21,7 +21,10 @@ impl<T> Braket<T> {
 
 impl<T: Copy> Braket<T> {
     pub fn map<V>(&self, f: impl Fn(T) -> V) -> Braket<V> {
-        Braket { bra: f(self.bra), ket: f(self.ket) }
+        Braket {
+            bra: f(self.bra),
+            ket: f(self.ket),
+        }
     }
 }
 
