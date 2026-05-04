@@ -1,5 +1,7 @@
 pub mod atom_basis;
+pub mod atom_hamiltonian_terms;
 pub mod diatom_basis;
+pub mod diatom_hamiltonian_terms;
 pub mod hamiltonian;
 pub mod hamiltonian_terms;
 pub mod operator_mel;
@@ -104,7 +106,10 @@ impl OrbitalRecipe {
         match self {
             OrbitalRecipe::Single(ang_l) => vec![Angular::new(*ang_l, 0)],
             OrbitalRecipe::LMax(l_max) => angular_range(*l_max),
-            OrbitalRecipe::LMaxProjections(l_max) => get_spin_basis((*l_max).into()).into_iter().map(|l| l.into()).collect(),
+            OrbitalRecipe::LMaxProjections(l_max) => (0..=*l_max)
+                .map(|l| get_spin_basis(l).into_iter().map(|x| x.into()))
+                .flatten()
+                .collect(),
         }
     }
 

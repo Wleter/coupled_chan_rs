@@ -157,6 +157,14 @@ impl Hamiltonian {
 
         Ok(())
     }
+
+    pub fn modify_system_params(&mut self, params: SystemParams) {
+        self.asymptote.set_mass(params.mass);
+        self.asymptote.set_entrance(params.entrance);
+        self.asymptote.set_energy(params.energy);
+
+        self.asymptote_constructor.system_params = params;
+    }
 }
 
 const VEC_BUFFER: usize = 4;
@@ -468,11 +476,15 @@ impl PotentialConstructor {
         Composite::new(
             self.potentials
                 .iter()
-                .map(|(_, x)| {
+                .filter_map(|(_, x)| {
                     let mut potential = x.potential.clone();
-                    potential.interaction_mut().scale(prod(&x.scaling));
+                    let scaling = prod(&x.scaling);
+                    if scaling == 0. {
+                        return None;
+                    }
 
-                    potential
+                    potential.interaction_mut().scale(prod(&x.scaling));
+                    Some(potential)
                 })
                 .collect(),
         )
@@ -531,6 +543,23 @@ impl TermRecipe {
             coupling_multiply: coupling_multiply.into_iter().map(|x| x.into()).collect(),
             params_replace: params_replace.into_iter().map(|x| x.into()).collect(),
             operator: Arc::new(operator),
+        }
+    }
+
+    pub fn new_sized<'a, F, const N1: usize, const N2: usize>(
+        name: impl AsRef<str>,
+        coupling_multiply: [&str; N1],
+        params_replace: [&str; N2],
+        operator: F,
+    ) -> Self
+    where
+        F: Fn(&[f64; N2]) -> HamiltonianTerm + 'static,
+    {
+        Self {
+            name: name.as_ref().into(),
+            coupling_multiply: coupling_multiply.into_iter().map(|x| x.into()).collect(),
+            params_replace: params_replace.into_iter().map(|x| x.into()).collect(),
+            operator: Arc::new(move |x| operator(x.try_into().unwrap())),
         }
     }
 

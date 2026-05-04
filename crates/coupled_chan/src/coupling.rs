@@ -24,11 +24,17 @@ use faer::{
 };
 use single_chan::interaction::AsymptoteDep;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct SystemParams {
     pub mass: f64,
     pub energy: f64,
     pub entrance: usize,
+}
+
+impl SystemParams {
+    pub fn new(mass: f64, energy: f64, entrance: usize) -> Self {
+        Self { mass, energy, entrance }
+    }
 }
 
 pub trait RCoupling {

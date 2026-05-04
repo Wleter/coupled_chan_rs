@@ -16,15 +16,11 @@ use spin_algebra::{
 
 use crate::hamiltonian::HamiltonianTerm;
 
-pub fn projection_z_term(s_id: BasisId<impl SpinLike>) -> HamiltonianTerm {
-    HamiltonianTerm::new(move |e| operator_diag_mel!(e, [s_id], |[s]| -s.m().value()))
-}
-
 pub fn dot_uncoupled_term(s1_id: BasisId<impl SpinLike>, s2_id: BasisId<impl SpinLike>) -> HamiltonianTerm {
     HamiltonianTerm::new(move |e| operator_mel!(e, [s1_id, s2_id], |[s1, s2]| spin_algebra::ops::dot(s1, s2)))
 }
 
-pub fn dot_coupled_term<S, I>(f_id: BasisId<SpinPair<impl SpinLike, impl SpinLike>>) -> HamiltonianTerm {
+pub fn dot_coupled_term(f_id: BasisId<SpinPair<impl SpinMagLike, impl SpinMagLike>>) -> HamiltonianTerm {
     HamiltonianTerm::new(move |e| {
         operator_diag_mel!(e, [f_id], |[f]| {
             (f.spin.squared() - f.pair.0.squared() - f.pair.1.squared()) / 2.

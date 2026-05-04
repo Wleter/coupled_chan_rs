@@ -92,8 +92,11 @@ impl std::fmt::Debug for Spin {
 }
 
 impl Spin {
-    pub fn new(s: HalfU32, m: HalfI32) -> Self {
-        Self { s, m }
+    pub fn new(s: impl Into<HalfU32>, m: impl Into<HalfI32>) -> Self {
+        Self {
+            s: s.into(),
+            m: m.into(),
+        }
     }
 
     pub fn zero() -> Self {
@@ -208,7 +211,8 @@ macro_rules! spin {
 
 /// Creates vector containing spin basis |s m_s >
 /// for given `s`
-pub fn get_spin_basis(s: HalfU32) -> Vec<Spin> {
+pub fn get_spin_basis(s: impl SpinMagLike) -> Vec<Spin> {
+    let s = s.s();
     let ds = s.double_value() as i32;
 
     (-ds..=ds)
@@ -219,7 +223,9 @@ pub fn get_spin_basis(s: HalfU32) -> Vec<Spin> {
 
 /// Creates vector containing combined spin basis |S M_S >
 /// from given `s1` and `s2` spins
-pub fn get_summed_spin_basis(s1: HalfU32, s2: HalfU32) -> Vec<Spin> {
+pub fn get_summed_spin_basis(s1: impl SpinMagLike, s2: impl SpinMagLike) -> Vec<Spin> {
+    let s1 = s1.s();
+    let s2 = s2.s();
     let dspin_max = (s1 + s2).double_value();
     let dspin_min = (s1.double_value() as i32 - s2.double_value() as i32).unsigned_abs();
 
