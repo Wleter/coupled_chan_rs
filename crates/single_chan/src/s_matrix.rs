@@ -101,6 +101,10 @@ impl SValue {
     pub fn elastic_cross_sect(&self) -> f64 {
         PI / self.momentum.powi(2) * (1.0 - self.value).norm_sqr()
     }
+
+    pub fn phase_shift(&self) -> f64 {
+        self.value.arg() / 2.
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

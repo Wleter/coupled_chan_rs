@@ -1,12 +1,15 @@
 use std::marker::PhantomData;
 
 use coupled_chan::cc_propagator::step_strategy::Step;
-use serde::{Deserialize, Serialize};
+use serde::{
+    Deserialize,
+    Serialize,
+};
 
 use crate::hamiltonian::Hamiltonian;
 
-pub struct SolverScheme<Data, Recipe> 
-where 
+pub struct SolverScheme<Data, Recipe>
+where
     Data: Serialize + Deserialize<'static>,
     Recipe: Fn(Data) -> Hamiltonian,
 {
@@ -30,7 +33,7 @@ pub struct ScatteringCalc<S: Step> {
     pub r_start: f64,
     pub r_stop: f64,
     pub step: S,
-    pub solver: CoupledChanSolver
+    pub solver: CoupledChanSolver,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -39,5 +42,5 @@ pub struct BoundStateCalc<S: Step> {
     pub r_stop: f64,
     pub r_match: f64,
     pub step: S,
-    pub solver: CoupledChanSolver
+    pub solver: CoupledChanSolver,
 }

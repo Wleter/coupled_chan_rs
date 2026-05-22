@@ -1,0 +1,17 @@
+[package]
+name = "coupled_chan_py"
+version.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "coupled_chan_py"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = {version = "0.26.0", features = ["auto-initialize", "experimental-inspect"]}
+coupled_chan = { path = "../../crates/coupled_chan" }
+
+rayon = { workspace = true }
+faer = { workspace = true }
+faer-ext = { version = "0.7.1", features = ["numpy", "ndarray"] }

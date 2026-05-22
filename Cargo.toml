@@ -12,7 +12,8 @@ members = [
     "crates/single_chan", 
     "crates/coupled_chan",
     "crates/cc_problems", 
-    "crates/coupled_chan_cli",
+    "crates/coupled_chan_cli", 
+    "bindings/coupled_chan_py",
 ]
 resolver = "3"
 

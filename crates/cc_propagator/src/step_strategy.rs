@@ -1,5 +1,22 @@
+use std::sync::Arc;
+
 pub trait Step {
     fn get_step(&self, r: f64, local_wavelength: f64) -> f64;
+}
+
+#[derive(Clone)]
+pub struct DynStep(Arc<dyn Step + Send + Sync>);
+
+impl DynStep {
+    pub fn new(step: impl Step + 'static + Send + Sync) -> Self {
+        Self(Arc::new(step))
+    }
+}
+
+impl Step for DynStep {
+    fn get_step(&self, r: f64, local_wavelength: f64) -> f64 {
+        self.0.get_step(r, local_wavelength)
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -55,16 +72,16 @@ impl Step for LocalWavelengthStep {
 #[derive(Clone, Copy, Debug)]
 pub struct TransitionStep<S1: Step, S2: Step> {
     pub r_switch: f64,
-    pub step_short: S1,
-    pub step_long: S2,
+    pub step_near: S1,
+    pub step_far: S2,
 }
 
 impl<S1: Step, S2: Step> Step for TransitionStep<S1, S2> {
     fn get_step(&self, r: f64, local_wavelength: f64) -> f64 {
         if r <= self.r_switch {
-            self.step_short.get_step(r, local_wavelength)
+            self.step_near.get_step(r, local_wavelength)
         } else {
-            self.step_long.get_step(r, local_wavelength)
+            self.step_far.get_step(r, local_wavelength)
         }
     }
 }
