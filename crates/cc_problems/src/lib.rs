@@ -5,6 +5,7 @@ pub mod diatom_hamiltonian_terms;
 pub mod hamiltonian;
 pub mod hamiltonian_terms;
 pub mod operator_mel;
+pub mod solver;
 
 pub use cc_qol_utils;
 use coupled_chan::coupling::AngularBlocks;
