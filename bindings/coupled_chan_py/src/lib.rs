@@ -433,7 +433,7 @@ mod coupled_chan_py {
             }
         }
 
-        fn scatter(&self, propagator: &CCPropagator) -> SMatrix {
+        fn scatter(&mut self, propagator: &CCPropagator) -> SMatrix {
             let step = self.scattering_config.step.0.clone();
             let boundary = Boundary {
                 r_start: self.scattering_config.r_start,
@@ -441,6 +441,8 @@ mod coupled_chan_py {
                 value: 1e-50 * self.w_matrix.0.id(),
                 derivative: 1. * self.w_matrix.0.id(),
             };
+            self.w_matrix.0.asymptote.set_energy(self.energy);
+            self.w_matrix.0.asymptote.set_mass(self.mass);
 
             let s = match propagator {
                 CCPropagator::Johnson => {
@@ -471,7 +473,7 @@ mod coupled_chan_py {
                 .map(|i| {
                     let s = self.clone();
                     pyo3::Python::attach(|py| {
-                        let s_new: Self = dependence
+                        let mut s_new: Self = dependence
                             .call1(py, (s, i))
                             .expect("Expected function with signature fn(s: CoupledChanData, i: int)) -> CoupledChanData")
                             .extract(py)

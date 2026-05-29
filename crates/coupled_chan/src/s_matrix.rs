@@ -144,6 +144,8 @@ impl SMatrix {
             .expect("Closed entrance channel")
             .0;
 
+        let momenta = momenta.into_iter().zip(&is_open_channel).filter(|x| *x.1).map(|x| x.0).collect();
+
         SMatrix::new(s_matrix, momenta, entrance)
     }
 
@@ -242,6 +244,8 @@ impl SMatrix {
             .find(|(i, _)| *i == asymptote.system_params().entrance)
             .expect("Closed entrance channel")
             .0;
+
+        let momenta = momenta.into_iter().zip(&is_open_channel).filter(|x| *x.1).map(|x| x.0).collect();
 
         SMatrix::new(s_matrix, momenta, entrance)
     }
