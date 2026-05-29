@@ -5,5 +5,3 @@ edition.workspace = true
 
 [dependencies]
 num-traits = {workspace = true}
-serde = {workspace = true}
-serde_json = {workspace = true}
