@@ -87,7 +87,7 @@ impl Hamiltonian {
         let mut changed_potential = false;
 
         for (key, val) in params.as_ref() {
-            let val = *val;
+            let val = (*val).into();
             let index = self.constructor.params.map[key.as_ref()];
             if val == self.constructor.params.vec[index] {
                 continue;

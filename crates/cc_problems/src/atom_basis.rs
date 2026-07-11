@@ -4,18 +4,25 @@ use hilbert_space::space::{
     SpaceElement,
     SubspaceBasis,
 };
+use serde::{Deserialize, Serialize};
 use spin_algebra::{
     Spin,
     SpinPair,
     get_spin_basis,
     get_spin_pair_basis,
     get_spin_pair_magnitudes,
-    half_integer::HalfU32,
+    half_integer::{HalfI32, HalfU32},
 };
 
 pub type TwiceSpin = SpinPair<HalfU32, HalfU32>;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct RecipeWithProj<R> {
+    pub recipe: R,
+    pub projection: HalfI32
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct AtomRecipe {
     pub s: HalfU32,
     pub i: HalfU32,

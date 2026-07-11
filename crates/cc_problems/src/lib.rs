@@ -20,6 +20,7 @@ use hilbert_space::space::{
     SpaceBasis,
     SubspaceBasis,
 };
+use serde::{Deserialize, Serialize};
 use spin_algebra::{
     Spin,
     SpinLike,
@@ -91,7 +92,7 @@ impl Angular {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum OrbitalRecipe {
     /// Single l is still inserted into the basis
     /// as |l 0>

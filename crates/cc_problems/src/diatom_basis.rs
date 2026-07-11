@@ -4,6 +4,7 @@ use hilbert_space::space::{
     SpaceElement,
     SubspaceBasis,
 };
+use serde::{Deserialize, Serialize};
 use spin_algebra::{
     Spin,
     SpinMagLike,
@@ -30,7 +31,7 @@ pub type SpinSTot = SpinPairMag<HalfU32, HalfU32>;
 pub type SpinITot = SpinPairMag<HalfU32, HalfU32>;
 pub type SpinFTot = SpinPairMag<SpinSTot, SpinITot>;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct DiatomRecipe {
     pub atom_a: AtomRecipe,
     pub atom_b: AtomRecipe,
