@@ -212,6 +212,7 @@ dependencies = [
  "coupled_chan",
  "hilbert_space",
  "indicatif",
+ "num-rational",
  "rayon",
  "serde",
  "serde_json",

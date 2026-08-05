@@ -6,6 +6,8 @@ pub mod hamiltonian;
 pub mod hamiltonian_terms;
 pub mod operator_mel;
 pub mod solver;
+pub mod parameters;
+pub mod units;
 
 pub use cc_qol_utils;
 use coupled_chan::coupling::AngularBlocks;
