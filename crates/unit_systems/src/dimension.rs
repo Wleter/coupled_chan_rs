@@ -1,6 +1,9 @@
-use std::ops::{Div, Mul};
 use num_rational::Ratio;
 use num_traits::Pow;
+use std::ops::{
+    Div,
+    Mul,
+};
 
 pub type Ratio8 = Ratio<i8>;
 
@@ -17,13 +20,21 @@ pub struct Dimension {
 
 impl std::fmt::Debug for Dimension {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Dimension {{[M^{} L^{} t^{} e^{} T^{} N^{} J^{}]}}", self.mass, self.length, self.time, self.charge, self.temperature, self.amount, self.luminous_intensity)
+        write!(
+            f,
+            "Dimension {{[M^{} L^{} t^{} e^{} T^{} N^{} J^{}]}}",
+            self.mass, self.length, self.time, self.charge, self.temperature, self.amount, self.luminous_intensity
+        )
     }
 }
 
 impl std::fmt::Display for Dimension {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{{[M^{} L^{} t^{} e^{} T^{} N^{} J^{}]}}", self.mass, self.length, self.time, self.charge, self.temperature, self.amount, self.luminous_intensity)
+        write!(
+            f,
+            "{{[M^{} L^{} t^{} e^{} T^{} N^{} J^{}]}}",
+            self.mass, self.length, self.time, self.charge, self.temperature, self.amount, self.luminous_intensity
+        )
     }
 }
 
@@ -99,7 +110,7 @@ impl Dimension {
 
 impl Mul for Dimension {
     type Output = Self;
-    
+
     fn mul(self, rhs: Self) -> Self::Output {
         Self::new_fractional(
             self.mass + rhs.mass,
@@ -115,7 +126,7 @@ impl Mul for Dimension {
 
 impl Div for Dimension {
     type Output = Self;
-    
+
     fn div(self, rhs: Self) -> Self::Output {
         Self::new_fractional(
             self.mass - rhs.mass,

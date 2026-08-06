@@ -1,9 +1,15 @@
 use core::panic;
-use std::{fs, path::Path};
+use std::{
+    fs,
+    path::Path,
+};
 
 use clebsch_gordan::half_integer::HalfU32;
 use json_comments::StripComments;
-use serde::{Deserialize, Serialize};
+use serde::{
+    Deserialize,
+    Serialize,
+};
 
 pub fn read_input(path: impl AsRef<Path>) -> Input {
     let path = path.as_ref();
@@ -12,7 +18,7 @@ pub fn read_input(path: impl AsRef<Path>) -> Input {
         match ext.to_str().unwrap() {
             "toml" => toml::from_str(&read).unwrap(),
             "json" | "jsonc" => serde_json::from_reader(StripComments::new(read.as_bytes())).unwrap(),
-            _ => panic!("Unknown file extension type")
+            _ => panic!("Unknown file extension type"),
         }
     } else {
         panic!("Expected path to contain file extension")
@@ -47,7 +53,7 @@ pub enum System {
     Custom {
         basis: Vec<Basis>,
         operators: Vec<String>,
-    }
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -81,23 +87,15 @@ pub enum Calculation {
         parameter: String,
         range: Range,
         step: Step,
-    }
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 #[serde(rename_all = "snake_case")]
 pub enum Range {
-    Linear {
-        start: f64,
-        stop: f64,
-        n: u32,
-    },
-    Logarithmic {
-        arg_start: f64,
-        arg_stop: f64,
-        n: u32,
-    },
+    Linear { start: f64, stop: f64, n: u32 },
+    Logarithmic { arg_start: f64, arg_stop: f64, n: u32 },
     Points(Vec<f64>),
     Composite(Vec<Range>),
 }
@@ -107,18 +105,18 @@ pub enum Range {
 #[serde(rename_all = "snake_case")]
 pub enum Step {
     Fixed {
-        dr: f64
+        dr: f64,
     },
     LocalWaveLength {
         dr_min: f64,
         dr_max: f64,
-        wave_ratio: f64
+        wave_ratio: f64,
     },
     Transitioned {
         transition_point: f64,
         before: Box<Step>,
         after: Box<Step>,
-    }
+    },
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]

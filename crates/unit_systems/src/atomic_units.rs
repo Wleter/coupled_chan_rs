@@ -1,6 +1,18 @@
-use std::f64::consts::{PI, TAU};
+use std::f64::consts::{
+    PI,
+    TAU,
+};
 
-use crate::{CODATA_2022, FundamentalConstantsSI, UnitSystemTable, quantities::{Unit, UnitRegistry, phys_quantities::*}};
+use crate::{
+    CODATA_2022,
+    FundamentalConstantsSI,
+    UnitSystemTable,
+    quantities::{
+        Unit,
+        UnitRegistry,
+        phys_quantities::*,
+    },
+};
 
 pub const fn atomic_units_table(constants: &FundamentalConstantsSI) -> UnitSystemTable {
     // defining constants
@@ -47,24 +59,15 @@ pub fn energy_units() -> Vec<Unit> {
 }
 
 pub fn mass_units() -> Vec<Unit> {
-    vec![
-        Unit::new("m_e", 9.109_383_7139e-31),
-        Unit::new("u", 1.660_539_068_92e-27)
-    ]
+    vec![Unit::new("m_e", 9.109_383_7139e-31), Unit::new("u", 1.660_539_068_92e-27)]
 }
 
 pub fn length_units() -> Vec<Unit> {
-    vec![
-        Unit::new("bohr", 5.291_772_105_44e-11),
-        Unit::new("Angstrom", 1e-10)
-    ]
+    vec![Unit::new("bohr", 5.291_772_105_44e-11), Unit::new("Angstrom", 1e-10)]
 }
 
 pub fn b_field_units() -> Vec<Unit> {
-    vec![
-        Unit::new("Gauss", 1.),
-        Unit::new("Tesla", 1.),
-    ]
+    vec![Unit::new("Gauss", 1.), Unit::new("Tesla", 1.)]
 }
 
 pub fn unit_registry() -> UnitRegistry {
@@ -77,13 +80,15 @@ pub fn unit_registry() -> UnitRegistry {
     registry
 }
 
-
 #[cfg(test)]
 mod tests {
     use cc_math_utils::assert_approx_eq;
 
     use super::*;
-    use crate::quantities::{InputScalar, Scalar};
+    use crate::quantities::{
+        InputScalar,
+        Scalar,
+    };
 
     #[test]
     pub fn test_units() {

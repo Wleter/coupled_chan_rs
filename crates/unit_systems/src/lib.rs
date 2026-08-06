@@ -1,8 +1,11 @@
-use crate::dimension::{Dimension, Ratio8};
+use crate::dimension::{
+    Dimension,
+    Ratio8,
+};
 
-pub mod dimension;
 #[cfg(feature = "au")]
 pub mod atomic_units;
+pub mod dimension;
 pub mod quantities;
 #[cfg(feature = "au")]
 pub use atomic_units::*;
@@ -56,26 +59,26 @@ impl UnitSystemTable {
 impl Default for UnitSystemTable {
     /// Default conversion from SI to SI
     fn default() -> Self {
-        Self { 
-            mass_kg: 1., 
-            length_m: 1., 
-            time_s: 1., 
-            charge_c: 1., 
-            temperature_k: 1., 
-            amount_mol: 1., 
-            luminous_intensity_cd: 1. 
+        Self {
+            mass_kg: 1.,
+            length_m: 1.,
+            time_s: 1.,
+            charge_c: 1.,
+            temperature_k: 1.,
+            amount_mol: 1.,
+            luminous_intensity_cd: 1.,
         }
     }
 }
 
-pub const SI_TABLE: UnitSystemTable = UnitSystemTable { 
-    mass_kg: 1., 
-    length_m: 1., 
-    time_s: 1., 
-    charge_c: 1., 
-    temperature_k: 1., 
-    amount_mol: 1., 
-    luminous_intensity_cd: 1. 
+pub const SI_TABLE: UnitSystemTable = UnitSystemTable {
+    mass_kg: 1.,
+    length_m: 1.,
+    time_s: 1.,
+    charge_c: 1.,
+    temperature_k: 1.,
+    amount_mol: 1.,
+    luminous_intensity_cd: 1.,
 };
 
 #[derive(Debug, Clone, Copy)]

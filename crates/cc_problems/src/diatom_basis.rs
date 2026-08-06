@@ -4,7 +4,10 @@ use hilbert_space::space::{
     SpaceElement,
     SubspaceBasis,
 };
-use serde::{Deserialize, Serialize};
+use serde::{
+    Deserialize,
+    Serialize,
+};
 use spin_algebra::{
     Spin,
     SpinMagLike,

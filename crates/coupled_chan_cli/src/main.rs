@@ -7,10 +7,11 @@ use clap::Parser;
 use crate::input::read_input;
 
 #[derive(Parser, Debug)]
-#[command(version, 
-    about = "CLI for coupled_chan package", 
-    long_about = "CLI for coupled_chan package solving coupled channel equation given input and problem source")
-]
+#[command(
+    version,
+    about = "CLI for coupled_chan package",
+    long_about = "CLI for coupled_chan package solving coupled channel equation given input and problem source"
+)]
 struct Args {
     /// input file path
     #[arg(short, long)]

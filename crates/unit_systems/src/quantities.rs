@@ -1,8 +1,17 @@
-use std::{any::TypeId, collections::HashMap};
+use std::{
+    any::TypeId,
+    collections::HashMap,
+};
 
 use num_traits::Pow;
 
-use crate::{UnitSystemTable, dimension::{Dimension, Ratio8}};
+use crate::{
+    UnitSystemTable,
+    dimension::{
+        Dimension,
+        Ratio8,
+    },
+};
 
 pub trait PhysQuantity: std::fmt::Debug + Default {
     fn dimension() -> Dimension;
@@ -132,7 +141,7 @@ impl<V: PhysQuantity, const N: i8, const M: i8> std::fmt::Debug for Power<V, N, 
 
 impl<L: PhysQuantity, const N: i8, const M: i8> PhysQuantity for Power<L, N, M> {
     fn dimension() -> Dimension {
-    L::dimension().pow(Ratio8::new(N, M))
+        L::dimension().pow(Ratio8::new(N, M))
     }
 }
 
@@ -160,11 +169,7 @@ pub struct Scalar<Q: PhysQuantity>(pub f64, pub Q);
 pub struct InputScalar(pub f64, pub String);
 
 impl<Q: PhysQuantity + 'static> Scalar<Q> {
-    pub fn from_unit(
-        value: InputScalar, 
-        registry: &UnitRegistry,
-        system: &UnitSystemTable,
-    ) -> Self {
+    pub fn from_unit(value: InputScalar, registry: &UnitRegistry, system: &UnitSystemTable) -> Self {
         let dim = Q::dimension();
         let unit = registry.get_unit::<Q>(&value.1);
 
@@ -174,19 +179,15 @@ impl<Q: PhysQuantity + 'static> Scalar<Q> {
     }
 }
 
-
 #[derive(Clone, Copy, Debug)]
 pub struct Unit {
     pub name: &'static str,
-    pub to_si: f64
+    pub to_si: f64,
 }
 
 impl Unit {
     pub const fn new(name: &'static str, to_si: f64) -> Self {
-        Self {
-            name,
-            to_si,
-        }
+        Self { name, to_si }
     }
 }
 
@@ -213,11 +214,15 @@ impl UnitRegistry {
     }
 
     pub fn get<Q: PhysQuantity + 'static>(&self) -> &[Unit] {
-        self.0.get(&TypeId::of::<Q>()).expect("No units defined for physical quantity")
+        self.0
+            .get(&TypeId::of::<Q>())
+            .expect("No units defined for physical quantity")
     }
 
     pub fn get_unit<Q: PhysQuantity + 'static>(&self, name: &str) -> Unit {
-        *self.get::<Q>().iter()
+        *self
+            .get::<Q>()
+            .iter()
             .find(|&x| x.name.to_lowercase() == name.to_lowercase())
             .expect("Could not find searched unit in UnitRegistry")
     }
@@ -225,8 +230,10 @@ impl UnitRegistry {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use super::phys_quantities::*;
+    use super::{
+        phys_quantities::*,
+        *,
+    };
 
     #[test]
     pub fn test_quantities() {

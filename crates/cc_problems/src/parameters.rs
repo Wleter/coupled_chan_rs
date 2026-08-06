@@ -1,7 +1,10 @@
-use std::{marker::PhantomData};
+use std::marker::PhantomData;
 
 use hilbert_space::space::BasisElementsRef;
-use serde::{Serialize, de::DeserializeOwned};
+use serde::{
+    Serialize,
+    de::DeserializeOwned,
+};
 
 use crate::hamiltonian::Operator;
 
@@ -43,12 +46,11 @@ pub trait OperatorBuilder<P: Parameters> {
     fn build_params(&self) -> Vec<ParamId>;
 }
 
-pub struct System<R, P, F> 
+pub struct System<R, P, F>
 where
     P: Parameters,
-    F: Fn(&R, &P) -> Vec<Box<dyn OperatorBuilder<P>>>
+    F: Fn(&R, &P) -> Vec<Box<dyn OperatorBuilder<P>>>,
 {
     operators: F,
     phantom: PhantomData<(R, P)>,
 }
-
