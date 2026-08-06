@@ -3,16 +3,16 @@ members = [
     "benches", 
 
     "crates/cc_qol_utils", 
-    "crates/cc_constants", 
     "crates/cc_math_utils", 
     "crates/cc_matrix_utils", 
     "crates/hilbert_space", 
     "crates/spin_algebra", 
+    "crates/unit_systems",
     "crates/cc_propagator", 
     "crates/single_chan", 
     "crates/coupled_chan",
     "crates/cc_problems", 
-    "crates/coupled_chan_cli",
+    "crates/coupled_chan_cli"
 ]
 resolver = "3"
 

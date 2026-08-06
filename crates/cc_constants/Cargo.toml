@@ -1,7 +1,0 @@
-[package]
-name = "cc_constants"
-version.workspace = true
-edition.workspace = true
-
-[dependencies]
-num-traits = {workspace = true}
