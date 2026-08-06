@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "coupled_chan_py"
 version = "0.1.0"
 authors = [
-  { name = "Wleter", email = "m.wetler@student.uw.edu.pl" }
+  { name = "Wleter", email = "m.welter@student.uw.edu.pl" }
 ]
 description = "Coupled channel calculation package"
 readme = "README.md"
@@ -29,5 +29,5 @@ dev = [
   # other dev tools
 ]
 
-[tool.setuptools]
-# (optional) extra configuration for package data, etc.
+[tool.setuptools.packages.find]
+where = ["src"]

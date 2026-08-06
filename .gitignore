@@ -9,3 +9,4 @@ build/
 
 .python-version
 pyrightconfig.json
+dist/
