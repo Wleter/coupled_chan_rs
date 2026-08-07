@@ -10,3 +10,5 @@ build/
 .python-version
 pyrightconfig.json
 dist/
+.envrc
+.direnv
