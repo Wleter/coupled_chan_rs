@@ -21,3 +21,4 @@ indicatif = {version = "0.18", features = ["rayon"]}
 smallvec = {version = "1.15", features = ["union"]}
 
 num-rational = "0.4"
+cc_derive = {path = "../cc_derive"}

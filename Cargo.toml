@@ -13,7 +13,7 @@ members = [
     "crates/coupled_chan",
     "crates/cc_problems", 
     "crates/coupled_chan_cli"
-]
+, "crates/cc_derive"]
 resolver = "3"
 
 [workspace.package]
