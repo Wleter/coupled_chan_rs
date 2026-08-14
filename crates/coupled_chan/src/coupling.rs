@@ -25,13 +25,13 @@ use faer::{
 use single_chan::interaction::AsymptoteDep;
 
 #[derive(Debug, Clone, Copy, Default)]
-pub struct SystemParams {
+pub struct CollisionParams {
     pub mass: f64,
     pub energy: f64,
     pub entrance: usize,
 }
 
-impl SystemParams {
+impl CollisionParams {
     pub fn new(mass: f64, energy: f64, entrance: usize) -> Self {
         Self { mass, energy, entrance }
     }
@@ -225,7 +225,7 @@ pub struct Asymptote {
     levels: Levels,
     transformation: Option<Matrix>,
 
-    system_params: SystemParams,
+    collision_params: CollisionParams,
     pub energy: f64,
 
     asymptote_channels: Matrix,
@@ -233,7 +233,7 @@ pub struct Asymptote {
 }
 
 impl Asymptote {
-    pub fn new_diagonal(levels: Levels, system_params: SystemParams) -> Self {
+    pub fn new_diagonal(levels: Levels, collision_params: CollisionParams) -> Self {
         let asymptote_channels = Mat::from_fn(levels.asymptote.len(), levels.asymptote.len(), |i, j| {
             if i != j {
                 return 0.;
@@ -244,8 +244,8 @@ impl Asymptote {
         let centrifugal = RedMultiCentrifugal::new_diagonal(&levels);
 
         Self {
-            system_params,
-            energy: levels.asymptote[system_params.entrance] + system_params.energy,
+            collision_params,
+            energy: levels.asymptote[collision_params.entrance] + collision_params.energy,
             levels,
 
             transformation: None,
@@ -254,13 +254,13 @@ impl Asymptote {
         }
     }
 
-    pub fn new_angular_blocks(angular_blocks: AngularBlocks, system_params: SystemParams) -> Self {
+    pub fn new_angular_blocks(angular_blocks: AngularBlocks, collision_params: CollisionParams) -> Self {
         let (levels, transformation) = angular_blocks.diagonalized();
         let centrifugal = RedMultiCentrifugal::new_diagonal(&levels);
 
         Self {
-            system_params,
-            energy: levels.asymptote[system_params.entrance] + system_params.energy,
+            collision_params,
+            energy: levels.asymptote[collision_params.entrance] + collision_params.energy,
             levels,
             centrifugal,
 
@@ -269,13 +269,13 @@ impl Asymptote {
         }
     }
 
-    pub fn new_general(levels: Levels, transformation: Matrix, system_params: SystemParams) -> Self {
+    pub fn new_general(levels: Levels, transformation: Matrix, collision_params: CollisionParams) -> Self {
         let channels = crate::transform(&levels.as_matrix(), &transformation);
         let centrifugal = RedMultiCentrifugal::new_general(&levels, &transformation);
 
         Self {
-            system_params,
-            energy: levels.asymptote[system_params.entrance] + system_params.energy,
+            collision_params,
+            energy: levels.asymptote[collision_params.entrance] + collision_params.energy,
             levels,
             centrifugal,
 
@@ -289,25 +289,25 @@ impl Asymptote {
     }
 
     pub fn set_energy(&mut self, energy: f64) {
-        self.system_params.energy = energy;
-        self.energy = self.levels.asymptote[self.system_params.entrance] + energy
+        self.collision_params.energy = energy;
+        self.energy = self.levels.asymptote[self.collision_params.entrance] + energy
     }
 
     pub fn set_entrance(&mut self, entrance: usize) {
-        self.system_params.entrance = entrance;
-        self.energy = self.levels.asymptote[self.system_params.entrance] + self.system_params.energy
+        self.collision_params.entrance = entrance;
+        self.energy = self.levels.asymptote[self.collision_params.entrance] + self.collision_params.energy
     }
 
     pub fn set_mass(&mut self, mass: f64) {
-        self.system_params.mass = mass
+        self.collision_params.mass = mass
     }
 
-    pub fn system_params(&self) -> &SystemParams {
-        &self.system_params
+    pub fn system_params(&self) -> &CollisionParams {
+        &self.collision_params
     }
 
     pub fn entrance_energy(&self) -> f64 {
-        self.levels.asymptote[self.system_params.entrance]
+        self.levels.asymptote[self.collision_params.entrance]
     }
 
     pub fn transformation(&self) -> &Option<Matrix> {
@@ -388,7 +388,7 @@ impl<V: RCoupling> WMatrix<f64> for CollisionWMatrix<V> {
         self.coupling.value_inplace(r, value);
         *value += &self.asymptote.asymptote_channels;
         zip!(value.as_mut(), self.id.as_ref())
-            .for_each(|unzip!(c, i)| *c = 2.0 * self.asymptote.system_params.mass * (self.asymptote.energy * i - *c));
+            .for_each(|unzip!(c, i)| *c = 2.0 * self.asymptote.collision_params.mass * (self.asymptote.energy * i - *c));
 
         self.asymptote.centrifugal.value_inplace_add(r, value);
     }
