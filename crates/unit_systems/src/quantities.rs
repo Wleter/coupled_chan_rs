@@ -19,20 +19,60 @@ pub trait PhysQuantity: std::fmt::Debug + Default + 'static {
     fn dimension_self(self) -> Dimension {
         Self::dimension()
     }
+
+    /// Logic for converting units to wanted unit system,
+    /// Used for physical quantities, which do not have their own units.
+    /// Consider using [`Prod`], [`Frac`], [`Power`] for such cases: 
+    /// `let c6_quantity: Prod<Energy, Power<Length, 6>> = Energy * Power::<_, 6>(Length)`
+    /// 
+    /// # Examples
+    ///
+    /// ```
+    /// use unit_systems::{
+    ///     quantities::{
+    ///         PhysQuantity, 
+    ///         phys_quantities,
+    ///         UnitRegistry,
+    ///         Frac,
+    ///     }, 
+    ///     UnitSystemTable,
+    ///     phys_quantity,
+    ///     phys_quantity_ops, 
+    ///     dimension::Dimension, 
+    /// };
+    /// 
+    /// phys_quantity!(Voltage, Dimension::VOLTAGE);
+    /// 
+    /// #[derive(Clone, Copy, Debug, Default)]
+    /// pub struct ElectricField;
+    /// 
+    /// impl PhysQuantity for ElectricField {
+    ///     fn dimension() -> Dimension {
+    ///         Dimension::ELECTRIC_FIELD
+    ///     }
+    /// 
+    ///     fn to_unit_system_logic(unit: impl AsRef<str>, registry: &UnitRegistry, system: &UnitSystemTable) -> f64 {
+    ///         // treat electric field as voltage / length, when converting to unit_system
+    ///         Frac::<Voltage, phys_quantities::Length>::to_unit_system_logic(unit, registry, system)
+    ///     }
+    /// }
+    /// 
+    /// phys_quantity_ops!(ElectricField);
+    /// ```
+    fn to_unit_system_logic(unit: impl AsRef<str>, registry: &UnitRegistry, system: &UnitSystemTable) -> f64 {
+        // possible overflow/underflow for sufficiently exotic dimensions, todo!
+        let dim = Self::dimension();
+        let from_si = system.from_si(dim);
+
+        let to_si = registry.get_unit::<Self>(unit.as_ref()).to_si;
+
+        to_si * from_si
+    }
 }
 
 #[macro_export]
-macro_rules! phys_quantity {
-    ($name:ident, $dimension:expr) => {
-        #[derive(Clone, Copy, Debug, Default)]
-        pub struct $name;
-
-        impl $crate::quantities::PhysQuantity for $name {
-            fn dimension() -> Dimension {
-                $dimension
-            }
-        }
-
+macro_rules! phys_quantity_ops {
+    ($name:ident) => {
         impl<V: $crate::quantities::PhysQuantity> std::ops::Mul<V> for $name {
             type Output = $crate::quantities::Prod<$name, V>;
 
@@ -51,6 +91,22 @@ macro_rules! phys_quantity {
     };
 }
 
+#[macro_export]
+macro_rules! phys_quantity {
+    ($name:ident, $dimension:expr) => {
+        #[derive(Clone, Copy, Debug, Default)]
+        pub struct $name;
+
+        impl $crate::quantities::PhysQuantity for $name {
+            fn dimension() -> Dimension {
+                $dimension
+            }
+        }
+
+        $crate::phys_quantity_ops!($name);
+    };
+}
+
 pub mod phys_quantities {
     use super::*;
 
@@ -66,18 +122,31 @@ pub mod phys_quantities {
     phys_quantity!(ElectricDipole, Dimension::ELECTRIC_DIPOLE);
 }
 
+const COMPOUND_ERROR_MSG: &'static str = "Expected unit of type: \"A * B^n / C^(n/m)\" in order specified by the quantity";
+
 #[derive(Clone, Copy, Default)]
 pub struct Prod<L: PhysQuantity, R: PhysQuantity>(pub L, pub R);
 
 impl<U: PhysQuantity, V: PhysQuantity> std::fmt::Debug for Prod<U, V> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({:?})*({:?})", self.0, self.1)
+        write!(f, "{:?}*{:?}", self.0, self.1)
     }
 }
 
 impl<L: PhysQuantity, R: PhysQuantity> PhysQuantity for Prod<L, R> {
     fn dimension() -> Dimension {
         L::dimension() * R::dimension()
+    }
+
+    // Relies on associativity rule a * b / c == (a * b) / c 
+    fn to_unit_system_logic(unit: impl AsRef<str>, registry: &UnitRegistry, system: &UnitSystemTable) -> f64 {
+        let unit = unit.as_ref().trim_matches(['(', ')', ' ']);
+
+        if let Some((a, b)) = unit.rsplit_once("*") {
+            L::to_unit_system_logic(a, registry, system) * R::to_unit_system_logic(b, registry, system)
+        } else {
+            panic!("{COMPOUND_ERROR_MSG} {:?}", Self::default())
+        }
     }
 }
 
@@ -102,13 +171,24 @@ pub struct Frac<L: PhysQuantity, R: PhysQuantity>(pub L, pub R);
 
 impl<U: PhysQuantity, V: PhysQuantity> std::fmt::Debug for Frac<U, V> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({:?})/({:?})", self.0, self.1)
+        write!(f, "{:?}/{:?}", self.0, self.1)
     }
 }
 
 impl<L: PhysQuantity, R: PhysQuantity> PhysQuantity for Frac<L, R> {
     fn dimension() -> Dimension {
         L::dimension() / R::dimension()
+    }
+
+    // Relies on associativity rule a * b / c == (a * b) / c 
+    fn to_unit_system_logic(unit: impl AsRef<str>, registry: &UnitRegistry, system: &UnitSystemTable) -> f64 {
+        let unit = unit.as_ref().trim_matches(['(', ')', ' ']);
+
+        if let Some((a, b)) = unit.rsplit_once("/") {
+            L::to_unit_system_logic(a, registry, system) / R::to_unit_system_logic(b, registry, system)
+        } else {
+            panic!("{COMPOUND_ERROR_MSG} {:?}", Self::default())
+        }
     }
 }
 
@@ -133,8 +213,8 @@ pub struct Power<L: PhysQuantity, const N: i8, const M: i8 = 1>(pub L);
 
 impl<V: PhysQuantity, const N: i8, const M: i8> std::fmt::Debug for Power<V, N, M> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if N == 1 {
-            write!(f, "({:?})^{:?}", self.0, N)
+        if M == 1 {
+            write!(f, "{:?}^{:?}", self.0, N)
         } else {
             write!(f, "({:?})^({:?}/{:?})", self.0, N, M)
         }
@@ -144,6 +224,29 @@ impl<V: PhysQuantity, const N: i8, const M: i8> std::fmt::Debug for Power<V, N, 
 impl<L: PhysQuantity, const N: i8, const M: i8> PhysQuantity for Power<L, N, M> {
     fn dimension() -> Dimension {
         L::dimension().pow(Ratio8::new(N, M))
+    }
+
+    /// Relies on associativity rule a * b ^ c == (a * b)^c
+    fn to_unit_system_logic(unit: impl AsRef<str>, registry: &UnitRegistry, system: &UnitSystemTable) -> f64 {
+        let unit = unit.as_ref().trim_matches(['(', ')', ' ']);
+
+        if let Some((a, n)) = unit.rsplit_once("^") {
+            if let Some(i) = n.find("/") {
+                let (n, m) = n.split_at(i);
+                let n = n.parse::<i8>().unwrap_or_else(|_| panic!("{COMPOUND_ERROR_MSG} {:?}", Self::default()));
+                let m = m.parse::<i8>().unwrap_or_else(|_| panic!("{COMPOUND_ERROR_MSG} {:?}", Self::default()));
+                assert_eq!(n, N, "{COMPOUND_ERROR_MSG} {:?}", Self::default());
+                assert_eq!(m, M, "{COMPOUND_ERROR_MSG} {:?}", Self::default());
+            } else {
+                let n = n.parse::<i8>().unwrap_or_else(|_| panic!("{COMPOUND_ERROR_MSG} {:?}", Self::default()));
+                assert_eq!(n, N, "{COMPOUND_ERROR_MSG} {:?}", Self::default());
+            }
+
+            L::to_unit_system_logic(a, registry, system).powf(N as f64 / M as f64)
+
+        } else {
+            panic!("{COMPOUND_ERROR_MSG} {:?}", Self::default())
+        }
     }
 }
 
@@ -175,21 +278,16 @@ pub struct Scalar<Q: PhysQuantity> {
 }
 
 impl<Q: PhysQuantity> Scalar<Q> {
-    pub fn new(value: f64, unit: impl AsRef<str>) -> Self {
+    pub fn new(value: f64, quantity: Q, unit: impl AsRef<str>) -> Self {
         Self {
             value,
-            quantity: Q::default(),
+            quantity,
             unit: unit.as_ref().into(),
         }
     }
 
     pub fn in_unit_system(&self, registry: &UnitRegistry, system: &UnitSystemTable) -> f64 {
-        let dim = Q::dimension();
-        let from_si = system.from_si(dim);
-
-        let unit = registry.get_unit::<Q>(&self.unit);
-
-        self.value * unit.to_si * from_si
+        self.value * Q::to_unit_system_logic(&self.unit, registry, system)
     }
 }
 
@@ -237,7 +335,7 @@ impl UnitRegistry {
         *self
             .get::<Q>()
             .iter()
-            .find(|&x| x.name.to_lowercase() == name.to_lowercase())
+            .find(|&x| x.name.trim().to_lowercase() == name.trim().to_lowercase())
             .expect("Could not find searched unit in UnitRegistry")
     }
 }
