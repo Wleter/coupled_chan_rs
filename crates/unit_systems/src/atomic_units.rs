@@ -63,12 +63,42 @@ pub fn mass_units() -> Vec<Unit> {
 }
 
 pub fn length_units() -> Vec<Unit> {
-    vec![Unit::new("bohr", 5.291_772_105_44e-11), Unit::new("Angstrom", 1e-10)]
+    vec![
+        Unit::new("nm", 1e-9), 
+        Unit::new("pm", 1e-12), 
+        Unit::new("bohr", 5.291_772_105_44e-11), 
+        Unit::new("Angstrom", 1e-10)
+    ]
 }
 
 pub fn b_field_units() -> Vec<Unit> {
     vec![Unit::new("Gauss", 1.), Unit::new("Tesla", 1.)]
 }
+
+pub fn magnetic_moment_units() -> Vec<Unit> {
+    vec![
+        Unit::new("mu_bohr", 9.274_010_0657e-24), 
+        Unit::new("mu_nuclear", 5.050_783_7393e-27)
+    ]
+}
+
+pub fn e_field_units() -> Vec<Unit> {
+    vec![
+        Unit::new("V/m", 1.0), 
+        Unit::new("V/cm", 1e2),
+        Unit::new("kV/cm", 1e5),
+    ]
+}
+
+pub fn electric_dipole_units() -> Vec<Unit> {
+    let debye = 1e-21 / 299_792_458.0;
+ 
+    vec![
+        Unit::new("D", debye), 
+        Unit::new("Debye", debye),
+    ]
+}
+
 
 pub fn unit_registry() -> UnitRegistry {
     let mut registry = UnitRegistry::default();
@@ -76,6 +106,9 @@ pub fn unit_registry() -> UnitRegistry {
     registry.extend(Mass, &mass_units());
     registry.extend(Length, &length_units());
     registry.extend(MagneticField, &b_field_units());
+    registry.extend(MagneticDipole, &magnetic_moment_units());
+    registry.extend(ElectricField, &e_field_units());
+    registry.extend(ElectricDipole, &electric_dipole_units());
 
     registry
 }

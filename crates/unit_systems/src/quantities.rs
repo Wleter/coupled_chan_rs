@@ -62,6 +62,8 @@ pub mod phys_quantities {
     phys_quantity!(Action, Dimension::ACTION);
     phys_quantity!(MagneticField, Dimension::MAGNETIC_FIELD);
     phys_quantity!(ElectricField, Dimension::ELECTRIC_FIELD);
+    phys_quantity!(MagneticDipole, Dimension::MAGNETIC_DIPOLE);
+    phys_quantity!(ElectricDipole, Dimension::ELECTRIC_DIPOLE);
 }
 
 #[derive(Clone, Copy, Default)]
@@ -69,7 +71,7 @@ pub struct Prod<L: PhysQuantity, R: PhysQuantity>(pub L, pub R);
 
 impl<U: PhysQuantity, V: PhysQuantity> std::fmt::Debug for Prod<U, V> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}*{:?}", self.0, self.1)
+        write!(f, "({:?})*({:?})", self.0, self.1)
     }
 }
 
@@ -100,7 +102,7 @@ pub struct Frac<L: PhysQuantity, R: PhysQuantity>(pub L, pub R);
 
 impl<U: PhysQuantity, V: PhysQuantity> std::fmt::Debug for Frac<U, V> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}/{:?}", self.0, self.1)
+        write!(f, "({:?})/({:?})", self.0, self.1)
     }
 }
 
@@ -132,9 +134,9 @@ pub struct Power<L: PhysQuantity, const N: i8, const M: i8 = 1>(pub L);
 impl<V: PhysQuantity, const N: i8, const M: i8> std::fmt::Debug for Power<V, N, M> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if N == 1 {
-            write!(f, "{:?}**{:?}", self.0, N)
+            write!(f, "({:?})^{:?}", self.0, N)
         } else {
-            write!(f, "{:?}**({:?}/{:?})", self.0, N, M)
+            write!(f, "({:?})^({:?}/{:?})", self.0, N, M)
         }
     }
 }
@@ -184,7 +186,7 @@ impl<Q: PhysQuantity> Scalar<Q> {
     pub fn in_unit_system(&self, registry: &UnitRegistry, system: &UnitSystemTable) -> f64 {
         let dim = Q::dimension();
         let from_si = system.from_si(dim);
-        
+
         let unit = registry.get_unit::<Q>(&self.unit);
 
         self.value * unit.to_si * from_si
