@@ -86,18 +86,17 @@ mod tests {
 
     use super::*;
     use crate::quantities::{
-        InputScalar,
         Scalar,
     };
 
     #[test]
     pub fn test_units() {
         let val = 10.0;
-        let energy_cm_inv = InputScalar(val, "cm_inv".into());
+        let energy_cm_inv = Scalar::<Energy>::new(val, "cm_inv");
         let registry = unit_registry();
         let system = &ATOMIC_UNITS_TABLE;
 
-        let energy_hartree: Scalar<Energy> = Scalar::from_unit(energy_cm_inv, &registry, system);
-        assert_approx_eq!(energy_hartree.0, val * 4.5563352529132e-6, 1e-5);
+        let energy_hartree = energy_cm_inv.in_unit_system(&registry, &system);
+        assert_approx_eq!(energy_hartree, val * 4.5563352529132e-6, 1e-5);
     }
 }

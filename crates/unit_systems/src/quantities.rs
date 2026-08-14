@@ -13,7 +13,7 @@ use crate::{
     },
 };
 
-pub trait PhysQuantity: std::fmt::Debug + Default {
+pub trait PhysQuantity: std::fmt::Debug + Default + 'static {
     fn dimension() -> Dimension;
 
     fn dimension_self(self) -> Dimension {
@@ -161,21 +161,33 @@ impl<L: PhysQuantity, const N: i8, const M: i8, V: PhysQuantity> std::ops::Div<V
     }
 }
 
-#[derive(Clone, Copy, Debug, Default)]
-#[non_exhaustive]
-pub struct Scalar<Q: PhysQuantity>(pub f64, pub Q);
+#[derive(Clone, Debug, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Scalar<Q: PhysQuantity> {
+    value: f64,
 
-#[derive(Clone, Debug)]
-pub struct InputScalar(pub f64, pub String);
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub quantity: Q,
 
-impl<Q: PhysQuantity + 'static> Scalar<Q> {
-    pub fn from_unit(value: InputScalar, registry: &UnitRegistry, system: &UnitSystemTable) -> Self {
+    pub unit: Box<str>,
+}
+
+impl<Q: PhysQuantity> Scalar<Q> {
+    pub fn new(value: f64, unit: impl AsRef<str>) -> Self {
+        Self {
+            value,
+            quantity: Q::default(),
+            unit: unit.as_ref().into(),
+        }
+    }
+
+    pub fn in_unit_system(&self, registry: &UnitRegistry, system: &UnitSystemTable) -> f64 {
         let dim = Q::dimension();
-        let unit = registry.get_unit::<Q>(&value.1);
-
         let from_si = system.from_si(dim);
+        
+        let unit = registry.get_unit::<Q>(&self.unit);
 
-        Self(value.0 * unit.to_si * from_si, Q::default())
+        self.value * unit.to_si * from_si
     }
 }
 
