@@ -268,26 +268,20 @@ impl<L: PhysQuantity, const N: i8, const M: i8, V: PhysQuantity> std::ops::Div<V
 
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Scalar<Q: PhysQuantity> {
-    value: f64,
-
+pub struct Scalar<Q: PhysQuantity>(
+    f64, 
+    Box<str>, 
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub quantity: Q,
-
-    pub unit: Box<str>,
-}
+    Q
+);
 
 impl<Q: PhysQuantity> Scalar<Q> {
     pub fn new(value: f64, quantity: Q, unit: impl AsRef<str>) -> Self {
-        Self {
-            value,
-            quantity,
-            unit: unit.as_ref().into(),
-        }
+        Self(value, unit.as_ref().into(), quantity)
     }
 
     pub fn in_unit_system(&self, registry: &UnitRegistry, system: &UnitSystemTable) -> f64 {
-        self.value * Q::to_unit_system_logic(&self.unit, registry, system)
+        self.0 * Q::to_unit_system_logic(&self.1, registry, system)
     }
 }
 
