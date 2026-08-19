@@ -12,25 +12,13 @@ use crate::coupling::RCoupling;
 
 #[derive(Debug, Clone)]
 pub struct Masked<P: Interaction> {
-    interaction: P,
-    masking: Matrix,
+    pub interaction: P,
+    pub masking: Matrix,
 }
 
 impl<P: Interaction> Masked<P> {
     pub fn new(interaction: P, masking: Matrix) -> Self {
         Self { interaction, masking }
-    }
-
-    pub fn masking(&self) -> &Matrix {
-        &self.masking
-    }
-
-    pub fn interaction(&self) -> &P {
-        &self.interaction
-    }
-
-    pub fn interaction_mut(&mut self) -> &mut P {
-        &mut self.interaction
     }
 }
 

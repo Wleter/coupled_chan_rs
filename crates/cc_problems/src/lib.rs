@@ -1,23 +1,31 @@
 pub mod atom_basis;
-pub mod atom_hamiltonian_terms;
+pub mod atom_operators;
 pub mod diatom_basis;
-pub mod diatom_hamiltonian_terms;
-pub mod hamiltonian;
-pub mod hamiltonian_terms;
+pub mod diatom_operators;
 pub mod operator_mel;
 pub mod parameters;
-pub mod solver;
+pub mod system;
+// pub mod solver;
+
+use std::sync::{
+    LazyLock,
+    RwLock,
+};
 
 pub use cc_qol_utils;
 use coupled_chan::coupling::AngularBlocks;
-use hilbert_space::space::{
-    BasisElementIndices,
-    BasisElements,
-    BasisElementsRef,
-    BasisId,
-    DynSubspaceElement,
-    SpaceBasis,
-    SubspaceBasis,
+pub use hilbert_space;
+use hilbert_space::{
+    faer::Mat,
+    space::{
+        BasisElementIndices,
+        BasisElements,
+        BasisElementsRef,
+        BasisId,
+        DynSubspaceElement,
+        SpaceBasis,
+        SubspaceBasis,
+    },
 };
 use serde::{
     Deserialize,
@@ -34,7 +42,23 @@ use spin_algebra::{
     },
 };
 
-use crate::hamiltonian::Operator;
+pub use smallvec;
+pub use spin_algebra;
+pub use unit_systems;
+use unit_systems::{
+    ATOMIC_UNITS_TABLE,
+    quantities::UnitsConverter,
+    unit_registry,
+};
+
+pub type Operator = hilbert_space::operator::Operator<Mat<f64>>;
+
+pub static UNITS_CONVERTER: LazyLock<RwLock<UnitsConverter>> = LazyLock::new(|| {
+    RwLock::new(UnitsConverter {
+        registry: unit_registry(),
+        target_unit_system: ATOMIC_UNITS_TABLE,
+    })
+});
 
 #[derive(Clone, Copy, PartialEq, Default, Hash)]
 pub struct Angular {
@@ -64,8 +88,8 @@ impl SpinLike for Angular {
 
 impl From<Spin> for Angular {
     fn from(value: Spin) -> Self {
-        assert!(value.s.double_value() & 1 == 0, "Can only convert non-half integers");
-        assert!(value.m.double_value() & 1 == 0, "Can only convert non-half integers");
+        assert!(value.s.double_value() & 1 == 0, "Can only convert integers");
+        assert!(value.m.double_value() & 1 == 0, "Can only convert integers");
 
         Self { l: value.s, m: value.m }
     }
@@ -232,6 +256,15 @@ impl OrbitalBasisElements {
 
     pub fn get_angular_blocks(&self, mut f: impl FnMut(u32, BasisElementsRef) -> Operator) -> AngularBlocks {
         let blocks = self.angular_iter().map(|(l, e)| f(l, e).0).collect();
+
+        AngularBlocks {
+            l: self.ls.clone(),
+            blocks,
+        }
+    }
+
+    pub fn zero_angular_block(&self) -> AngularBlocks {
+        let blocks = self.angular_iter().map(|(_, e)| Operator::zeros(e.len()).0).collect();
 
         AngularBlocks {
             l: self.ls.clone(),

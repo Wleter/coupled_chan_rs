@@ -352,9 +352,13 @@ dependencies = [
 name = "coupled_chan_cli"
 version = "0.1.0"
 dependencies = [
+ "cc_problems",
+ "cc_qol_utils",
  "clap",
  "clebsch-gordan",
+ "coupled_chan",
  "json_comments",
+ "libloading",
  "serde",
  "serde_json",
  "toml 1.1.4+spec-1.1.0",
@@ -1094,6 +1098,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2874a2af47a2325c2001a6e6fad9b16a53b802102b528163885171cf92b15976"
 
 [[package]]
+name = "libloading"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "754ca22de805bb5744484a5b151a9e1a8e837d5dc232c2d7d8c2e3492edc8b60"
+dependencies = [
+ "cfg-if",
+ "windows-link 0.2.1",
+]
+
+[[package]]
 name = "libm"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1359,6 +1373,7 @@ dependencies = [
  "bytemuck",
  "num-traits",
  "rand 0.8.5",
+ "serde",
 ]
 
 [[package]]
@@ -2273,6 +2288,7 @@ dependencies = [
  "cc_math_utils",
  "num-rational",
  "num-traits",
+ "serde",
 ]
 
 [[package]]

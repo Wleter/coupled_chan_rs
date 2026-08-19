@@ -64,10 +64,10 @@ pub fn mass_units() -> Vec<Unit> {
 
 pub fn length_units() -> Vec<Unit> {
     vec![
-        Unit::new("nm", 1e-9), 
-        Unit::new("pm", 1e-12), 
-        Unit::new("bohr", 5.291_772_105_44e-11), 
-        Unit::new("Angstrom", 1e-10)
+        Unit::new("nm", 1e-9),
+        Unit::new("pm", 1e-12),
+        Unit::new("bohr", 5.291_772_105_44e-11),
+        Unit::new("Angstrom", 1e-10),
     ]
 }
 
@@ -77,28 +77,20 @@ pub fn b_field_units() -> Vec<Unit> {
 
 pub fn magnetic_moment_units() -> Vec<Unit> {
     vec![
-        Unit::new("mu_bohr", 9.274_010_0657e-24), 
-        Unit::new("mu_nuclear", 5.050_783_7393e-27)
+        Unit::new("mu_bohr", 9.274_010_0657e-24),
+        Unit::new("mu_nuclear", 5.050_783_7393e-27),
     ]
 }
 
 pub fn e_field_units() -> Vec<Unit> {
-    vec![
-        Unit::new("V/m", 1.0), 
-        Unit::new("V/cm", 1e2),
-        Unit::new("kV/cm", 1e5),
-    ]
+    vec![Unit::new("V/m", 1.0), Unit::new("V/cm", 1e2), Unit::new("kV/cm", 1e5)]
 }
 
 pub fn electric_dipole_units() -> Vec<Unit> {
     let debye = 1e-21 / 299_792_458.0;
- 
-    vec![
-        Unit::new("D", debye), 
-        Unit::new("Debye", debye),
-    ]
-}
 
+    vec![Unit::new("D", debye), Unit::new("Debye", debye)]
+}
 
 pub fn unit_registry() -> UnitRegistry {
     let mut registry = UnitRegistry::default();
@@ -119,7 +111,8 @@ mod tests {
 
     use super::*;
     use crate::quantities::{
-        Power, Scalar
+        Power,
+        Scalar,
     };
 
     #[test]
@@ -127,12 +120,12 @@ mod tests {
         let val = 10.0;
         let registry = unit_registry();
         let system = &ATOMIC_UNITS_TABLE;
-        
+
         let energy_cm_inv = Scalar::new(val, Energy, "cm_inv");
         let energy_hartree = energy_cm_inv.in_unit_system(&registry, &system);
         assert_approx_eq!(energy_hartree, val * 4.5563352529132e-6, 1e-5);
 
-        let c6_au = Scalar::new(val, Energy *  Power::<_, 6>(Length), "au * bohr^6");
+        let c6_au = Scalar::new(val, Energy * Power::<_, 6>(Length), "au * bohr^6");
         println!("{c6_au:?}");
         assert_approx_eq!(val, c6_au.in_unit_system(&registry, &system), 1e-5);
     }

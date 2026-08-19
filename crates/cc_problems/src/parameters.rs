@@ -1,18 +1,9 @@
 use std::{
     any::Any,
     marker::PhantomData,
-    sync::Arc,
 };
 
 pub use cc_derive::Parameters;
-
-use coupled_chan::{
-    DynInteraction,
-    Interaction,
-};
-use hilbert_space::space::BasisElementsRef;
-
-use crate::hamiltonian::Operator;
 
 pub trait Parameters {
     type Ids;
@@ -40,6 +31,16 @@ impl ParameterRegistry {
         self.0.extend(other.0);
     }
 
+    pub fn modify<T: 'static + PartialEq>(&mut self, id: TypedParamId<T>, value: T) -> bool {
+        let value_old = self.get(id);
+        if value_old != &value {
+            self.0[id.0] = Box::new(value);
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn get<T: 'static>(&self, id: TypedParamId<T>) -> &T {
         self.0[id.0]
             .downcast_ref::<T>()
@@ -47,8 +48,25 @@ impl ParameterRegistry {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TypedParamId<T>(pub usize, PhantomData<T>);
+
+impl<T> Eq for TypedParamId<T> {}
+impl<T> PartialEq for TypedParamId<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0 && self.1 == other.1
+    }
+}
+impl<T: std::fmt::Debug> std::fmt::Debug for TypedParamId<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("TypedParamId").field(&self.0).finish()
+    }
+}
+impl<T> Copy for TypedParamId<T> {}
+impl<T> Clone for TypedParamId<T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone(), self.1.clone())
+    }
+}
 
 impl<T> TypedParamId<T> {
     pub fn new(id: usize) -> Self {
@@ -60,42 +78,8 @@ impl<T> TypedParamId<T> {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ParamId(pub usize);
-
-pub trait OperatorBuilder<P: Parameters> {
-    fn build_matrix(&self, elements: BasisElementsRef, params: &P) -> Operator;
-    fn coupling(&self, params: &P) -> f64;
-
-    fn multiply_params(&self) -> Vec<ParamId>;
-    fn build_params(&self) -> Vec<ParamId>;
-}
-
-pub struct DynOperatorBuilder<P: Parameters>(pub Arc<dyn OperatorBuilder<P>>);
-
-impl<P: Parameters> DynOperatorBuilder<P> {
-    pub fn new(builder: impl OperatorBuilder<P> + 'static) -> Self {
-        Self(Arc::new(builder))
-    }
-}
-
-pub struct PotentialBuilder<P: Parameters> {
-    pub operator_builder: DynOperatorBuilder<P>,
-    pub potential_curve: DynInteraction,
-}
-
-impl<P: Parameters> PotentialBuilder<P> {
-    pub fn new<O, I>(operator: O, interaction: I) -> Self
-    where
-        O: OperatorBuilder<P> + 'static,
-        I: Interaction + 'static + Sync + Send,
-    {
-        Self {
-            operator_builder: DynOperatorBuilder::new(operator),
-            potential_curve: DynInteraction::new(interaction),
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {

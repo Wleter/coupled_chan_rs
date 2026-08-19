@@ -1,15 +1,51 @@
 use hilbert_space::operator::Braket;
 use spin_algebra::{
     Spin,
+    SpinLike,
+    SpinMagLike,
+    SpinPair,
+    get_spin_basis,
     half_integer::HalfU32,
     hi32,
     hu32,
-    ops::clebsch_gordan_coef,
+    ops::{
+        clebsch_gordan_coef,
+        triangle_condition,
+    },
     wigner_3j,
     wigner_6j,
 };
 
 use crate::Angular;
+
+pub fn dot_coupled(f: SpinPair<impl SpinMagLike, impl SpinMagLike>) -> f64 {
+    (f.spin.squared() - f.pair.0.squared() - f.pair.1.squared()) / 2.
+}
+
+pub fn spin_sum_projection_uncoupled(
+    s1: Braket<impl SpinLike>,
+    s2: Braket<impl SpinLike>,
+    s_tot_projected: impl SpinMagLike,
+) -> f64 {
+    let spins = get_spin_basis(s_tot_projected.s());
+
+    if s1.bra.m() + s2.bra.m() != s1.ket.m() + s2.ket.m()
+        || !triangle_condition(s1.bra, s2.bra, s_tot_projected)
+        || !triangle_condition(s1.ket, s2.ket, s_tot_projected)
+    {
+        return 0.;
+    }
+
+    spins
+        .iter()
+        .map(|&s| clebsch_gordan_coef(s1.bra, s2.bra, s) * clebsch_gordan_coef(s1.ket, s2.ket, s))
+        .sum()
+}
+
+pub fn spin_projection_term_coupled(s: impl SpinLike, s_projected: impl SpinMagLike) -> f64 {
+    let s_projected = s_projected.s();
+    if s.s() == s_projected { 1. } else { 0. }
+}
 
 #[rustfmt::skip]
 pub fn percival_coef(lambda: u32, l: Braket<Angular>, n: Braket<Angular>, n_tot: HalfU32) -> f64 {

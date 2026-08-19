@@ -23,7 +23,7 @@ edition = "2024"
 [workspace.dependencies]
 rayon = "1.11.0"
 
-num-complex = "0.4.6"
+num-complex = { version = "0.4.6", features = ["serde"]}
 num-traits = "0.2.19"
 
 anyhow = "1.0"
