@@ -84,6 +84,10 @@ impl System {
         }
     }
 
+    pub fn param_registry(&self) -> &ParameterRegistry {
+        &self.registry
+    }
+
     pub fn modify_params(&mut self, modifications: ParamModifications<impl FnOnce(&mut ParameterRegistry) -> Vec<ParamId>>) {
         let ids = (modifications.modification)(&mut self.registry);
 

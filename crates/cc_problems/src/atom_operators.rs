@@ -53,6 +53,7 @@ pub(crate) type GFactorId = TypedParamId<Scalar<MagneticDipole>>;
 pub const ELECTRON_G_FACTOR: f64 = -2.002_319_304_360_92;
 
 #[derive(Clone, Parameters, Serialize, Deserialize)]
+#[serde(default)]
 pub struct AtomParams {
     pub a_hifi: Scalar<Energy>,
     pub g_e: Scalar<MagneticDipole>,
