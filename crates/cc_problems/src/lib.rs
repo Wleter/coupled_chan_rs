@@ -1,11 +1,11 @@
 pub mod atom_basis;
 pub mod atom_operators;
+pub mod scattering;
 pub mod diatom_basis;
 pub mod diatom_operators;
 pub mod operator_mel;
 pub mod parameters;
 pub mod system;
-// pub mod solver;
 
 use std::sync::{
     LazyLock,

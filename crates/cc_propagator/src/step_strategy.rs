@@ -2,6 +2,20 @@ pub trait Step {
     fn get_step(&self, r: f64, local_wavelength: f64) -> f64;
 }
 
+pub struct DynStep(Box<dyn Step>);
+
+impl DynStep {
+    pub fn new(step: impl Step + 'static) -> Self {
+        Self(Box::new(step))
+    }
+}
+
+impl Step for DynStep {
+    fn get_step(&self, r: f64, local_wavelength: f64) -> f64 {
+        self.0.get_step(r, local_wavelength)
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct SingleStep {
     pub dr: f64,
