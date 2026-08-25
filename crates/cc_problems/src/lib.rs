@@ -8,6 +8,7 @@ pub mod operator_mel;
 pub mod parameters;
 pub mod scattering;
 pub mod system;
+pub mod interactions;
 
 use std::sync::{
     LazyLock,

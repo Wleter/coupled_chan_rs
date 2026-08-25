@@ -114,6 +114,7 @@ macro_rules! phys_quantity {
 pub mod phys_quantities {
     use super::*;
 
+    phys_quantity!(Dimensionless, Dimension::DIMENSIONLESS);
     phys_quantity!(Mass, Dimension::MASS);
     phys_quantity!(Length, Dimension::LENGTH);
     phys_quantity!(Time, Dimension::TIME);
@@ -211,6 +212,8 @@ impl<L: PhysQuantity, R: PhysQuantity, V: PhysQuantity> std::ops::Div<V> for Fra
         Frac(self, rhs)
     }
 }
+
+pub type Inv<L> = Power<L, -1>;
 
 #[derive(Clone, Copy, Default)]
 pub struct Power<L: PhysQuantity, const N: i8, const M: i8 = 1>(pub L);

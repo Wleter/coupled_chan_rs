@@ -6,16 +6,16 @@ use crate::interaction::{
 
 #[derive(Clone, Debug)]
 pub struct MorseLongRangeBuilder {
-    d0: f64,
-    r_e: f64,
-    tail: Vec<PowerLaw>,
+    pub d0: f64,
+    pub r_e: f64,
+    pub tail: Vec<PowerLaw>,
 
-    p: Option<i32>,
-    q: Option<i32>,
+    pub p: Option<i32>,
+    pub q: Option<i32>,
 
-    r_ref: Option<f64>,
-    rho: Option<f64>,
-    betas: Vec<f64>,
+    pub r_ref: Option<f64>,
+    pub rho: Option<f64>,
+    pub betas: Vec<f64>,
 }
 
 impl MorseLongRangeBuilder {
