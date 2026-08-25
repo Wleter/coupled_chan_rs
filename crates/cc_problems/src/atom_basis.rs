@@ -24,8 +24,10 @@ pub type TwiceSpin = SpinPair<HalfU32, HalfU32>;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct RecipeWithProj<R> {
+    #[serde(flatten)]
     pub recipe: R,
-    pub projection: HalfI32,
+    #[serde(default)]
+    pub projection: Option<HalfI32>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]

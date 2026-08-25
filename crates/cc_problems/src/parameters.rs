@@ -4,6 +4,7 @@ use std::{
 };
 
 pub use cc_derive::Parameters;
+use cc_qol_utils::params::CloneAny;
 
 pub trait Parameters {
     type Ids;
@@ -19,11 +20,11 @@ pub trait Parameters {
     fn registry(&self) -> ParameterRegistry;
 }
 
-#[derive(Default)]
-pub struct ParameterRegistry(Vec<Box<dyn Any>>);
+#[derive(Clone, Default)]
+pub struct ParameterRegistry(Vec<Box<dyn CloneAny>>);
 
 impl ParameterRegistry {
-    pub fn push<T: 'static>(&mut self, value: T) {
+    pub fn push<T: CloneAny>(&mut self, value: T) {
         self.0.push(Box::new(value));
     }
 
@@ -31,7 +32,7 @@ impl ParameterRegistry {
         self.0.extend(other.0);
     }
 
-    pub fn modify<T: 'static + PartialEq>(&mut self, id: TypedParamId<T>, value: T) -> bool {
+    pub fn modify<T: CloneAny + PartialEq>(&mut self, id: TypedParamId<T>, value: T) -> bool {
         let value_old = self.get(id);
         if value_old != &value {
             self.0[id.0] = Box::new(value);
@@ -41,7 +42,7 @@ impl ParameterRegistry {
         }
     }
 
-    pub fn get<T: 'static>(&self, id: TypedParamId<T>) -> &T {
+    pub fn get<T: CloneAny>(&self, id: TypedParamId<T>) -> &T {
         self.0[id.0]
             .downcast_ref::<T>()
             .unwrap_or_else(|| panic!("Could not get TypedParamId from ParameterRegistry: downcast error"))

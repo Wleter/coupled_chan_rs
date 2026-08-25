@@ -1,10 +1,12 @@
 pub mod atom_basis;
 pub mod atom_operators;
-pub mod scattering;
+pub mod calc;
+pub mod dependence;
 pub mod diatom_basis;
 pub mod diatom_operators;
 pub mod operator_mel;
 pub mod parameters;
+pub mod scattering;
 pub mod system;
 
 use std::sync::{

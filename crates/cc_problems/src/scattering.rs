@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use coupled_chan::{
     cc_propagator::{
         Direction,
@@ -12,6 +10,8 @@ use coupled_chan::{
         },
     },
     coupling::{
+        Asymptote,
+        CollisionParams,
         CollisionWMatrix,
         RCoupling,
     },
@@ -26,7 +26,10 @@ use coupled_chan::{
     },
     s_matrix::SMatrix,
 };
-use hilbert_space::faer::{Col, complex::Complex64, diag::Diag};
+use hilbert_space::faer::{
+    Col,
+    complex::Complex64,
+};
 use serde::{
     Deserialize,
     Serialize,
@@ -34,27 +37,38 @@ use serde::{
 use unit_systems::quantities::{
     Power,
     Scalar,
-    phys_quantities::Length,
+    phys_quantities::{
+        Energy,
+        Length,
+        Mass,
+    },
 };
 
-use crate::UNITS_CONVERTER;
+use crate::{
+    UNITS_CONVERTER,
+    calc::SingleCalc,
+    parameters::TypedParamId,
+    system::System,
+};
+use anyhow::Result;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct SMatrixData {
-    s_matrix_map: HashMap<usize, Vec<Complex64>>,
+    s_matrix_vec: Vec<Vec<Complex64>>,
     momenta: Vec<f64>,
     entrance_nr: usize,
 }
 
 impl SMatrixData {
     pub fn new(s_matrix: &SMatrix) -> Self {
-        let mut map = HashMap::with_capacity(s_matrix.s_matrix().nrows());
-        for (i, row) in s_matrix.s_matrix().row_iter().enumerate() {
-            map.insert(i, row.iter().copied().collect());
+        let s_matrix_mat = s_matrix.s_matrix();
+        let mut vec = vec![vec![]; s_matrix_mat.nrows()];
+        for (i, row) in s_matrix_mat.row_iter().enumerate() {
+            vec[i] = row.iter().copied().collect();
         }
 
         Self {
-            s_matrix_map: map,
+            s_matrix_vec: vec,
             momenta: s_matrix.momenta().iter().copied().collect(),
             entrance_nr: s_matrix.entrance_number(),
         }
@@ -138,7 +152,7 @@ pub enum Boundary {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ScatteringCalc {
+pub struct ScatteringCalcInput {
     #[serde(default)]
     pub boundary: Boundary,
     pub r_start: Scalar<Length>,
@@ -147,7 +161,7 @@ pub struct ScatteringCalc {
     pub solver: CoupledChanSolver,
 }
 
-impl ScatteringCalc {
+impl ScatteringCalcInput {
     pub fn get_direction(&self) -> (f64, f64, Direction) {
         let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
         let r_start = converter.scalar_value(&self.r_start);
@@ -173,11 +187,11 @@ impl ScatteringCalc {
                 let eigen = mat
                     .self_adjoint_eigen(hilbert_space::faer::Side::Lower)
                     .expect("Couled not diagonalize w_matrix at r_start");
-                
+
                 for v in eigen.S().column_vector().iter() {
                     assert!(
                         *v < 0.0,
-                        "Locally open channels at the r = {:?}, cannot make boundary prediction based on WKB",
+                        "Locally open channels at r = {:?}, cannot make boundary prediction based on WKB",
                         self.r_start
                     );
                 }
@@ -188,15 +202,14 @@ impl ScatteringCalc {
                         let diag = diag.as_diagonal();
 
                         eigen.U() * diag * eigen.U().transpose()
-                    },
+                    }
                     Direction::Outwards => {
                         let diag = Col::from_iter(eigen.S().column_vector().iter().map(|x| (-x).sqrt()));
                         let diag = diag.as_diagonal();
 
                         eigen.U() * diag * eigen.U().transpose()
-                    },
+                    }
                 };
-
 
                 (w_matrix.id().to_owned(), derivative)
             }
@@ -241,6 +254,7 @@ impl ScatteringCalc {
         let step = self.step.get_step();
         let boundary = self.get_boundary(w_matrix);
 
+        // todo! simplify, log-derivatives should be together
         match &self.solver {
             CoupledChanSolver::RatioNumerov => {
                 let mut numerov = RatioNumerov::new(w_matrix, step, boundary);
@@ -261,5 +275,30 @@ impl ScatteringCalc {
                 SMatrixData::new(&SMatrix::from_log_deriv(sol, w_matrix))
             }
         }
+    }
+}
+
+pub struct ScatteringCalc {
+    pub mass: TypedParamId<Scalar<Mass>>,
+    pub energy: TypedParamId<Scalar<Energy>>,
+    pub entrance_no: TypedParamId<usize>,
+}
+
+impl SingleCalc<ScatteringCalcInput, SMatrixData> for ScatteringCalc {
+    fn calculate(&self, input: &ScatteringCalcInput, system: &System) -> Result<SMatrixData> {
+        let registry = system.param_registry();
+        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+
+        let blocks = system.angular_blocks();
+        let collision_params = CollisionParams {
+            mass: converter.scalar_value(registry.get(self.mass)),
+            energy: converter.scalar_value(registry.get(self.energy)),
+            entrance: *registry.get(self.entrance_no),
+        };
+        let asymptote = Asymptote::new_angular_blocks(blocks, collision_params);
+
+        let w_matrix = CollisionWMatrix::new(system.coupling(), asymptote);
+
+        Ok(input.scattering(&w_matrix))
     }
 }

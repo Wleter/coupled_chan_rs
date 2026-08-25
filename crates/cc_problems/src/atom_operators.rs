@@ -81,7 +81,7 @@ impl<F: Fn(BasisElementsRef) -> Operator> HifiSpec<F> {
     }
 }
 
-impl<F: Fn(BasisElementsRef) -> Operator> OperatorSpec for HifiSpec<F> {
+impl<F: Fn(BasisElementsRef) -> Operator + Send + Sync> OperatorSpec for HifiSpec<F> {
     fn build_params(&self) -> ParamIds {
         param_ids![]
     }
@@ -117,7 +117,7 @@ impl<F: Fn(BasisElementsRef) -> Operator> ZeemanSpec<F> {
     }
 }
 
-impl<F: Fn(BasisElementsRef) -> Operator> OperatorSpec for ZeemanSpec<F> {
+impl<F: Fn(BasisElementsRef) -> Operator + Send + Sync> OperatorSpec for ZeemanSpec<F> {
     fn build_params(&self) -> ParamIds {
         param_ids![]
     }

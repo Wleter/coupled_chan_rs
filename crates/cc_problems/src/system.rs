@@ -5,7 +5,6 @@ use std::{
         HashSet,
     },
     hash::Hash,
-    marker::PhantomData,
     ops::{
         Deref,
         Index,
@@ -13,7 +12,10 @@ use std::{
     sync::Arc,
 };
 
-use cc_qol_utils::Composite;
+use cc_qol_utils::{
+    Composite,
+    params::CloneAny,
+};
 use coupled_chan::{
     DynInteraction,
     Interaction,
@@ -44,6 +46,7 @@ use anyhow::{
 pub type CouplingPotential = Masked<Scaled<DynInteraction>>;
 pub type Coupling = Composite<CouplingPotential>;
 
+#[derive(Clone)]
 pub struct System {
     registry: ParameterRegistry,
 
@@ -224,7 +227,7 @@ macro_rules! param_ids {
     });
 }
 
-pub trait OperatorSpec {
+pub trait OperatorSpec: Send + Sync {
     fn build_params(&self) -> ParamIds;
     fn matrix(&self, elements: BasisElementsRef, params: &ParameterRegistry) -> Operator;
 
@@ -374,35 +377,33 @@ impl<S: ?Sized + Hash + Eq, Key: Eq + Hash + Borrow<S>, Val> Index<&S> for HashV
     }
 }
 
-pub struct ParamModifications<'a, F: FnOnce(&'a mut ParameterRegistry) -> Vec<ParamId>> {
+pub type DynParamModifications = ParamModifications<Box<dyn FnOnce(&mut ParameterRegistry) -> Vec<ParamId>>>;
+
+pub struct ParamModifications<F: FnOnce(&mut ParameterRegistry) -> Vec<ParamId>> {
     modification: F,
-    phantom: PhantomData<&'a F>,
 }
 
-impl<'a, F: FnOnce(&mut ParameterRegistry) -> Vec<ParamId>> ParamModifications<'a, F> {
-    pub fn new<T: PartialEq + 'static>(
-        id: TypedParamId<T>,
-        value: T,
-    ) -> ParamModifications<'a, impl FnOnce(&mut ParameterRegistry) -> Vec<ParamId>> {
-        let modification = move |registry: &mut ParameterRegistry| {
-            if registry.modify(id, value) {
-                vec![id.vanish()]
-            } else {
-                vec![]
-            }
-        };
-
-        ParamModifications {
-            modification,
-            phantom: PhantomData,
+pub fn new_param_modifications<T: PartialEq + CloneAny>(
+    id: TypedParamId<T>,
+    value: T,
+) -> ParamModifications<impl FnOnce(&mut ParameterRegistry) -> Vec<ParamId> + 'static> {
+    let modification = move |registry: &mut ParameterRegistry| {
+        if registry.modify(id, value) {
+            vec![id.vanish()]
+        } else {
+            vec![]
         }
-    }
+    };
 
-    pub fn modify<T: PartialEq + 'static>(
+    ParamModifications { modification }
+}
+
+impl<'a, F: FnOnce(&mut ParameterRegistry) -> Vec<ParamId> + 'static> ParamModifications<F> {
+    pub fn modify<T: PartialEq + CloneAny>(
         self,
         id: TypedParamId<T>,
         value: T,
-    ) -> ParamModifications<'a, impl FnOnce(&mut ParameterRegistry) -> Vec<ParamId>> {
+    ) -> ParamModifications<impl FnOnce(&mut ParameterRegistry) -> Vec<ParamId> + 'static> {
         let modification = move |registry: &mut ParameterRegistry| {
             if registry.modify(id, value) {
                 let mut ids = (self.modification)(registry);
@@ -414,9 +415,12 @@ impl<'a, F: FnOnce(&mut ParameterRegistry) -> Vec<ParamId>> ParamModifications<'
             }
         };
 
-        ParamModifications {
-            modification,
-            phantom: PhantomData,
+        ParamModifications { modification }
+    }
+
+    pub fn into_dyn(self) -> DynParamModifications {
+        DynParamModifications {
+            modification: Box::new(self.modification),
         }
     }
 }
