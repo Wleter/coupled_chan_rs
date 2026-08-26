@@ -25,7 +25,7 @@ use coupled_chan::{
     },
     scaled::Scaled,
 };
-use hilbert_space::{faer::Mat, space::BasisElementsRef};
+use hilbert_space::space::BasisElementsRef;
 use smallvec::SmallVec;
 
 use crate::{
@@ -70,10 +70,10 @@ impl System {
         let potentials = potential_specs.mapped(|x| {
             Masked::new(
                 Scaled {
-                    scaling: x.operator_builder.coupling(&registry),
+                    scaling: x.operator_spec.coupling(&registry),
                     interaction: x.potential_curve.clone(),
                 },
-                x.operator_builder.matrix(basis.full_basis.as_ref(), &registry).0,
+                x.operator_spec.matrix(basis.full_basis.as_ref(), &registry).0,
             )
         });
 
@@ -118,11 +118,14 @@ impl System {
 
     pub fn coupling(&self) -> Coupling {
         if self.potentials.vec.is_empty() {
-            return Composite::new(vec![])
+            return Composite::new(vec![]);
         }
 
         let zeros = Operator::zeros(self.potentials.vec[0].masking.nrows()).0;
-        let filtered = self.potentials.vec.iter()
+        let filtered = self
+            .potentials
+            .vec
+            .iter()
             .filter(|x| x.interaction.scaling != 0.0 || x.masking == zeros)
             .cloned()
             .collect();
@@ -168,10 +171,10 @@ impl System {
 
         for m in modified {
             for (i, ops) in specs.iter().enumerate() {
-                if let Some(_) = ops.operator_builder.build_params().iter().find(|x| *x == m) {
+                if let Some(_) = ops.operator_spec.build_params().iter().find(|x| *x == m) {
                     rebuild_queue.insert(i);
                 }
-                if let Some(_) = ops.operator_builder.coupling_params().iter().find(|x| *x == m) {
+                if let Some(_) = ops.operator_spec.coupling_params().iter().find(|x| *x == m) {
                     coupling_queue.insert(i);
                 }
             }
@@ -179,7 +182,7 @@ impl System {
 
         for ops_id in rebuild_queue {
             potentials[ops_id].masking = specs[ops_id]
-                .operator_builder
+                .operator_spec
                 .matrix(self.basis.full_basis.as_ref(), &self.registry)
                 .0
         }
@@ -264,7 +267,7 @@ impl DynOperatorSpec {
 
 #[derive(Clone)]
 pub struct PotentialSpec {
-    pub operator_builder: DynOperatorSpec,
+    pub operator_spec: DynOperatorSpec,
     pub potential_curve: DynInteraction,
 }
 
@@ -275,7 +278,7 @@ impl PotentialSpec {
         I: Interaction + 'static + Sync + Send,
     {
         Self {
-            operator_builder: DynOperatorSpec::new(operator),
+            operator_spec: DynOperatorSpec::new(operator),
             potential_curve: DynInteraction::new(interaction),
         }
     }

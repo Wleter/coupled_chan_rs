@@ -1,6 +1,4 @@
-use std::{
-    marker::PhantomData,
-};
+use std::marker::PhantomData;
 
 pub use cc_derive::Parameters;
 use cc_qol_utils::params::CloneAny;

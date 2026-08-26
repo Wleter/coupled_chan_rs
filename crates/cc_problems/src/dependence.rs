@@ -94,11 +94,11 @@ impl<I: DeserializeOwned, D: Serialize, C: SingleCalc<I, D>> DependenceCalc<I, D
     }
 }
 
-impl<I, D, C> Calc<DependenceCalcInput<I>> for DependenceCalc<I, D, C> 
-where 
-    I: DeserializeOwned + Send + Sync, 
-    D: Serialize + Send + Sync + 'static, 
-    C: SingleCalc<I, D> + Send + Sync
+impl<I, D, C> Calc<DependenceCalcInput<I>> for DependenceCalc<I, D, C>
+where
+    I: DeserializeOwned + Send + Sync,
+    D: Serialize + Send + Sync + 'static,
+    C: SingleCalc<I, D> + Send + Sync,
 {
     fn calculate(&self, system: &System, input: &DependenceCalcInput<I>, worker: usize, workers: usize) -> Result<()> {
         let saver = DataSaver::new(&input.save_filepath.to_string_lossy(), JsonFormat, FileAccess::Append)?;
