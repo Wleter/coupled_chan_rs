@@ -4,11 +4,12 @@ pub mod calc;
 pub mod dependence;
 pub mod diatom_basis;
 pub mod diatom_operators;
+pub mod diatom_problems;
+pub mod interactions;
 pub mod operator_mel;
 pub mod parameters;
 pub mod scattering;
 pub mod system;
-pub mod interactions;
 
 use std::sync::{
     LazyLock,
@@ -134,6 +135,12 @@ pub enum OrbitalRecipe {
     LMaxProjections(u32),
 }
 
+impl Default for OrbitalRecipe {
+    fn default() -> Self {
+        Self::Single(0)
+    }
+}
+
 impl OrbitalRecipe {
     pub fn basis(&self) -> Vec<Angular> {
         match self {
@@ -191,8 +198,8 @@ impl std::fmt::Debug for OrbitalBasisElements {
 }
 
 impl OrbitalBasisElements {
-    pub fn from_orbital(full_basis: BasisElements, system: &OrbitalBasis) -> Self {
-        Self::new(full_basis, system.l, |&a| a.l.double_value() / 2)
+    pub fn from_orbital(full_basis: BasisElements, orbital_id: &OrbitalBasis) -> Self {
+        Self::new(full_basis, orbital_id.l, |&a| a.l.double_value() / 2)
     }
 
     pub fn new<T: DynSubspaceElement>(
