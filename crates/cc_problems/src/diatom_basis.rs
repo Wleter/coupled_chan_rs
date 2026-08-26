@@ -34,11 +34,18 @@ pub type SpinSTot = SpinPairMag<HalfU32, HalfU32>;
 pub type SpinITot = SpinPairMag<HalfU32, HalfU32>;
 pub type SpinFTot = SpinPairMag<SpinSTot, SpinITot>;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiatomRecipe {
     pub atom_a: AtomRecipe,
     pub atom_b: AtomRecipe,
+    #[serde(default)]
     pub l: OrbitalRecipe,
+}
+
+impl DiatomRecipe {
+    pub fn is_homonuclear(&self) -> bool {
+        self.atom_a == self.atom_b
+    }
 }
 
 /// Struct for storing id of
@@ -53,9 +60,9 @@ pub struct UncoupledDiatomBasis {
 impl UncoupledDiatomBasis {
     /// Adds |s1 m_s1>|i1 m_i1>|s2 m_s2>|i2 m_i2>|l m_l>
     /// to the basis.
-    pub fn new(recipe: DiatomRecipe, basis: &mut SpaceBasis) -> Self {
-        let atom_a = UncoupledAtomBasis::new(recipe.atom_a, basis);
-        let atom_b = UncoupledAtomBasis::new(recipe.atom_b, basis);
+    pub fn new(recipe: &DiatomRecipe, basis: &mut SpaceBasis) -> Self {
+        let atom_a = UncoupledAtomBasis::new(&recipe.atom_a, basis);
+        let atom_b = UncoupledAtomBasis::new(&recipe.atom_b, basis);
         let l = OrbitalBasis::new(recipe.l, basis);
 
         Self { atom_a, atom_b, l }
@@ -89,9 +96,9 @@ pub struct CoupledFDiatomBasis {
 impl CoupledFDiatomBasis {
     /// Adds |(s1, i1) f1 m_f1>|(s2, i2) f2 m_f2>|l m_l>
     /// to the basis.
-    pub fn new(recipe: DiatomRecipe, basis: &mut SpaceBasis) -> Self {
-        let atom_a = CoupledAtomBasis::new(recipe.atom_a, basis);
-        let atom_b = CoupledAtomBasis::new(recipe.atom_b, basis);
+    pub fn new(recipe: &DiatomRecipe, basis: &mut SpaceBasis) -> Self {
+        let atom_a = CoupledAtomBasis::new(&recipe.atom_a, basis);
+        let atom_b = CoupledAtomBasis::new(&recipe.atom_b, basis);
         let l = OrbitalBasis::new(recipe.l, basis);
 
         Self { atom_a, atom_b, l }
@@ -117,7 +124,7 @@ pub struct CoupledSIDiatomBasis {
 impl CoupledSIDiatomBasis {
     /// Adds |(s1, s2) S M_S>|(i1, i2) I M_I>|l m_l>
     /// to the basis.
-    pub fn new(recipe: DiatomRecipe, basis: &mut SpaceBasis) -> Self {
+    pub fn new(recipe: &DiatomRecipe, basis: &mut SpaceBasis) -> Self {
         let s_tot = get_spin_pair_magnitudes([recipe.atom_a.s], [recipe.atom_b.s]);
         let s_tot = get_spin_pair_basis(s_tot);
         let i_tot = get_spin_pair_magnitudes([recipe.atom_a.i], [recipe.atom_b.i]);
@@ -159,7 +166,7 @@ pub struct CoupledFTotDiatomBasis {
 impl CoupledFTotDiatomBasis {
     /// Adds |((s1, s2) S, (i1, i2) I) F M_F>|l m_l>
     /// to the basis.
-    pub fn new(recipe: DiatomRecipe, basis: &mut SpaceBasis) -> Self {
+    pub fn new(recipe: &DiatomRecipe, basis: &mut SpaceBasis) -> Self {
         let s_tot = get_spin_pair_magnitudes([recipe.atom_a.s], [recipe.atom_b.s]);
         let i_tot = get_spin_pair_magnitudes([recipe.atom_a.i], [recipe.atom_b.i]);
         let f_tot = get_spin_pair_magnitudes(s_tot, i_tot);
@@ -204,7 +211,7 @@ impl CoupledDiatomBasis {
     /// to the basis.
     ///
     /// Note: With this basis all projections of l are alway included.
-    pub fn new(recipe: DiatomRecipe, basis: &mut SpaceBasis) -> Self {
+    pub fn new(recipe: &DiatomRecipe, basis: &mut SpaceBasis) -> Self {
         let s_tot = get_spin_pair_magnitudes([recipe.atom_a.s], [recipe.atom_b.s]);
         let i_tot = get_spin_pair_magnitudes([recipe.atom_a.i], [recipe.atom_b.i]);
         let f_tot = get_spin_pair_magnitudes(s_tot, i_tot);
@@ -281,10 +288,12 @@ mod tests {
             atom_a: AtomRecipe {
                 s: hu32!(1 / 2),
                 i: hu32!(0),
+                name: "test".into(),
             },
             atom_b: AtomRecipe {
                 s: hu32!(1),
                 i: hu32!(1 / 2),
+                name: "test".into(),
             },
             l: OrbitalRecipe::LMax(1),
         }
@@ -293,7 +302,7 @@ mod tests {
     #[test]
     fn test_uncoupled_diatom_basis() {
         let mut basis = SpaceBasis::default();
-        let atoms = UncoupledDiatomBasis::new(recipe(), &mut basis);
+        let atoms = UncoupledDiatomBasis::new(&recipe(), &mut basis);
 
         let elements = basis.get_filtered_basis(|x| {
             atoms.filter(|((s_a, i_a), (s_b, i_b), l)| s_a.m + i_a.m + s_b.m + i_b.m + l.m == hi32!(1))(x)
@@ -324,7 +333,7 @@ mod tests {
     #[test]
     fn test_coupled_f_diatom_basis() {
         let mut basis = SpaceBasis::default();
-        let atoms = CoupledFDiatomBasis::new(recipe(), &mut basis);
+        let atoms = CoupledFDiatomBasis::new(&recipe(), &mut basis);
 
         let elements = basis.get_filtered_basis(|x| atoms.filter(|(f_a, f_b, l)| f_a.m() + f_b.m() + l.m == hi32!(1))(x));
 
@@ -348,7 +357,7 @@ mod tests {
     #[test]
     fn test_coupled_si_diatom_basis() {
         let mut basis = SpaceBasis::default();
-        let atoms = CoupledSIDiatomBasis::new(recipe(), &mut basis);
+        let atoms = CoupledSIDiatomBasis::new(&recipe(), &mut basis);
 
         let elements = basis.get_filtered_basis(|x| atoms.filter(|(s, i, l)| s.m() + i.m() + l.m == hi32!(1))(x));
 
@@ -374,7 +383,7 @@ mod tests {
     #[test]
     fn test_coupled_f_tot_diatom_basis() {
         let mut basis = SpaceBasis::default();
-        let atoms = CoupledFTotDiatomBasis::new(recipe(), &mut basis);
+        let atoms = CoupledFTotDiatomBasis::new(&recipe(), &mut basis);
 
         let elements = basis.get_filtered_basis(|x| atoms.filter(|(f, l)| f.m() + l.m == hi32!(1))(x));
 
@@ -403,7 +412,7 @@ mod tests {
     #[test]
     fn test_coupled_diatom_basis() {
         let mut basis = SpaceBasis::default();
-        let atoms = CoupledDiatomBasis::new(recipe(), &mut basis);
+        let atoms = CoupledDiatomBasis::new(&recipe(), &mut basis);
 
         let elements = basis.get_filtered_basis(|x| atoms.filter(|fl| fl.m() == hi32!(1))(x));
 
@@ -431,22 +440,23 @@ mod tests {
         let atom_recipe = AtomRecipe {
             s: hu32!(1 / 2),
             i: hu32!(1),
+            name: "test".into(),
         };
         let recipe = DiatomRecipe {
-            atom_a: atom_recipe,
+            atom_a: atom_recipe.clone(),
             atom_b: atom_recipe,
             l: OrbitalRecipe::LMax(2),
         };
 
         let mut basis = SpaceBasis::default();
-        let atoms = CoupledFTotDiatomBasis::new(recipe, &mut basis);
+        let atoms = CoupledFTotDiatomBasis::new(&recipe, &mut basis);
         let elements = basis.get_filtered_basis(|x| {
             atoms.filter_homo_nuclear_symmetry()(x) && atoms.filter(|(f, l)| f.m() + l.m() == hi32!(1))(x)
         });
         assert_eq!(elements.len(), 11, "{elements}");
 
         let mut basis = SpaceBasis::default();
-        let atoms = CoupledDiatomBasis::new(recipe, &mut basis);
+        let atoms = CoupledDiatomBasis::new(&recipe, &mut basis);
         let elements =
             basis.get_filtered_basis(|x| atoms.filter_homo_nuclear_symmetry()(x) && atoms.filter(|f| f.m() == hi32!(1))(x));
         assert_eq!(elements.len(), 28, "{elements}");
@@ -454,22 +464,23 @@ mod tests {
         let atom_recipe = AtomRecipe {
             s: hu32!(1 / 2),
             i: hu32!(3 / 2),
+            name: "test".into(),
         };
         let recipe = DiatomRecipe {
-            atom_a: atom_recipe,
+            atom_a: atom_recipe.clone(),
             atom_b: atom_recipe,
             l: OrbitalRecipe::LMax(2),
         };
 
         let mut basis = SpaceBasis::default();
-        let atoms = CoupledFTotDiatomBasis::new(recipe, &mut basis);
+        let atoms = CoupledFTotDiatomBasis::new(&recipe, &mut basis);
         let elements = basis.get_filtered_basis(|x| {
             atoms.filter_homo_nuclear_symmetry()(x) && atoms.filter(|(f, l)| f.m() + l.m() == hi32!(2))(x)
         });
         assert_eq!(elements.len(), 13, "{elements}");
 
         let mut basis = SpaceBasis::default();
-        let atoms = CoupledDiatomBasis::new(recipe, &mut basis);
+        let atoms = CoupledDiatomBasis::new(&recipe, &mut basis);
         let elements =
             basis.get_filtered_basis(|x| atoms.filter_homo_nuclear_symmetry()(x) && atoms.filter(|f| f.m() == hi32!(2))(x));
         assert_eq!(elements.len(), 38, "{elements}");

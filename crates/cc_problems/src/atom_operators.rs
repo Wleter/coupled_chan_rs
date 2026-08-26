@@ -52,7 +52,7 @@ pub(crate) type GFactorId = TypedParamId<Scalar<MagneticDipole>>;
 
 pub const ELECTRON_G_FACTOR: f64 = -2.002_319_304_360_92;
 
-#[derive(Clone, Parameters, Serialize, Deserialize)]
+#[derive(Debug, Clone, Parameters, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AtomParams {
     pub a_hifi: Scalar<Energy>,
@@ -277,6 +277,7 @@ mod tests {
         let recipe = AtomRecipe {
             s: hu32!(1 / 2),
             i: hu32!(3 / 2),
+            name: "test".into(),
         };
         let params = Params {
             b_field: Scalar::new(80.0, MagneticField, "gauss"),
@@ -289,7 +290,7 @@ mod tests {
         let ids = Params::ids();
 
         let mut basis = SpaceBasis::default();
-        let atom = UncoupledAtomBasis::new(recipe, &mut basis);
+        let atom = UncoupledAtomBasis::new(&recipe, &mut basis);
         let elements = basis.get_filtered_basis(|x| atom.filter(|(s, i)| s.m + i.m == hi32!(1))(x));
         let basis = OrbitalBasisElements::new_implicit(elements, 0);
 
@@ -307,7 +308,7 @@ mod tests {
         let asymptote_uncoupled = system.angular_blocks().diagonalized().0.asymptote;
 
         let mut basis = SpaceBasis::default();
-        let atom = CoupledAtomBasis::new(recipe, &mut basis);
+        let atom = CoupledAtomBasis::new(&recipe, &mut basis);
         let elements = basis.get_filtered_basis(|x| atom.filter(|f| f.m() == hi32!(1))(x));
         let basis = OrbitalBasisElements::new_implicit(elements, 0);
 

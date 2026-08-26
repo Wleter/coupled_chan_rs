@@ -22,16 +22,17 @@ use spin_algebra::{
 
 pub type TwiceSpin = SpinPair<HalfU32, HalfU32>;
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-pub struct RecipeWithProj<R> {
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct WithProjection<R> {
     #[serde(flatten)]
     pub recipe: R,
     #[serde(default)]
     pub projection: Option<HalfI32>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AtomRecipe {
+    pub name: Box<str>,
     pub s: HalfU32,
     pub i: HalfU32,
 }
@@ -46,7 +47,7 @@ pub struct UncoupledAtomBasis {
 impl UncoupledAtomBasis {
     /// Adds |s m_s>|i m_i>
     /// to the basis.
-    pub fn new(recipe: AtomRecipe, basis: &mut SpaceBasis) -> Self {
+    pub fn new(recipe: &AtomRecipe, basis: &mut SpaceBasis) -> Self {
         let s = get_spin_basis(recipe.s);
         let i = get_spin_basis(recipe.i);
 
@@ -70,7 +71,7 @@ pub struct CoupledAtomBasis {
 impl CoupledAtomBasis {
     /// Adds |(s i) f m_f>
     /// to the basis.
-    pub fn new(recipe: AtomRecipe, basis: &mut SpaceBasis) -> Self {
+    pub fn new(recipe: &AtomRecipe, basis: &mut SpaceBasis) -> Self {
         let f = get_spin_pair_magnitudes([recipe.s], [recipe.i]);
         let f = get_spin_pair_basis(f);
 
@@ -99,13 +100,14 @@ mod tests {
         AtomRecipe {
             s: hu32!(1 / 2),
             i: hu32!(3 / 2),
+            name: "test".into(),
         }
     }
 
     #[test]
     fn test_uncoupled_atom_basis() {
         let mut basis = SpaceBasis::default();
-        let atom = UncoupledAtomBasis::new(recipe(), &mut basis);
+        let atom = UncoupledAtomBasis::new(&recipe(), &mut basis);
 
         let elements = basis.get_filtered_basis(|x| atom.filter(|(s, i)| s.m + i.m == hi32!(1))(x));
         assert_eq!(elements.len(), 2);
@@ -121,7 +123,7 @@ mod tests {
     #[test]
     fn test_coupled_atom_basis() {
         let mut basis = SpaceBasis::default();
-        let atom = CoupledAtomBasis::new(recipe(), &mut basis);
+        let atom = CoupledAtomBasis::new(&recipe(), &mut basis);
 
         let elements = basis.get_filtered_basis(|x| atom.filter(|f| f.m() == hi32!(1))(x));
         assert_eq!(elements.len(), 2);

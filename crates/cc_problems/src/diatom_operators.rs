@@ -592,10 +592,12 @@ mod tests {
             atom_a: AtomRecipe {
                 s: hu32!(1 / 2),
                 i: hu32!(1),
+                name: "test".into(),
             },
             atom_b: AtomRecipe {
                 s: hu32!(1 / 2),
                 i: hu32!(1 / 2),
+                name: "test".into(),
             },
             l: OrbitalRecipe::LMaxProjections(1),
         };
@@ -617,7 +619,7 @@ mod tests {
         ///////////////////////
 
         let mut basis = SpaceBasis::default();
-        let diatom = UncoupledDiatomBasis::new(recipe, &mut basis);
+        let diatom = UncoupledDiatomBasis::new(&recipe, &mut basis);
         let elements = basis.get_filtered_basis(|x| {
             diatom.filter(|((s1, i1), (s2, i2), l)| s1.m + i1.m + s2.m + i2.m + l.m == hi32!(3 / 2))(x)
         });
@@ -650,7 +652,7 @@ mod tests {
         ///////////////////////
 
         let mut basis = SpaceBasis::default();
-        let diatom = CoupledFDiatomBasis::new(recipe, &mut basis);
+        let diatom = CoupledFDiatomBasis::new(&recipe, &mut basis);
         let elements = basis.get_filtered_basis(|x| diatom.filter(|(f1, f2, l)| f1.m() + f2.m() + l.m == hi32!(3 / 2))(x));
         let basis = OrbitalBasisElements::from_orbital(elements, &diatom.l);
 
@@ -683,7 +685,7 @@ mod tests {
         ///////////////////////
 
         let mut basis = SpaceBasis::default();
-        let diatom = CoupledSIDiatomBasis::new(recipe, &mut basis);
+        let diatom = CoupledSIDiatomBasis::new(&recipe, &mut basis);
         let elements =
             basis.get_filtered_basis(|x| diatom.filter(|(s_tot, i_tot, l)| s_tot.m() + i_tot.m() + l.m == hi32!(3 / 2))(x));
         let basis = OrbitalBasisElements::from_orbital(elements, &diatom.l);
@@ -717,7 +719,7 @@ mod tests {
         ///////////////////////
 
         let mut basis = SpaceBasis::default();
-        let diatom = CoupledFTotDiatomBasis::new(recipe, &mut basis);
+        let diatom = CoupledFTotDiatomBasis::new(&recipe, &mut basis);
         let elements = basis.get_filtered_basis(|x| diatom.filter(|(f_tot, l)| f_tot.m() + l.m == hi32!(3 / 2))(x));
         let basis = OrbitalBasisElements::from_orbital(elements, &diatom.l);
 
@@ -750,7 +752,7 @@ mod tests {
         ///////////////////////
 
         let mut basis = SpaceBasis::default();
-        let diatom = CoupledDiatomBasis::new(recipe, &mut basis);
+        let diatom = CoupledDiatomBasis::new(&recipe, &mut basis);
         let elements = basis.get_filtered_basis(|x| diatom.filter(|fl_tot| fl_tot.m() == hi32!(3 / 2))(x));
         let basis = OrbitalBasisElements::new(elements, diatom.fl_tot, |x| x.pair.1);
 
