@@ -1,10 +1,37 @@
-use std::path::PathBuf;
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+};
 
 use cc_derive::Parameters;
 use cc_qol_utils::Composite;
-use coupled_chan::{DynInteraction, dispersion::{PowerLaw, lennard_jones}, interpolated::{Transitioned, sin_transition}, morse_long_range};
-use serde::{Deserialize, Serialize};
-use unit_systems::quantities::{Inv, Power, Prod, Scalar, phys_quantities::{Energy, Length}};
+use coupled_chan::{
+    DynInteraction,
+    dispersion::{
+        PowerLaw,
+        lennard_jones,
+    },
+    interpolated::{
+        Transitioned,
+        sin_transition,
+    },
+    morse_long_range,
+};
+use serde::{
+    Deserialize,
+    Serialize,
+};
+use spin_algebra::half_integer::HalfU32;
+use unit_systems::quantities::{
+    Inv,
+    Power,
+    Prod,
+    Scalar,
+    phys_quantities::{
+        Energy,
+        Length,
+    },
+};
 
 use crate::UNITS_CONVERTER;
 
@@ -117,7 +144,8 @@ impl MorseLongRange {
             r_ref: self.r_ref.as_ref().map(|r_ref| converter.scalar_value(r_ref)),
             rho: self.rho.as_ref().map(|rho| converter.scalar_value(rho)),
             betas: self.betas.clone(),
-        }.build()
+        }
+        .build()
     }
 }
 
@@ -129,7 +157,7 @@ pub struct RKHSInterpolation(PathBuf);
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum SwitchingRegion {
-    SinTransition
+    SinTransition,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -144,8 +172,8 @@ pub enum Interactions {
         far: Box<Interactions>,
         r_start_switch: Scalar<Length>,
         r_end_switch: Scalar<Length>,
-        switching: SwitchingRegion
-    }
+        switching: SwitchingRegion,
+    },
 }
 
 impl Interactions {
@@ -156,27 +184,41 @@ impl Interactions {
             Interactions::MorseLongRange(morse_long_range) => DynInteraction::new(morse_long_range.interaction()),
             Interactions::Spline(_spline) => todo!(),
             Interactions::RKHSInterpolation(_rkhs_interpolation) => todo!(),
-            Interactions::Transition { 
-                near, 
-                far, 
-                r_start_switch, 
-                r_end_switch, 
-                switching 
+            Interactions::Transition {
+                near,
+                far,
+                r_start_switch,
+                r_end_switch,
+                switching,
             } => {
                 let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
                 let r_start = converter.scalar_value(r_start_switch);
-                let r_end =  converter.scalar_value(r_end_switch);
+                let r_end = converter.scalar_value(r_end_switch);
 
                 match switching {
-                    SwitchingRegion::SinTransition => {
-                        DynInteraction::new(Transitioned::new(
-                            near.interactions(), 
-                            far.interactions(), 
-                            sin_transition(r_start, r_end)
-                        ))
-                    },
+                    SwitchingRegion::SinTransition => DynInteraction::new(Transitioned::new(
+                        near.interactions(),
+                        far.interactions(),
+                        sin_transition(r_start, r_end),
+                    )),
                 }
-            },
+            }
         }
     }
 }
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Scaling(pub f64);
+
+impl Default for Scaling {
+    fn default() -> Self {
+        Self(1.0)
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ScaledInteractions(pub Interactions, #[serde(default)] pub Scaling);
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PecPolarizations(pub HashMap<HalfU32, ScaledInteractions>);
