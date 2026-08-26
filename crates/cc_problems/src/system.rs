@@ -25,7 +25,7 @@ use coupled_chan::{
     },
     scaled::Scaled,
 };
-use hilbert_space::space::BasisElementsRef;
+use hilbert_space::{faer::Mat, space::BasisElementsRef};
 use smallvec::SmallVec;
 
 use crate::{
@@ -117,7 +117,17 @@ impl System {
     }
 
     pub fn coupling(&self) -> Coupling {
-        Composite::new(self.potentials.vec.clone())
+        if self.potentials.vec.is_empty() {
+            return Composite::new(vec![])
+        }
+
+        let zeros = Operator::zeros(self.potentials.vec[0].masking.nrows()).0;
+        let filtered = self.potentials.vec.iter()
+            .filter(|x| x.interaction.scaling != 0.0 || x.masking == zeros)
+            .cloned()
+            .collect();
+
+        Composite::new(filtered)
     }
 
     fn update_operators(&mut self, modified: &[ParamId]) {
