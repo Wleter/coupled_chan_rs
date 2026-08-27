@@ -23,7 +23,10 @@ use serde::{
     Deserialize,
     Serialize,
 };
-use spin_algebra::half_integer::HalfU32;
+use spin_algebra::{
+    half_integer::HalfU32,
+    hu32,
+};
 use unit_systems::quantities::{
     Inv,
     Power,
@@ -232,10 +235,10 @@ impl Default for Scaling {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PecPolarizations(pub HashMap<HalfU32, Interactions>);
+pub struct PecPolarizations(pub HashMap<SpinConfiguration, Interactions>);
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PecScalings(pub HashMap<HalfU32, Scaling>);
+pub struct PecScalings(pub HashMap<SpinConfiguration, Scaling>);
 
 pub struct PecPolarizationSpec<Mask>
 where
@@ -260,7 +263,7 @@ where
             interaction: params
                 .get(self.pecs)
                 .0
-                .get(&self.s_tot)
+                .get(&SpinConfiguration::Spin(self.s_tot))
                 .unwrap_or_else(|| panic!("input does not have PEC for S_tot = {}", self.s_tot))
                 .interactions(),
             masking: (self.masking)(elements).0,
@@ -272,6 +275,76 @@ where
     }
 
     fn scaling(&self, params: &ParameterRegistry) -> f64 {
-        params.get(self.scalings).0.get(&self.s_tot).copied().unwrap_or_default().0
+        params
+            .get(self.scalings)
+            .0
+            .get(&SpinConfiguration::Spin(self.s_tot))
+            .copied()
+            .unwrap_or_default()
+            .0
+    }
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SpinConfiguration {
+    Spin(HalfU32),
+    Singlet,
+    Doublet,
+    Triplet,
+    Quartet,
+    Quintet,
+    Sextet,
+    Septet,
+    Octet,
+    Nonet,
+    Decet,
+}
+
+impl SpinConfiguration {
+    pub fn as_spin(&self) -> HalfU32 {
+        match self {
+            SpinConfiguration::Spin(half_u32) => *half_u32,
+            SpinConfiguration::Singlet => hu32!(0),
+            SpinConfiguration::Doublet => hu32!(1 / 2),
+            SpinConfiguration::Triplet => hu32!(1),
+            SpinConfiguration::Quartet => hu32!(3 / 2),
+            SpinConfiguration::Quintet => hu32!(2),
+            SpinConfiguration::Sextet => hu32!(5 / 2),
+            SpinConfiguration::Septet => hu32!(3),
+            SpinConfiguration::Octet => hu32!(7 / 2),
+            SpinConfiguration::Nonet => hu32!(4),
+            SpinConfiguration::Decet => hu32!(9 / 2),
+        }
+    }
+}
+
+impl PartialEq for SpinConfiguration {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_spin() == other.as_spin()
+    }
+}
+
+impl std::hash::Hash for SpinConfiguration {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.as_spin().hash(state);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_spin_configuration_collection() {
+        let hash = HashMap::from([
+            (SpinConfiguration::Singlet, 0.0f64),
+            (SpinConfiguration::Spin(hu32!(1)), 1.0f64),
+        ]);
+
+        assert_eq!(SpinConfiguration::Doublet, SpinConfiguration::Spin(hu32!(1 / 2)));
+
+        assert_eq!(hash[&SpinConfiguration::Triplet], 1.0);
+        assert_eq!(hash[&SpinConfiguration::Spin(hu32!(0))], 0.0);
     }
 }
