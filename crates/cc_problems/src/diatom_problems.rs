@@ -1,12 +1,19 @@
-use hilbert_space::space::{
-    SpaceBasis,
-    SpaceElement,
+use hilbert_space::{
+    operator_diag_mel,
+    space::{
+        SpaceBasis,
+        SpaceElement,
+    },
 };
 use serde::{
     Deserialize,
     Serialize,
 };
-use spin_algebra::SpinLike;
+use spin_algebra::{
+    SpinLike,
+    SpinMagLike,
+    get_spin_pair_magnitudes,
+};
 use unit_systems::quantities::{
     Scalar,
     phys_quantities::MagneticField,
@@ -20,10 +27,16 @@ use crate::{
         CoupledSIDiatomBasis,
         DiatomRecipe,
     },
-    interactions::PecPolarizations,
+    interactions::{
+        PecPolarizationSpec,
+        PecPolarizations,
+        PecScalings,
+    },
+    operator_mel::spin_projection_term_coupled,
     parameters::Parameters,
     system::{
         DynOperatorSpec,
+        DynPotentialSpec,
         HamiltonianSpec,
     },
 };
@@ -36,11 +49,19 @@ pub struct DiatomInBFieldParams {
     #[parameter(nested)]
     atom_b: AtomParams,
 
-    pec: PecPolarizations,
+    pecs: PecPolarizations,
+    scalings: PecScalings,
 }
 
-pub fn hamiltonian_diatom_in_b_field(recipe: &WithProjection<DiatomRecipe>, params: &DiatomInBFieldParams) -> HamiltonianSpec {
+pub fn hamiltonian_diatom_in_b_field(
+    recipe: &WithProjection<DiatomRecipe>,
+    _params: &DiatomInBFieldParams,
+) -> HamiltonianSpec {
     let param_ids = DiatomInBFieldParams::ids();
+
+    let s_a = recipe.recipe.atom_a.s;
+    let s_b = recipe.recipe.atom_b.s;
+    let polarizations = get_spin_pair_magnitudes([s_a], [s_b]);
 
     let mut basis = SpaceBasis::default();
     let diatom = CoupledSIDiatomBasis::new(&recipe.recipe, &mut basis);
@@ -88,14 +109,17 @@ pub fn hamiltonian_diatom_in_b_field(recipe: &WithProjection<DiatomRecipe>, para
         ),
     ]);
 
-    // hamiltonian_spec.add_potentials(
-    //     params.pec.iter().map(|((s_tot, p))| {
-    //         let operator =
-    //         spin_projection_term_coupled(s, s_tot)
-    //     }
-
-    //     )
-    // );
+    hamiltonian_spec.add_potentials(polarizations.into_iter().map(|p| {
+        (
+            format!("{}", p.s()),
+            DynPotentialSpec::new(PecPolarizationSpec {
+                s_tot: p.s(),
+                pecs: param_ids.pecs,
+                scalings: param_ids.scalings,
+                masking: move |b| operator_diag_mel!(b, [diatom.s_tot], |[s]| spin_projection_term_coupled(s, p)),
+            }),
+        )
+    }));
 
     hamiltonian_spec
 }

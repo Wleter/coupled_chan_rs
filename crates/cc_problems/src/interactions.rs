@@ -7,6 +7,7 @@ use cc_derive::Parameters;
 use cc_qol_utils::Composite;
 use coupled_chan::{
     DynInteraction,
+    coupling::masked::Masked,
     dispersion::{
         PowerLaw,
         lennard_jones,
@@ -17,6 +18,7 @@ use coupled_chan::{
     },
     morse_long_range,
 };
+use hilbert_space::space::BasisElementsRef;
 use serde::{
     Deserialize,
     Serialize,
@@ -33,7 +35,19 @@ use unit_systems::quantities::{
     },
 };
 
-use crate::UNITS_CONVERTER;
+use crate::{
+    Operator,
+    UNITS_CONVERTER,
+    param_ids,
+    parameters::{
+        ParameterRegistry,
+        TypedParamId,
+    },
+    system::{
+        ParamIds,
+        PotentialSpec,
+    },
+};
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
@@ -218,7 +232,46 @@ impl Default for Scaling {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ScaledInteractions(pub Interactions, #[serde(default)] pub Scaling);
+pub struct PecPolarizations(pub HashMap<HalfU32, Interactions>);
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PecPolarizations(pub HashMap<HalfU32, ScaledInteractions>);
+pub struct PecScalings(pub HashMap<HalfU32, Scaling>);
+
+pub struct PecPolarizationSpec<Mask>
+where
+    Mask: Fn(BasisElementsRef) -> Operator,
+{
+    pub s_tot: HalfU32,
+    pub pecs: TypedParamId<PecPolarizations>,
+    pub scalings: TypedParamId<PecScalings>,
+    pub masking: Mask,
+}
+
+impl<Mask> PotentialSpec for PecPolarizationSpec<Mask>
+where
+    Mask: Fn(BasisElementsRef) -> Operator + Send + Sync,
+{
+    fn build_params(&self) -> ParamIds {
+        param_ids![self.pecs.vanish()]
+    }
+
+    fn r_coupling(&self, elements: BasisElementsRef, params: &ParameterRegistry) -> Masked<DynInteraction> {
+        Masked {
+            interaction: params
+                .get(self.pecs)
+                .0
+                .get(&self.s_tot)
+                .unwrap_or_else(|| panic!("input does not have PEC for S_tot = {}", self.s_tot))
+                .interactions(),
+            masking: (self.masking)(elements).0,
+        }
+    }
+
+    fn scaling_params(&self) -> ParamIds {
+        param_ids![self.scalings.vanish()]
+    }
+
+    fn scaling(&self, params: &ParameterRegistry) -> f64 {
+        params.get(self.scalings).0.get(&self.s_tot).copied().unwrap_or_default().0
+    }
+}

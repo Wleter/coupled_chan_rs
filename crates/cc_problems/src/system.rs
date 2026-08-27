@@ -18,7 +18,6 @@ use cc_qol_utils::{
 };
 use coupled_chan::{
     DynInteraction,
-    Interaction,
     coupling::{
         AngularBlocks,
         masked::Masked,
@@ -52,7 +51,7 @@ pub struct System {
 
     pub basis: OrbitalBasisElements,
     pub operator_specs: HashVec<String, DynOperatorSpec>,
-    pub potential_specs: HashVec<String, PotentialSpec>,
+    pub potential_specs: HashVec<String, DynPotentialSpec>,
 
     pub operators: HashVec<String, (f64, AngularBlocks)>,
     pub potentials: HashVec<String, CouplingPotential>,
@@ -68,12 +67,14 @@ impl System {
             operator_specs.mapped(|x| (x.coupling(&registry), basis.get_angular_blocks(|_, b| x.matrix(b, &registry))));
 
         let potentials = potential_specs.mapped(|x| {
+            let masked = x.r_coupling(basis.full_basis.as_ref(), &registry);
+
             Masked::new(
                 Scaled {
-                    scaling: x.operator_spec.coupling(&registry),
-                    interaction: x.potential_curve.clone(),
+                    scaling: x.scaling(&registry),
+                    interaction: masked.interaction,
                 },
-                x.operator_spec.matrix(basis.full_basis.as_ref(), &registry).0,
+                masked.masking,
             )
         });
 
@@ -152,43 +153,41 @@ impl System {
         }
 
         for ops_id in rebuild_queue {
-            ops[ops_id].1 = self
-                .basis
-                .get_angular_blocks(|_, b| self.operator_specs.vec[ops_id].matrix(b, &self.registry));
+            ops[ops_id].1 = self.basis.get_angular_blocks(|_, b| specs[ops_id].matrix(b, &self.registry));
         }
 
         for ops_id in coupling_queue {
-            ops[ops_id].0 = self.operator_specs.vec[ops_id].coupling(&self.registry);
+            ops[ops_id].0 = specs[ops_id].coupling(&self.registry);
         }
     }
 
     fn update_potentials(&mut self, modified: &[ParamId]) {
         let mut rebuild_queue = HashSet::new();
-        let mut coupling_queue = HashSet::new();
+        let mut scaling_queue = HashSet::new();
 
         let specs = &self.potential_specs.vec;
         let potentials = &mut self.potentials.vec;
 
         for m in modified {
             for (i, ops) in specs.iter().enumerate() {
-                if let Some(_) = ops.operator_spec.build_params().iter().find(|x| *x == m) {
+                if let Some(_) = ops.build_params().iter().find(|x| *x == m) {
                     rebuild_queue.insert(i);
                 }
-                if let Some(_) = ops.operator_spec.coupling_params().iter().find(|x| *x == m) {
-                    coupling_queue.insert(i);
+                if let Some(_) = ops.scaling_params().iter().find(|x| *x == m) {
+                    scaling_queue.insert(i);
                 }
             }
         }
 
         for ops_id in rebuild_queue {
-            potentials[ops_id].masking = specs[ops_id]
-                .operator_spec
-                .matrix(self.basis.full_basis.as_ref(), &self.registry)
-                .0
+            let rebuilt = specs[ops_id].r_coupling(self.basis.full_basis.as_ref(), &self.registry);
+
+            potentials[ops_id].masking = rebuilt.masking;
+            potentials[ops_id].interaction.interaction = rebuilt.interaction;
         }
 
-        for ops_id in coupling_queue {
-            potentials[ops_id].interaction.scaling = self.operator_specs.vec[ops_id].coupling(&self.registry);
+        for ops_id in scaling_queue {
+            potentials[ops_id].interaction.scaling = specs[ops_id].scaling(&self.registry);
         }
     }
 }
@@ -196,7 +195,7 @@ impl System {
 pub struct HamiltonianSpec {
     basis: OrbitalBasisElements,
     operators: HashMap<String, DynOperatorSpec>,
-    potentials: HashMap<String, PotentialSpec>,
+    potentials: HashMap<String, DynPotentialSpec>,
 }
 
 impl HamiltonianSpec {
@@ -208,12 +207,14 @@ impl HamiltonianSpec {
         }
     }
 
-    pub fn add_operators<'a>(&mut self, operators: impl IntoIterator<Item = (&'a str, DynOperatorSpec)>) {
-        self.operators.extend(operators.into_iter().map(|x| (x.0.to_string(), x.1)));
+    pub fn add_operators<S: AsRef<str>>(&mut self, operators: impl IntoIterator<Item = (S, DynOperatorSpec)>) {
+        self.operators
+            .extend(operators.into_iter().map(|x| (x.0.as_ref().to_string(), x.1)));
     }
 
-    pub fn add_potentials<'a>(&mut self, potentials: impl IntoIterator<Item = (&'a str, PotentialSpec)>) {
-        self.potentials.extend(potentials.into_iter().map(|x| (x.0.to_string(), x.1)));
+    pub fn add_potentials<S: AsRef<str>>(&mut self, potentials: impl IntoIterator<Item = (S, DynPotentialSpec)>) {
+        self.potentials
+            .extend(potentials.into_iter().map(|x| (x.0.as_ref().to_string(), x.1)));
     }
 }
 
@@ -260,27 +261,33 @@ impl Deref for DynOperatorSpec {
 }
 
 impl DynOperatorSpec {
-    pub fn new(builder: impl OperatorSpec + 'static) -> Self {
-        Self(Arc::new(builder))
+    pub fn new(spec: impl OperatorSpec + 'static) -> Self {
+        Self(Arc::new(spec))
     }
 }
 
-#[derive(Clone)]
-pub struct PotentialSpec {
-    pub operator_spec: DynOperatorSpec,
-    pub potential_curve: DynInteraction,
+pub trait PotentialSpec: Send + Sync {
+    fn build_params(&self) -> ParamIds;
+    fn r_coupling(&self, elements: BasisElementsRef, params: &ParameterRegistry) -> Masked<DynInteraction>;
+
+    fn scaling_params(&self) -> ParamIds;
+    fn scaling(&self, params: &ParameterRegistry) -> f64;
 }
 
-impl PotentialSpec {
-    pub fn new<O, I>(operator: O, interaction: I) -> Self
-    where
-        O: OperatorSpec + 'static,
-        I: Interaction + 'static + Sync + Send,
-    {
-        Self {
-            operator_spec: DynOperatorSpec::new(operator),
-            potential_curve: DynInteraction::new(interaction),
-        }
+#[derive(Clone)]
+pub struct DynPotentialSpec(pub Arc<dyn PotentialSpec>);
+
+impl Deref for DynPotentialSpec {
+    type Target = dyn PotentialSpec;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_ref()
+    }
+}
+
+impl DynPotentialSpec {
+    pub fn new(spec: impl PotentialSpec + 'static) -> Self {
+        Self(Arc::new(spec))
     }
 }
 
