@@ -92,7 +92,7 @@ impl System {
         &self.registry
     }
 
-    pub fn modify_params(&mut self, modifications: ParamModifications<impl FnOnce(&mut ParameterRegistry) -> Vec<ParamId>>) {
+    pub fn modify_params(&mut self, modifications: ParamModifications<impl FnOnce(&mut ParameterRegistry) -> ParamIds>) {
         let ids = (modifications.modification)(&mut self.registry);
 
         self.update_operators(&ids);
@@ -223,6 +223,10 @@ pub struct ParamIds(SmallVec<[ParamId; 4]>);
 impl ParamIds {
     pub fn new(vec: SmallVec<[ParamId; 4]>) -> Self {
         Self(vec)
+    }
+
+    pub fn push(&mut self, value: ParamId) {
+        self.0.push(value)
     }
 }
 
@@ -397,33 +401,37 @@ impl<S: ?Sized + Hash + Eq, Key: Eq + Hash + Borrow<S>, Val> Index<&S> for HashV
     }
 }
 
-pub type DynParamModifications = ParamModifications<Box<dyn FnOnce(&mut ParameterRegistry) -> Vec<ParamId>>>;
+pub type DynParamModifications = ParamModifications<Box<dyn FnOnce(&mut ParameterRegistry) -> ParamIds>>;
 
-pub struct ParamModifications<F: FnOnce(&mut ParameterRegistry) -> Vec<ParamId>> {
+pub struct ParamModifications<F: FnOnce(&mut ParameterRegistry) -> ParamIds> {
     modification: F,
 }
 
 pub fn new_param_modifications<T: PartialEq + CloneAny>(
     id: TypedParamId<T>,
     value: T,
-) -> ParamModifications<impl FnOnce(&mut ParameterRegistry) -> Vec<ParamId> + 'static> {
+) -> ParamModifications<impl FnOnce(&mut ParameterRegistry) -> ParamIds + 'static> {
     let modification = move |registry: &mut ParameterRegistry| {
         if registry.modify(id, value) {
-            vec![id.vanish()]
+            param_ids![id.vanish()]
         } else {
-            vec![]
+            param_ids![]
         }
     };
 
     ParamModifications { modification }
 }
 
-impl<'a, F: FnOnce(&mut ParameterRegistry) -> Vec<ParamId> + 'static> ParamModifications<F> {
+impl<'a, F: FnOnce(&mut ParameterRegistry) -> ParamIds + 'static> ParamModifications<F> {
+    pub fn new(modification: F) -> Self {
+        Self { modification }
+    }
+
     pub fn modify<T: PartialEq + CloneAny>(
         self,
         id: TypedParamId<T>,
         value: T,
-    ) -> ParamModifications<impl FnOnce(&mut ParameterRegistry) -> Vec<ParamId> + 'static> {
+    ) -> ParamModifications<impl FnOnce(&mut ParameterRegistry) -> ParamIds + 'static> {
         let modification = move |registry: &mut ParameterRegistry| {
             if registry.modify(id, value) {
                 let mut ids = (self.modification)(registry);

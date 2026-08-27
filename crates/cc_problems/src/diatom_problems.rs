@@ -16,13 +16,20 @@ use spin_algebra::{
 };
 use unit_systems::quantities::{
     Scalar,
-    phys_quantities::MagneticField,
+    phys_quantities::{
+        MagneticField,
+        Mass,
+    },
 };
 
 use crate::{
     OrbitalBasisElements,
     atom_basis::WithProjection,
     atom_operators::AtomParams,
+    dependence::{
+        DependantRegistry,
+        DependenceCalc,
+    },
     diatom_basis::{
         CoupledSIDiatomBasis,
         DiatomRecipe,
@@ -31,13 +38,20 @@ use crate::{
         PecPolarizationSpec,
         PecPolarizations,
         PecScalings,
+        Scaling,
     },
     operator_mel::spin_projection_term_coupled,
+    param_ids,
     parameters::Parameters,
+    scattering::{
+        ScatteringCalc,
+        ScatteringScan,
+    },
     system::{
         DynOperatorSpec,
         DynPotentialSpec,
         HamiltonianSpec,
+        ParamModifications,
     },
 };
 
@@ -48,6 +62,8 @@ pub struct DiatomInBFieldParams {
     atom_a: AtomParams,
     #[parameter(nested)]
     atom_b: AtomParams,
+
+    red_mass: Scalar<Mass>,
 
     pecs: PecPolarizations,
     scalings: PecScalings,
@@ -122,4 +138,37 @@ pub fn hamiltonian_diatom_in_b_field(
     }));
 
     hamiltonian_spec
+}
+
+pub fn diatom_scattering_b_field_scan(params: DiatomInBFieldParams) -> ScatteringScan {
+    let ids = DiatomInBFieldParams::ids();
+    let scattering_calc = ScatteringCalc { mass: ids.red_mass };
+    let mut dependence = DependantRegistry::default();
+
+    dependence.insert_parameter("b_field", ids.b_field)
+        .insert_parameter("red_mass", ids.red_mass);
+
+    for spin in params.pecs.0.keys() {
+        let spin = *spin;
+
+        dependence.insert_dependant(&format!("pec.scalings.{:?}", spin), move |p| {
+            ParamModifications::new(move |r| {
+                let ids = DiatomInBFieldParams::ids();
+                let mut scalings = r.get(ids.scalings).clone();
+
+                let value: f64 = p.into();
+                if let Some(s) = scalings.0.get_mut(&spin)
+                    && s.0 == value
+                {
+                    param_ids![]
+                } else {
+                    scalings.0.insert(spin, Scaling(value));
+                    param_ids![ids.scalings.vanish()]
+                }
+            })
+            .into_dyn()
+        });
+    }
+
+    DependenceCalc::new(scattering_calc, dependence)
 }

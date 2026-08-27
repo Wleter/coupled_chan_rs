@@ -98,7 +98,7 @@ macro_rules! phys_quantity_ops {
 #[macro_export]
 macro_rules! phys_quantity {
     ($name:ident, $dimension:expr) => {
-        #[derive(Clone, Copy, Debug, Default)]
+        #[derive(Clone, Copy, Debug, Default, PartialEq)]
         pub struct $name;
 
         impl $crate::quantities::PhysQuantity for $name {
@@ -129,7 +129,7 @@ pub mod phys_quantities {
 
 const COMPOUND_ERROR_MSG: &'static str = "Expected unit of type: \"A * B^n / C^(n/m)\" in order specified by the quantity";
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, PartialEq)]
 pub struct Prod<L: PhysQuantity, R: PhysQuantity>(pub L, pub R);
 
 impl<U: PhysQuantity, V: PhysQuantity> std::fmt::Debug for Prod<U, V> {
@@ -171,7 +171,7 @@ impl<L: PhysQuantity, R: PhysQuantity, V: PhysQuantity> std::ops::Div<V> for Pro
     }
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, PartialEq)]
 pub struct Frac<L: PhysQuantity, R: PhysQuantity>(pub L, pub R);
 
 impl<U: PhysQuantity, V: PhysQuantity> std::fmt::Debug for Frac<U, V> {
@@ -215,7 +215,7 @@ impl<L: PhysQuantity, R: PhysQuantity, V: PhysQuantity> std::ops::Div<V> for Fra
 
 pub type Inv<L> = Power<L, -1>;
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, PartialEq)]
 pub struct Power<L: PhysQuantity, const N: i8, const M: i8 = 1>(pub L);
 
 impl<V: PhysQuantity, const N: i8, const M: i8> std::fmt::Debug for Power<V, N, M> {
@@ -278,7 +278,7 @@ impl<L: PhysQuantity, const N: i8, const M: i8, V: PhysQuantity> std::ops::Div<V
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Scalar<Q: PhysQuantity>(f64, Box<str>, #[cfg_attr(feature = "serde", serde(skip))] Q);
 

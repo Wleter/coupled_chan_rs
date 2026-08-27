@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    fmt::Display,
     path::PathBuf,
 };
 
@@ -299,6 +300,25 @@ pub enum SpinConfiguration {
     Octet,
     Nonet,
     Decet,
+}
+
+impl Display for SpinConfiguration {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SpinConfiguration::Spin(half_u32) => write!(f, "{half_u32}"),
+            SpinConfiguration::Singlet => write!(f, "singlet"),
+            SpinConfiguration::Doublet => write!(f, "doublet"),
+            SpinConfiguration::Triplet => write!(f, "triplet"),
+            SpinConfiguration::Quartet => write!(f, "quartet"),
+            SpinConfiguration::Quintet => write!(f, "quintet"),
+            SpinConfiguration::Sextet => write!(f, "sextet"),
+            SpinConfiguration::Septet => write!(f, "septet"),
+            SpinConfiguration::Octet => write!(f, "octet"),
+            SpinConfiguration::Nonet => write!(f, "nonet"),
+            SpinConfiguration::Decet => write!(f, "decet"),
+        }
+        
+    }
 }
 
 impl SpinConfiguration {

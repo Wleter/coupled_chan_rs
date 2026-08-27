@@ -46,10 +46,10 @@ pub struct DependantRegistry(HashMap<Box<str>, Box<dyn Fn(ParameterInput) -> Dyn
 
 impl DependantRegistry {
     pub fn insert_parameter<T: From<ParameterInput> + PartialEq + CloneAny>(
-        mut self,
+        &mut self,
         name: &str,
         param: TypedParamId<T>,
-    ) -> Self {
+    ) -> &mut Self {
         let dependence = move |p: ParameterInput| {
             let value: T = p.into();
 
@@ -61,10 +61,10 @@ impl DependantRegistry {
     }
 
     pub fn insert_dependant(
-        mut self,
+        &mut self,
         name: &str,
         dependence: impl Fn(ParameterInput) -> DynParamModifications + 'static + Send + Sync,
-    ) -> Self {
+    ) -> &mut Self {
         self.0.insert(name.into(), Box::new(dependence));
 
         self
@@ -268,42 +268,42 @@ impl ParameterInput {
     }
 }
 
-impl Into<f64> for ParameterInput {
-    fn into(self) -> f64 {
-        match self {
+impl From<ParameterInput> for f64 {
+    fn from(value: ParameterInput) -> Self {
+        match value {
             ParameterInput::Float(f) => f,
-            _ => panic!("Could not convert {self:?} to f64"),
+            _ => panic!("Could not convert {value:?} to f64"),
         }
     }
 }
 
-impl<Q: PhysQuantity> Into<Scalar<Q>> for ParameterInput {
-    fn into(self) -> Scalar<Q> {
-        match self {
+impl<Q: PhysQuantity> From<ParameterInput> for Scalar<Q> {
+    fn from(value: ParameterInput) -> Self {
+        match value {
             ParameterInput::Scalar(v, u) => Scalar::new(v, Q::default(), u),
-            _ => panic!("Could not convert {self:?} to Scalar<{:?}>", Q::default()),
+            _ => panic!("Could not convert {value:?} to Scalar<{:?}>", Q::default()),
         }
     }
 }
 
-macro_rules! parameter_input_impl_into_num {
+macro_rules! parameter_input_impl_from_num {
     ($into:ident) => {
-        impl Into<$into> for ParameterInput {
-            fn into(self) -> $into {
-                match self {
+        impl From<ParameterInput> for $into {
+            fn from(value: ParameterInput) -> Self {
+                match value {
                     ParameterInput::Num(i) => i as $into,
-                    _ => panic!("Could not convert {self:?} to {}", stringify!($into))
+                    _ => panic!("Could not convert {value:?} to {}", stringify!($into))
                 }
             }
         }
     };
     ($($into:ident),+) => {
-        $(parameter_input_impl_into_num!($into);)+
+        $(parameter_input_impl_from_num!($into);)+
     };
 }
 
-parameter_input_impl_into_num!(usize, u64, u32, u16, u8);
-parameter_input_impl_into_num!(isize, i64, i32, i16, i8);
+parameter_input_impl_from_num!(usize, u64, u32, u16, u8);
+parameter_input_impl_from_num!(isize, i64, i32, i16, i8);
 
 use indicatif::{
     ProgressBar,

@@ -47,6 +47,7 @@ use unit_systems::quantities::{
 use crate::{
     UNITS_CONVERTER,
     calc::SingleCalc,
+    dependence::DependenceCalc,
     parameters::TypedParamId,
     system::System,
 };
@@ -153,6 +154,9 @@ pub enum Boundary {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ScatteringCalcInput {
+    pub entrance: usize,
+    pub energy: Scalar<Energy>,
+
     #[serde(default)]
     pub boundary: Boundary,
     pub r_start: Scalar<Length>,
@@ -280,8 +284,6 @@ impl ScatteringCalcInput {
 
 pub struct ScatteringCalc {
     pub mass: TypedParamId<Scalar<Mass>>,
-    pub energy: TypedParamId<Scalar<Energy>>,
-    pub entrance_no: TypedParamId<usize>,
 }
 
 impl SingleCalc<ScatteringCalcInput, SMatrixData> for ScatteringCalc {
@@ -292,8 +294,8 @@ impl SingleCalc<ScatteringCalcInput, SMatrixData> for ScatteringCalc {
         let blocks = system.angular_blocks();
         let collision_params = CollisionParams {
             mass: converter.scalar_value(registry.get(self.mass)),
-            energy: converter.scalar_value(registry.get(self.energy)),
-            entrance: *registry.get(self.entrance_no),
+            energy: converter.scalar_value(&input.energy),
+            entrance: input.entrance,
         };
         let asymptote = Asymptote::new_angular_blocks(blocks, collision_params);
 
@@ -302,3 +304,5 @@ impl SingleCalc<ScatteringCalcInput, SMatrixData> for ScatteringCalc {
         Ok(input.scattering(&w_matrix))
     }
 }
+
+pub type ScatteringScan = DependenceCalc<ScatteringCalcInput, SMatrixData, ScatteringCalc>;
