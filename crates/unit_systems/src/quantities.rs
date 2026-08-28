@@ -288,6 +288,10 @@ impl<Q: PhysQuantity> Scalar<Q> {
     }
 
     pub fn in_unit_system(&self, registry: &UnitRegistry, system: &UnitSystemTable) -> f64 {
+        if self.0 == 0.0 {
+            return 0.0
+        }
+
         self.0 * Q::to_unit_system_logic(&self.1, registry, system)
     }
 }
@@ -337,7 +341,7 @@ impl UnitRegistry {
             .get::<Q>()
             .iter()
             .find(|&x| x.name.trim().to_lowercase() == name.trim().to_lowercase())
-            .expect("Could not find searched unit in UnitRegistry")
+            .unwrap_or_else(|| panic!("Could not find unit {name} in UnitRegistry"))
     }
 }
 
