@@ -72,7 +72,7 @@ pub fn length_units() -> Vec<Unit> {
 }
 
 pub fn b_field_units() -> Vec<Unit> {
-    vec![Unit::new("Gauss", 1.), Unit::new("Tesla", 1.)]
+    vec![Unit::new("Gauss", 1e-4), Unit::new("Tesla", 1.)]
 }
 
 pub fn magnetic_moment_units() -> Vec<Unit> {
