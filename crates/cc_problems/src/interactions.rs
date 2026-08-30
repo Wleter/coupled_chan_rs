@@ -238,7 +238,7 @@ impl Default for Scaling {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PecPolarizations(pub HashMap<SpinConfiguration, Interactions>);
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct PecScalings(pub HashMap<SpinConfiguration, Scaling>);
 
 pub struct PecPolarizationSpec<Mask>

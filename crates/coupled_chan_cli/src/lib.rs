@@ -1,9 +1,26 @@
-use std::{marker::PhantomData, path::{Path, PathBuf}};
 use clap::Parser;
+use serde_json::Value;
+use std::{
+    collections::HashMap, marker::PhantomData, path::{
+        Path,
+        PathBuf,
+    }
+};
 
-use cc_problems::{calc::Calc, parameters::Parameters, system::{HamiltonianSpec, System}};
+use cc_problems::{
+    calc::Calc,
+    parameters::Parameters,
+    system::{
+        HamiltonianSpec,
+        System,
+    },
+};
 use json_comments::StripComments;
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde::{
+    Deserialize,
+    Serialize,
+    de::DeserializeOwned,
+};
 
 pub mod input;
 
@@ -32,13 +49,14 @@ pub struct Args {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ProgramInput<B, P: Parameters, I> {
-    basis: B,
-    parameters: P,
-    calculation: I
+pub struct ProgramInput<B, P: Parameters> {
+    pub basis: B,
+    pub parameters: P,
+    pub calculation_name: Box<str>,
+    pub calculation: Value,
 }
 
-impl<B: DeserializeOwned, P: Parameters + DeserializeOwned, C: DeserializeOwned> ProgramInput<B, P, C> {
+impl<B: DeserializeOwned, P: Parameters + DeserializeOwned> ProgramInput<B, P> {
     pub fn parse(path: impl AsRef<Path>) -> Self {
         let path = path.as_ref();
         if let Some(ext) = path.extension() {
@@ -54,61 +72,76 @@ impl<B: DeserializeOwned, P: Parameters + DeserializeOwned, C: DeserializeOwned>
     }
 }
 
-pub struct ProgramExecutor<B, P, CalcI, H, C> 
-where 
-    P: Parameters, 
-    H: Fn(&B, &P) -> HamiltonianSpec, 
-    C: Calc<CalcI> 
-{
-    hamiltonian_builder: Option<H>,
-    calculation: Option<C>,
-    phantom: PhantomData<(B, P, CalcI)>,
+pub struct CalcSpec<B, P>(pub Box<dyn Fn(&B, &P) -> Box<dyn Calc>>);
+
+impl<B, P> CalcSpec<B, P> {
+    pub fn new(f: impl Fn(&B, &P) -> Box<dyn Calc> + 'static) -> Self {
+        Self(Box::new(f))
+    }
 }
 
-impl<B, P, CalcI, H, C> Default for ProgramExecutor<B, P, CalcI, H, C>
-where 
-    P: Parameters, 
-    H: Fn(&B, &P) -> HamiltonianSpec, 
-    C: Calc<CalcI>
+pub struct ProgramExecutor<B, P, H>
+where
+    P: Parameters,
+    H: Fn(&B, &P) -> HamiltonianSpec,
+{
+    hamiltonian_builder: Option<H>,
+    calculation_specs: HashMap<Box<str>, CalcSpec<B, P>>,
+    phantom: PhantomData<(B, P)>,
+}
+
+impl<B, P, H> Default for ProgramExecutor<B, P, H>
+where
+    P: Parameters,
+    H: Fn(&B, &P) -> HamiltonianSpec,
 {
     fn default() -> Self {
-        Self { 
-            hamiltonian_builder: Default::default(), 
-            calculation: Default::default(), 
-            phantom: Default::default() 
+        Self {
+            hamiltonian_builder: Default::default(),
+            calculation_specs: Default::default(),
+            phantom: Default::default(),
         }
     }
 }
 
-impl<B, P, I, H, C> ProgramExecutor<B, P, I, H, C>
-where 
+impl<B, P, H> ProgramExecutor<B, P, H>
+where
     B: DeserializeOwned,
-    P: Parameters + DeserializeOwned, 
-    I: DeserializeOwned,
-    H: Fn(&B, &P) -> HamiltonianSpec, 
-    C: Calc<I>
+    P: Parameters + DeserializeOwned,
+    H: Fn(&B, &P) -> HamiltonianSpec,
 {
     pub fn set_hamiltonian_builder(mut self, f: H) -> Self {
         self.hamiltonian_builder = Some(f);
         self
     }
 
-    pub fn set_calculation(mut self, calc: C) -> Self {
-        self.calculation = Some(calc);
+    pub fn set_calculation_specs(mut self, specs: HashMap<Box<str>, CalcSpec<B, P>>) -> Self {
+        self.calculation_specs = specs;
+        self
+    }
+
+    pub fn add_calculation_spec(mut self, calc_name: impl AsRef<str>, calc: CalcSpec<B, P>) -> Self {
+        self.calculation_specs.insert(calc_name.as_ref().into(), calc);
         self
     }
 
     pub fn build(self) {
         let args = Args::parse();
-        let input: ProgramInput<B, P, I> = ProgramInput::parse(&args.input);
+        let input: ProgramInput<B, P> = ProgramInput::parse(&args.input);
 
-        let hamiltonian_builder = self.hamiltonian_builder
+        let hamiltonian_builder = self
+            .hamiltonian_builder
             .expect("Did not provide hamiltonian builder for the program");
 
-        let system = System::new(hamiltonian_builder(&input.basis, &input.parameters), input.parameters.registry());
+        let calculation_spec = self.calculation_specs.get(&input.calculation_name)
+            .expect("Did not find calculation with given name");
 
-        self.calculation
-            .expect("Did not provide calculation for the program")
+        let system = System::new(
+            hamiltonian_builder(&input.basis, &input.parameters),
+            input.parameters.registry(),
+        );
+
+        calculation_spec.0(&input.basis, &input.parameters)
             .calculate(&system, &input.calculation, args.worker, args.workers)
             .expect("Calculation encountered error");
     }

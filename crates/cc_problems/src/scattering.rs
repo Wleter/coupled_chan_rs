@@ -46,7 +46,7 @@ use unit_systems::quantities::{
 
 use crate::{
     UNITS_CONVERTER,
-    calc::SingleCalc,
+    calc::{CalcInput, EnergyLevelsCalc, EnergyLevelsData, SingleCalc},
     dependence::DependenceCalc,
     parameters::TypedParamId,
     system::System,
@@ -91,7 +91,7 @@ pub enum Step {
     Fixed {
         dr: Scalar<Length>,
     },
-    LocalWaveLength {
+    LocalWavelength {
         dr_min: Scalar<Length>,
         dr_max: Scalar<Length>,
         wave_ratio: f64,
@@ -111,7 +111,7 @@ impl Step {
 
                 DynStep::new(SingleStep::new(converter.scalar_value(dr)))
             }
-            Step::LocalWaveLength {
+            Step::LocalWavelength {
                 dr_min,
                 dr_max,
                 wave_ratio,
@@ -164,6 +164,8 @@ pub struct ScatteringCalcInput {
     pub step: Step,
     pub solver: CoupledChanSolver,
 }
+
+impl CalcInput for ScatteringCalcInput {}
 
 impl ScatteringCalcInput {
     pub fn get_direction(&self) -> (f64, f64, Direction) {
@@ -306,3 +308,4 @@ impl SingleCalc<ScatteringCalcInput, SMatrixData> for ScatteringCalc {
 }
 
 pub type ScatteringScan = DependenceCalc<ScatteringCalcInput, SMatrixData, ScatteringCalc>;
+pub type EnergyLevelsScan = DependenceCalc<(), EnergyLevelsData, EnergyLevelsCalc>;

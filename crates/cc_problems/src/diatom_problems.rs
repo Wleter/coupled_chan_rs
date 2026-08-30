@@ -1,3 +1,4 @@
+use coupled_chan::coupling::Levels;
 use hilbert_space::{
     operator_diag_mel,
     space::{
@@ -23,54 +24,80 @@ use unit_systems::quantities::{
 };
 
 use crate::{
-    OrbitalBasisElements,
-    atom_basis::WithProjection,
-    atom_operators::AtomParams,
-    dependence::{
+    OrbitalBasisElements, atom_basis::WithProjection, atom_operators::AtomParams, calc::EnergyLevelsCalc, dependence::{
         DependantRegistry,
         DependenceCalc,
-    },
-    diatom_basis::{
+    }, diatom_basis::{
         CoupledSIDiatomBasis,
         DiatomRecipe,
-    },
-    interactions::{
+    }, interactions::{
         PecPolarizationSpec,
         PecPolarizations,
         PecScalings,
         Scaling,
-    },
-    operator_mel::spin_projection_term_coupled,
-    param_ids,
-    parameters::Parameters,
-    scattering::{
-        ScatteringCalc,
-        ScatteringScan,
-    },
-    system::{
+    }, operator_mel::spin_projection_term_coupled, param_ids, parameters::Parameters, scattering::{
+        EnergyLevelsScan, ScatteringCalc, ScatteringScan
+    }, system::{
         DynOperatorSpec,
         DynPotentialSpec,
         HamiltonianSpec,
         ParamModifications,
-    },
+    }
 };
+
+pub type DiatomInBFieldRecipe = WithProjection<DiatomRecipe>;
 
 #[derive(Debug, Clone, Serialize, Deserialize, cc_derive::Parameters)]
 pub struct DiatomInBFieldParams {
-    b_field: Scalar<MagneticField>,
+    #[serde(default)]
+    pub b_field: Scalar<MagneticField>,
     #[parameter(nested)]
-    atom_a: AtomParams,
+    pub atom_a: AtomParams,
     #[parameter(nested)]
-    atom_b: AtomParams,
+    pub atom_b: AtomParams,
 
-    red_mass: Scalar<Mass>,
+    pub red_mass: Scalar<Mass>,
 
-    pecs: PecPolarizations,
-    scalings: PecScalings,
+    pub pecs: PecPolarizations,
+    #[serde(default)]
+    pub scalings: PecScalings,
+}
+
+impl DiatomInBFieldParams {
+    pub fn dependant_registry(&self) -> DependantRegistry {
+        let ids = Self::ids();
+        let mut dependence = DependantRegistry::default();
+        dependence.insert_parameter("b_field", ids.b_field)
+            .insert_parameter("red_mass", ids.red_mass);
+
+        for spin in self.pecs.0.keys() {
+            let spin = *spin;
+
+            dependence.insert_dependant(&format!("pec.scalings.{:?}", spin), move |p| {
+                ParamModifications::new(move |r| {
+                    let ids = DiatomInBFieldParams::ids();
+                    let mut scalings = r.get(ids.scalings).clone();
+
+                    let value: f64 = p.into();
+                    if let Some(s) = scalings.0.get_mut(&spin)
+                        && s.0 == value
+                    {
+                        param_ids![]
+                    } else {
+                        scalings.0.insert(spin, Scaling(value));
+                        param_ids![ids.scalings.vanish()]
+                    }
+                })
+                .into_dyn()
+            });
+        }
+
+        dependence
+    }
 }
 
 pub fn hamiltonian_diatom_in_b_field(
-    recipe: &WithProjection<DiatomRecipe>,
+    recipe: &DiatomInBFieldRecipe,
     _params: &DiatomInBFieldParams,
 ) -> HamiltonianSpec {
     let param_ids = DiatomInBFieldParams::ids();
@@ -140,35 +167,18 @@ pub fn hamiltonian_diatom_in_b_field(
     hamiltonian_spec
 }
 
-pub fn diatom_scattering_b_field_scan(params: DiatomInBFieldParams) -> ScatteringScan {
+pub fn diatom_levels_b_field_scan() -> EnergyLevelsScan {
+    let levels_calc = EnergyLevelsCalc;
+    let mut dependence = DependantRegistry::default();
+    dependence.insert_parameter("b_field", DiatomInBFieldParams::ids().b_field);
+
+    DependenceCalc::new(levels_calc, dependence)
+}
+
+pub fn diatom_scattering_b_field_scan(params: &DiatomInBFieldParams) -> ScatteringScan {
     let ids = DiatomInBFieldParams::ids();
     let scattering_calc = ScatteringCalc { mass: ids.red_mass };
-    let mut dependence = DependantRegistry::default();
-
-    dependence.insert_parameter("b_field", ids.b_field)
-        .insert_parameter("red_mass", ids.red_mass);
-
-    for spin in params.pecs.0.keys() {
-        let spin = *spin;
-
-        dependence.insert_dependant(&format!("pec.scalings.{:?}", spin), move |p| {
-            ParamModifications::new(move |r| {
-                let ids = DiatomInBFieldParams::ids();
-                let mut scalings = r.get(ids.scalings).clone();
-
-                let value: f64 = p.into();
-                if let Some(s) = scalings.0.get_mut(&spin)
-                    && s.0 == value
-                {
-                    param_ids![]
-                } else {
-                    scalings.0.insert(spin, Scaling(value));
-                    param_ids![ids.scalings.vanish()]
-                }
-            })
-            .into_dyn()
-        });
-    }
+    let dependence = params.dependant_registry();
 
     DependenceCalc::new(scattering_calc, dependence)
 }

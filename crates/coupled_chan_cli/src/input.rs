@@ -1,38 +1,27 @@
+use std::collections::HashMap;
 
-use cc_problems::{
-    atom_basis::{
-        AtomRecipe,
-        RecipeWithProj,
-    },
-    dependence::DependenceCalcInput,
-    diatom_basis::DiatomRecipe,
-    scattering::ScatteringCalcInput,
-};
+use cc_problems::diatom_problems::{DiatomInBFieldParams, DiatomInBFieldRecipe, diatom_levels_b_field_scan, diatom_scattering_b_field_scan};
 
 use serde::{
     Deserialize,
     Serialize,
 };
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(tag = "type")]
-#[serde(rename_all = "snake_case")]
-pub enum SystemBasis {
-    Atom(RecipeWithProj<AtomRecipe>),
-    Diatom(RecipeWithProj<DiatomRecipe>),
-}
+use crate::{CalcSpec, ProgramInput};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(tag = "type")]
 #[serde(rename_all = "snake_case")]
-pub enum SystemParams {
-    Atom(RecipeWithProj<AtomRecipe>),
-    Diatom(RecipeWithProj<DiatomRecipe>),
+pub enum ProblemInputs {
+    DiatomInBField(ProgramInput<DiatomInBFieldRecipe, DiatomInBFieldParams>),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(tag = "type")]
-#[serde(rename_all = "snake_case")]
-pub enum Calculation {
-    Scattering(DependenceCalcInput<ScatteringCalcInput>),
+impl ProblemInputs {
+    
+}
+
+pub fn diatom_problems() -> HashMap<Box<str>, CalcSpec<DiatomInBFieldRecipe, DiatomInBFieldParams>> {
+    HashMap::from([
+        ("levels".into(), CalcSpec::new(|_, _| Box::new(diatom_levels_b_field_scan()))),
+        ("scattering scan".into(), CalcSpec::new(|_, p| Box::new(diatom_scattering_b_field_scan(p)))),
+    ])
 }

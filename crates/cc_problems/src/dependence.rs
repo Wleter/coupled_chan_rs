@@ -3,6 +3,7 @@ use cc_math_utils::{
     logspace,
 };
 use rayon::prelude::*;
+use serde_json::Value;
 use std::{
     collections::HashMap,
     marker::PhantomData,
@@ -20,7 +21,7 @@ use cc_qol_utils::{
 use serde::{
     Deserialize,
     Serialize,
-    de::DeserializeOwned,
+    de::{self, DeserializeOwned}, ser::SerializeTuple,
 };
 use unit_systems::quantities::{
     PhysQuantity,
@@ -29,8 +30,7 @@ use unit_systems::quantities::{
 
 use crate::{
     calc::{
-        Calc,
-        SingleCalc,
+        Calc, CalcInput, SingleCalc
     },
     parameters::TypedParamId,
     system::{
@@ -78,13 +78,13 @@ impl DependantRegistry {
     }
 }
 
-pub struct DependenceCalc<I: DeserializeOwned, D: Serialize, C: SingleCalc<I, D>> {
+pub struct DependenceCalc<I: CalcInput, D: Serialize, C: SingleCalc<I, D>> {
     single_calc: C,
     dependant_registry: DependantRegistry,
     phantom: PhantomData<(I, D)>,
 }
 
-impl<I: DeserializeOwned, D: Serialize, C: SingleCalc<I, D>> DependenceCalc<I, D, C> {
+impl<I: CalcInput, D: Serialize, C: SingleCalc<I, D>> DependenceCalc<I, D, C> {
     pub fn new(single_calc: C, dependant_registry: DependantRegistry) -> Self {
         Self {
             single_calc,
@@ -94,16 +94,17 @@ impl<I: DeserializeOwned, D: Serialize, C: SingleCalc<I, D>> DependenceCalc<I, D
     }
 }
 
-impl<I, D, C> Calc<DependenceCalcInput<I>> for DependenceCalc<I, D, C>
+impl<I, D, C> Calc for DependenceCalc<I, D, C>
 where
-    I: DeserializeOwned + Send + Sync,
+    I: CalcInput + Send + Sync,
     D: Serialize + Send + Sync + 'static,
     C: SingleCalc<I, D> + Send + Sync,
 {
-    fn calculate(&self, system: &System, input: &DependenceCalcInput<I>, worker: usize, workers: usize) -> Result<()> {
-        let saver = DataSaver::new(&input.save_filepath.to_string_lossy(), JsonFormat, FileAccess::Append)?;
+    fn calculate(&self, system: &System, input: &Value, worker: usize, workers: usize) -> Result<()> {
+        let input = DependenceCalcInput::<I>::from_value(input);
 
         if let Some(dependant) = &input.dependant {
+            let saver = DataSaver::new(&input.save_filepath.to_string_lossy(), JsonFormat, FileAccess::Append)?;
             let modification = self.dependant_registry.get_modification(&dependant.name);
             let data = dependant.range.collect();
 
@@ -116,15 +117,19 @@ where
             ParallelExecutor::new(system.clone())
                 .with_parallelism(input.parallel_no)
                 .par_execute(data, |s, d| {
-                    let modification = modification(d);
+                    let modification = modification(d.clone());
                     s.modify_params(modification);
 
                     let data = self.single_calc.calculate(&input.calc, s)?;
-                    saver.send(data);
+                    saver.send(DependenceData {
+                        parameter: d,
+                        data,
+                    });
 
                     Ok(())
                 })?;
         } else {
+            let saver = DataSaver::new(&input.save_filepath.to_string_lossy(), JsonFormat, FileAccess::Create)?;
             saver.send(self.single_calc.calculate(&input.calc, system)?);
         }
 
@@ -133,21 +138,30 @@ where
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct DependenceCalcInput<CalcInput> {
-    save_filepath: PathBuf,
-    #[serde(flatten)]
-    calc: CalcInput,
-    #[serde(default)]
-    dependant: Option<Dependant>,
-
-    #[serde(default)]
-    parallel_no: Parallelism,
+pub struct DependenceData<P, D> {
+    pub parameter: P,
+    pub data: D,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(bound(deserialize = "C: DeserializeOwned"))]
+pub struct DependenceCalcInput<C: CalcInput> {
+    pub save_filepath: PathBuf,
+    #[serde(flatten)]
+    pub calc: C,
+    #[serde(default)]
+    pub dependant: Option<Dependant>,
+
+    #[serde(default)]
+    pub parallel_no: Parallelism,
+}
+
+impl<C: CalcInput> CalcInput for DependenceCalcInput<C> {}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Dependant {
-    name: Box<str>,
-    range: Range,
+    pub name: Box<str>,
+    pub range: Range,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -164,8 +178,12 @@ pub enum Range {
         end: ParameterInput,
         n: usize,
     },
-    Vec(Vec<ParameterInput>),
-    Composite(Vec<Range>),
+    Vec {
+       values : Vec<ParameterInput>
+    },
+    Composite {
+       ranges : Vec<Range>
+    },
 }
 
 impl Range {
@@ -173,17 +191,99 @@ impl Range {
         match self {
             Range::Linear { start, end, n } => ParameterInput::linspace(start, end, *n),
             Range::Log { start, end, n } => ParameterInput::logspace(start, end, *n),
-            Range::Vec(parameter_inputs) => parameter_inputs.clone(),
-            Range::Composite(ranges) => ranges.iter().flat_map(|x| x.collect()).collect(),
+            Range::Vec { values } => values.clone(),
+            Range::Composite { ranges } => ranges.iter().flat_map(|x| x.collect()).collect(),
         }
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 pub enum ParameterInput {
     Float(f64),
     Scalar(f64, Box<str>),
     Num(i64),
+}
+
+impl Serialize for ParameterInput {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::ser::Serializer,
+    {
+        match self {
+            Self::Float(value) => serializer.serialize_f64(*value),
+            Self::Num(value) => serializer.serialize_i64(*value),
+            Self::Scalar(value, unit) => {
+                let mut tuple = serializer.serialize_tuple(2)?;
+                tuple.serialize_element(value)?;
+                tuple.serialize_element(unit)?;
+                tuple.end()
+            }
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for ParameterInput {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        struct ParameterInputVisitor;
+
+        impl<'de> de::Visitor<'de> for ParameterInputVisitor {
+            type Value = ParameterInput;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str(
+                    "an integer, floating-point number, or [floating-point number, unit string]",
+                )
+            }
+
+            fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(ParameterInput::Num(value))
+            }
+
+            fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                let value = i64::try_from(value)
+                    .map_err(|_| E::custom("integer does not fit into i64"))?;
+
+                Ok(ParameterInput::Num(value))
+            }
+
+            fn visit_f64<E>(self, value: f64) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(ParameterInput::Float(value))
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: de::SeqAccess<'de>,
+            {
+                let value: f64 = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+
+                let unit: Box<str> = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+
+                if seq.next_element::<de::IgnoredAny>()?.is_some() {
+                    return Err(de::Error::invalid_length(3, &self));
+                }
+
+                Ok(ParameterInput::Scalar(value, unit))
+            }
+        }
+
+        deserializer.deserialize_any(ParameterInputVisitor)
+    }
 }
 
 impl ParameterInput {
