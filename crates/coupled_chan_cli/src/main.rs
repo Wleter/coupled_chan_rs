@@ -1,5 +1,8 @@
 use cc_problems::diatom_problems::hamiltonian_diatom_in_b_field;
-use coupled_chan_cli::{ProgramExecutor, input::diatom_problems};
+use coupled_chan_cli::{
+    ProgramExecutor,
+    input::diatom_problems,
+};
 
 fn main() {
     ProgramExecutor::default()

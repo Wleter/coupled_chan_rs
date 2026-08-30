@@ -289,7 +289,7 @@ impl<Q: PhysQuantity> Scalar<Q> {
 
     pub fn in_unit_system(&self, registry: &UnitRegistry, system: &UnitSystemTable) -> f64 {
         if self.0 == 0.0 {
-            return 0.0
+            return 0.0;
         }
 
         self.0 * Q::to_unit_system_logic(&self.1, registry, system)

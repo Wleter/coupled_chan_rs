@@ -317,7 +317,6 @@ impl Display for SpinConfiguration {
             SpinConfiguration::Nonet => write!(f, "nonet"),
             SpinConfiguration::Decet => write!(f, "decet"),
         }
-        
     }
 }
 

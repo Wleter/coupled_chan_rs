@@ -1,4 +1,3 @@
-use coupled_chan::coupling::Levels;
 use hilbert_space::{
     operator_diag_mel,
     space::{
@@ -24,25 +23,38 @@ use unit_systems::quantities::{
 };
 
 use crate::{
-    OrbitalBasisElements, atom_basis::WithProjection, atom_operators::AtomParams, calc::EnergyLevelsCalc, dependence::{
+    OrbitalBasisElements,
+    atom_basis::WithProjection,
+    atom_operators::AtomParams,
+    calc::EnergyLevelsCalc,
+    dependence::{
         DependantRegistry,
         DependenceCalc,
-    }, diatom_basis::{
+    },
+    diatom_basis::{
         CoupledSIDiatomBasis,
         DiatomRecipe,
-    }, interactions::{
+    },
+    interactions::{
         PecPolarizationSpec,
         PecPolarizations,
         PecScalings,
         Scaling,
-    }, operator_mel::spin_projection_term_coupled, param_ids, parameters::Parameters, scattering::{
-        EnergyLevelsScan, ScatteringCalc, ScatteringScan
-    }, system::{
+    },
+    operator_mel::spin_projection_term_coupled,
+    param_ids,
+    parameters::Parameters,
+    scattering::{
+        EnergyLevelsScan,
+        ScatteringCalc,
+        ScatteringScan,
+    },
+    system::{
         DynOperatorSpec,
         DynPotentialSpec,
         HamiltonianSpec,
         ParamModifications,
-    }
+    },
 };
 
 pub type DiatomInBFieldRecipe = WithProjection<DiatomRecipe>;
@@ -67,7 +79,8 @@ impl DiatomInBFieldParams {
     pub fn dependant_registry(&self) -> DependantRegistry {
         let ids = Self::ids();
         let mut dependence = DependantRegistry::default();
-        dependence.insert_parameter("b_field", ids.b_field)
+        dependence
+            .insert_parameter("b_field", ids.b_field)
             .insert_parameter("red_mass", ids.red_mass);
 
         for spin in self.pecs.0.keys() {
@@ -96,10 +109,7 @@ impl DiatomInBFieldParams {
     }
 }
 
-pub fn hamiltonian_diatom_in_b_field(
-    recipe: &DiatomInBFieldRecipe,
-    _params: &DiatomInBFieldParams,
-) -> HamiltonianSpec {
+pub fn hamiltonian_diatom_in_b_field(recipe: &DiatomInBFieldRecipe, _params: &DiatomInBFieldParams) -> HamiltonianSpec {
     let param_ids = DiatomInBFieldParams::ids();
 
     let s_a = recipe.recipe.atom_a.s;

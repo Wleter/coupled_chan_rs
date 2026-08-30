@@ -21,7 +21,11 @@ use cc_qol_utils::{
 use serde::{
     Deserialize,
     Serialize,
-    de::{self, DeserializeOwned}, ser::SerializeTuple,
+    de::{
+        self,
+        DeserializeOwned,
+    },
+    ser::SerializeTuple,
 };
 use unit_systems::quantities::{
     PhysQuantity,
@@ -30,7 +34,9 @@ use unit_systems::quantities::{
 
 use crate::{
     calc::{
-        Calc, CalcInput, SingleCalc
+        Calc,
+        CalcInput,
+        SingleCalc,
     },
     parameters::TypedParamId,
     system::{
@@ -121,10 +127,7 @@ where
                     s.modify_params(modification);
 
                     let data = self.single_calc.calculate(&input.calc, s)?;
-                    saver.send(DependenceData {
-                        parameter: d,
-                        data,
-                    });
+                    saver.send(DependenceData { parameter: d, data });
 
                     Ok(())
                 })?;
@@ -179,10 +182,10 @@ pub enum Range {
         n: usize,
     },
     Vec {
-       values : Vec<ParameterInput>
+        values: Vec<ParameterInput>,
     },
     Composite {
-       ranges : Vec<Range>
+        ranges: Vec<Range>,
     },
 }
 
@@ -233,9 +236,7 @@ impl<'de> Deserialize<'de> for ParameterInput {
             type Value = ParameterInput;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str(
-                    "an integer, floating-point number, or [floating-point number, unit string]",
-                )
+                formatter.write_str("an integer, floating-point number, or [floating-point number, unit string]")
             }
 
             fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
@@ -249,8 +250,7 @@ impl<'de> Deserialize<'de> for ParameterInput {
             where
                 E: de::Error,
             {
-                let value = i64::try_from(value)
-                    .map_err(|_| E::custom("integer does not fit into i64"))?;
+                let value = i64::try_from(value).map_err(|_| E::custom("integer does not fit into i64"))?;
 
                 Ok(ParameterInput::Num(value))
             }
@@ -266,13 +266,9 @@ impl<'de> Deserialize<'de> for ParameterInput {
             where
                 A: de::SeqAccess<'de>,
             {
-                let value: f64 = seq
-                    .next_element()?
-                    .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+                let value: f64 = seq.next_element()?.ok_or_else(|| de::Error::invalid_length(0, &self))?;
 
-                let unit: Box<str> = seq
-                    .next_element()?
-                    .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+                let unit: Box<str> = seq.next_element()?.ok_or_else(|| de::Error::invalid_length(1, &self))?;
 
                 if seq.next_element::<de::IgnoredAny>()?.is_some() {
                     return Err(de::Error::invalid_length(3, &self));

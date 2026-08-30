@@ -1,5 +1,6 @@
 use serde::{
-    Serialize, de::DeserializeOwned
+    Serialize,
+    de::DeserializeOwned,
 };
 use serde_json::Value;
 
@@ -8,8 +9,7 @@ use anyhow::Result;
 
 pub trait CalcInput: DeserializeOwned {
     fn from_value(value: &Value) -> Self {
-        serde_json::from_value(value.clone())
-            .expect("Could not parse calc input")
+        serde_json::from_value(value.clone()).expect("Could not parse calc input")
     }
 }
 

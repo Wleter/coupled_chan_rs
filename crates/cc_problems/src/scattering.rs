@@ -46,7 +46,12 @@ use unit_systems::quantities::{
 
 use crate::{
     UNITS_CONVERTER,
-    calc::{CalcInput, EnergyLevelsCalc, EnergyLevelsData, SingleCalc},
+    calc::{
+        CalcInput,
+        EnergyLevelsCalc,
+        EnergyLevelsData,
+        SingleCalc,
+    },
     dependence::DependenceCalc,
     parameters::TypedParamId,
     system::System,

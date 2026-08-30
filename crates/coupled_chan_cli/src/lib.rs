@@ -1,10 +1,12 @@
 use clap::Parser;
 use serde_json::Value;
 use std::{
-    collections::HashMap, marker::PhantomData, path::{
+    collections::HashMap,
+    marker::PhantomData,
+    path::{
         Path,
         PathBuf,
-    }
+    },
 };
 
 use cc_problems::{
@@ -133,7 +135,9 @@ where
             .hamiltonian_builder
             .expect("Did not provide hamiltonian builder for the program");
 
-        let calculation_spec = self.calculation_specs.get(&input.calculation_name)
+        let calculation_spec = self
+            .calculation_specs
+            .get(&input.calculation_name)
             .expect("Did not find calculation with given name");
 
         let system = System::new(
