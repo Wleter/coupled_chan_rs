@@ -157,6 +157,7 @@ pub enum Boundary {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ScatteringCalcInput {
     pub entrance: usize,
     pub energy: Scalar<Energy>,

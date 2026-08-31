@@ -142,7 +142,7 @@ pub struct DependenceData<P, D> {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(bound(deserialize = "C: DeserializeOwned"))]
+#[serde(bound(deserialize = "C: DeserializeOwned"), deny_unknown_fields)]
 pub struct DependenceCalcInput<C: CalcInput> {
     pub save_filepath: PathBuf,
     #[serde(default = "default_file_access")]
