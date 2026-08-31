@@ -89,7 +89,7 @@ impl<'a, W: WFunction, S: Step> RatioNumerov<'a, W, S> {
 
         self.solution.sol.0 *= self.f_prev_last / self.f;
 
-        self.f = 4.0 * self.f_last - 3.0;
+        self.f = 4.0 * self.f - 3.0;
         self.f_last = 4.0 * self.f_prev_last - 3.0;
 
         self.solution.sol.0 *= self.f / self.f_last;
