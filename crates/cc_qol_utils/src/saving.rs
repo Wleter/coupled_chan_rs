@@ -2,7 +2,7 @@ use anyhow::{
     Result,
     anyhow,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{
     fmt::LowerExp,
     fs::{
@@ -91,6 +91,7 @@ impl<D: Send> Drop for DataSaver<D> {
     }
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum FileAccess {
     Append,
     Create,

@@ -84,33 +84,29 @@ impl DependantRegistry {
     }
 }
 
-pub struct DependenceCalc<I: CalcInput, D: Serialize, C: SingleCalc<I, D>> {
+pub struct DependenceCalc<C: SingleCalc> {
     single_calc: C,
     dependant_registry: DependantRegistry,
-    phantom: PhantomData<(I, D)>,
 }
 
-impl<I: CalcInput, D: Serialize, C: SingleCalc<I, D>> DependenceCalc<I, D, C> {
+impl<C: SingleCalc> DependenceCalc<C> {
     pub fn new(single_calc: C, dependant_registry: DependantRegistry) -> Self {
         Self {
             single_calc,
             dependant_registry,
-            phantom: PhantomData,
         }
     }
 }
 
-impl<I, D, C> Calc for DependenceCalc<I, D, C>
+impl<C> Calc for DependenceCalc<C>
 where
-    I: CalcInput + Send + Sync,
-    D: Serialize + Send + Sync + 'static,
-    C: SingleCalc<I, D> + Send + Sync,
+    C: SingleCalc,
 {
     fn calculate(&self, system: &System, input: &Value, worker: usize, workers: usize) -> Result<()> {
-        let input = DependenceCalcInput::<I>::from_value(input);
+        let input = DependenceCalcInput::<C::Input>::from_value(input);
 
         if let Some(dependant) = &input.dependant {
-            let saver = DataSaver::new(&input.save_filepath.to_string_lossy(), JsonFormat, FileAccess::Append)?;
+            let saver = DataSaver::new(&input.save_filepath.to_string_lossy(), JsonFormat, input.save_option)?;
             let modification = self.dependant_registry.get_modification(&dependant.name);
             let data = dependant.range.collect();
 
@@ -150,6 +146,9 @@ pub struct DependenceData<P, D> {
 #[serde(bound(deserialize = "C: DeserializeOwned"))]
 pub struct DependenceCalcInput<C: CalcInput> {
     pub save_filepath: PathBuf,
+    #[serde(default = "default_file_access")]
+    pub save_option: FileAccess,
+
     #[serde(flatten)]
     pub calc: C,
     #[serde(default)]
@@ -157,6 +156,10 @@ pub struct DependenceCalcInput<C: CalcInput> {
 
     #[serde(default)]
     pub parallel_no: Parallelism,
+}
+
+fn default_file_access() -> FileAccess {
+    FileAccess::Append
 }
 
 impl<C: CalcInput> CalcInput for DependenceCalcInput<C> {}

@@ -49,7 +49,6 @@ use crate::{
     calc::{
         CalcInput,
         EnergyLevelsCalc,
-        EnergyLevelsData,
         SingleCalc,
     },
     dependence::DependenceCalc,
@@ -293,8 +292,11 @@ pub struct ScatteringCalc {
     pub mass: TypedParamId<Scalar<Mass>>,
 }
 
-impl SingleCalc<ScatteringCalcInput, SMatrixData> for ScatteringCalc {
-    fn calculate(&self, input: &ScatteringCalcInput, system: &System) -> Result<SMatrixData> {
+impl SingleCalc for ScatteringCalc {
+    type Input = ScatteringCalcInput;
+    type Data = SMatrixData;
+
+    fn calculate(&self, input: &Self::Input, system: &System) -> Result<Self::Data> {
         let registry = system.param_registry();
         let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
 
@@ -312,5 +314,5 @@ impl SingleCalc<ScatteringCalcInput, SMatrixData> for ScatteringCalc {
     }
 }
 
-pub type ScatteringScan = DependenceCalc<ScatteringCalcInput, SMatrixData, ScatteringCalc>;
-pub type EnergyLevelsScan = DependenceCalc<(), EnergyLevelsData, EnergyLevelsCalc>;
+pub type ScatteringScan = DependenceCalc<ScatteringCalc>;
+pub type EnergyLevelsScan = DependenceCalc<EnergyLevelsCalc>;
