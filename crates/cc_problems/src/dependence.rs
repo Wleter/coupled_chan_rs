@@ -6,7 +6,6 @@ use rayon::prelude::*;
 use serde_json::Value;
 use std::{
     collections::HashMap,
-    marker::PhantomData,
     path::PathBuf,
 };
 
@@ -128,7 +127,7 @@ where
                     Ok(())
                 })?;
         } else {
-            let saver = DataSaver::new(&input.save_filepath.to_string_lossy(), JsonFormat, FileAccess::Create)?;
+            let saver = DataSaver::new(&input.save_filepath.to_string_lossy(), JsonFormat, input.save_option)?;
             saver.send(self.single_calc.calculate(&input.calc, system)?);
         }
 
