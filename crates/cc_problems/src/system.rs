@@ -49,7 +49,7 @@ pub type Coupling = Composite<CouplingPotential>;
 pub struct System {
     registry: ParameterRegistry,
 
-    pub basis: OrbitalBasisElements,
+    basis: OrbitalBasisElements,
     pub operator_specs: HashVec<String, DynOperatorSpec>,
     pub potential_specs: HashVec<String, DynPotentialSpec>,
 
@@ -189,6 +189,10 @@ impl System {
         for ops_id in scaling_queue {
             potentials[ops_id].interaction.scaling = specs[ops_id].scaling(&self.registry);
         }
+    }
+    
+    pub fn basis(&self) -> &OrbitalBasisElements {
+        &self.basis
     }
 }
 
