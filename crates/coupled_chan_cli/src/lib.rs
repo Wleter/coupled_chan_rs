@@ -66,6 +66,7 @@ impl<B: DeserializeOwned, P: Parameters + DeserializeOwned> ProgramInput<B, P> {
             match ext.to_str().unwrap() {
                 "toml" => toml::from_str(&read).unwrap(),
                 "json" | "jsonc" => serde_json::from_reader(StripComments::new(read.as_bytes())).unwrap(),
+                "json5" => json5::from_str(&read).unwrap(),
                 _ => panic!("Unknown file extension type"),
             }
         } else {
