@@ -20,11 +20,11 @@ use anyhow::Result;
 pub struct Args {
     /// input file path
     #[arg(short, long)]
-    input_defaults: Option<PathBuf>,
+    input: PathBuf,
 
     /// input file path
     #[arg(short, long)]
-    input: PathBuf,
+    input_defaults: Option<PathBuf>,
 
     /// plugin library file path
     #[arg(short, long)]

@@ -34,14 +34,13 @@ use crate::{
         Calc,
         SingleCalc,
     },
-    parameters::TypedParamId,
+    parameters::{Parameters, TypedParamId},
     problems::{
         Problem,
         TypedProblemInput,
     },
     system::{
-        DynParamModifications,
-        new_param_modifications,
+        DynParamModifications, System, new_param_modifications
     },
 };
 
@@ -174,7 +173,8 @@ where
         input: TypedProblemInput<<Self::P as Problem>::BasisRecipe, <Self::P as Problem>::Params, Self::CalcInput>,
         problem: &Self::P,
     ) -> Result<()> {
-        let system = problem.build(&input.basis_recipe, &input.parameters);
+        let hamiltonian_spec = problem.build(&input.basis_recipe, &input.parameters);
+        let system = System::new(hamiltonian_spec, input.parameters.registry());
         let save_filepath = &input.calculation_parameters.save_filepath.to_string_lossy();
         let save_option = input.calculation_parameters.save_option;
         let parallel_no = input.calculation_parameters.parallel_no;
@@ -205,7 +205,8 @@ where
                     match modification {
                         ModificationType::BasisRecipe(modification) => {
                             if modification.0(b, d.clone()) {
-                                *s = problem.build(b, p)
+                                let hamiltonian_spec = problem.build(b, p);
+                                *s = System::new(hamiltonian_spec, p.registry());
                             }
                         }
                         ModificationType::Parameter(parameters_mod) => {

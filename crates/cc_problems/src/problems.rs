@@ -10,7 +10,7 @@ use serde::{
 use serde_json::Value;
 
 use crate::{
-    calculations::DynCalc, parameters::Parameters, problems::diatom_in_b_field::DiatomInBFieldProblem, system::System
+    calculations::DynCalc, parameters::Parameters, problems::diatom_in_b_field::DiatomInBFieldProblem, system::HamiltonianSpec
 };
 
 pub fn available_problems() -> AvailableProblems {
@@ -106,6 +106,6 @@ pub trait Problem: Sync + Send {
     const DESCRIPTION: &str;
     fn schema(&self) -> Value;
 
-    fn build(&self, basis_recipe: &Self::BasisRecipe, params: &Self::Params) -> System;
+    fn build(&self, basis_recipe: &Self::BasisRecipe, params: &Self::Params) -> HamiltonianSpec;
     fn calculations(&self) -> &HashMap<Box<str>, Box<dyn DynCalc<Self>>>;
 }

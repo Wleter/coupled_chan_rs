@@ -183,7 +183,7 @@ impl Problem for DiatomInBFieldProblem {
         todo!()
     }
 
-    fn build(&self, basis_recipe: &Self::BasisRecipe, params: &Self::Params) -> System {
+    fn build(&self, basis_recipe: &Self::BasisRecipe, _params: &Self::Params) -> HamiltonianSpec {
         let param_ids = Self::Params::ids();
 
         let s_a = basis_recipe.recipe.atom_a.s;
@@ -248,7 +248,7 @@ impl Problem for DiatomInBFieldProblem {
             )
         }));
 
-        System::new(hamiltonian_spec, params.registry())
+        hamiltonian_spec
     }
 
     fn calculations(&self) -> &HashMap<Box<str>, Box<dyn DynCalc<Self>>> {
