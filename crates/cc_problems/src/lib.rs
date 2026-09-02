@@ -1,14 +1,12 @@
 pub mod atom_basis;
 pub mod atom_operators;
-pub mod calc;
-pub mod dependence;
+pub mod calculations;
 pub mod diatom_basis;
 pub mod diatom_operators;
-pub mod diatom_problems;
 pub mod interactions;
 pub mod operator_mel;
 pub mod parameters;
-pub mod scattering;
+pub mod problems;
 pub mod system;
 
 use std::sync::{
@@ -123,6 +121,7 @@ impl Angular {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum OrbitalRecipe {
     /// Single l is still inserted into the basis
     /// as |l 0>

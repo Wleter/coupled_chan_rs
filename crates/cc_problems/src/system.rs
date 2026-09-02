@@ -190,7 +190,7 @@ impl System {
             potentials[ops_id].interaction.scaling = specs[ops_id].scaling(&self.registry);
         }
     }
-    
+
     pub fn basis(&self) -> &OrbitalBasisElements {
         &self.basis
     }
@@ -407,6 +407,7 @@ impl<S: ?Sized + Hash + Eq, Key: Eq + Hash + Borrow<S>, Val> Index<&S> for HashV
 
 pub type DynParamModifications = ParamModifications<Box<dyn FnOnce(&mut ParameterRegistry) -> ParamIds>>;
 
+#[derive(Clone, Debug)]
 pub struct ParamModifications<F: FnOnce(&mut ParameterRegistry) -> ParamIds> {
     modification: F,
 }

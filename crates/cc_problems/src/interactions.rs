@@ -24,6 +24,7 @@ use serde::{
     Deserialize,
     Serialize,
 };
+use serde_json::Value;
 use spin_algebra::{
     half_integer::HalfU32,
     hu32,
@@ -107,12 +108,12 @@ pub struct Wall {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct LenardJones {
+pub struct LennardJones {
     pub d_e: Scalar<Energy>,
     pub r_e: Scalar<Length>,
 }
 
-impl LenardJones {
+impl LennardJones {
     pub fn interaction(&self) -> Composite<PowerLaw> {
         let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
 
@@ -179,8 +180,9 @@ pub enum SwitchingRegion {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Interactions {
-    LenardJones(LenardJones),
+    LennardJones(LennardJones),
     Analytic(Analytic),
     MorseLongRange(MorseLongRange),
     Spline(Spline),
@@ -197,7 +199,7 @@ pub enum Interactions {
 impl Interactions {
     pub fn interactions(&self) -> DynInteraction {
         match self {
-            Interactions::LenardJones(lenard_jones) => DynInteraction::new(lenard_jones.interaction()),
+            Interactions::LennardJones(lenard_jones) => DynInteraction::new(lenard_jones.interaction()),
             Interactions::Analytic(analytic) => DynInteraction::new(analytic.interaction()),
             Interactions::MorseLongRange(morse_long_range) => DynInteraction::new(morse_long_range.interaction()),
             Interactions::Spline(_spline) => todo!(),
@@ -240,6 +242,33 @@ pub struct PecPolarizations(pub HashMap<SpinConfiguration, Interactions>);
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct PecScalings(pub HashMap<SpinConfiguration, Scaling>);
+
+impl PecScalings {
+    pub fn scale(&mut self, spin: SpinConfiguration, value: Value) -> bool {
+        let value: f64 = serde_json::from_value(value).expect("Expecting pec scaling to be of type f64");
+        if let Some(s) = self.0.get_mut(&spin)
+            && s.0 == value
+        {
+            false
+        } else {
+            self.0.insert(spin, Scaling(value));
+            true
+        }
+    }
+
+    pub fn scale_all(&mut self, value: Value) -> bool {
+        let value: f64 = serde_json::from_value(value).expect("Expecting pec scaling to be of type f64");
+        let mut changed = false;
+        for (_, s) in self.0.iter_mut() {
+            if s.0 != value {
+                s.0 = value;
+                changed = true;
+            }
+        }
+
+        changed
+    }
+}
 
 pub struct PecPolarizationSpec<Mask>
 where
@@ -300,6 +329,26 @@ pub enum SpinConfiguration {
     Octet,
     Nonet,
     Decet,
+}
+
+impl SpinConfiguration {
+    pub fn get_configurations(max_spin: HalfU32) -> Vec<Self> {
+        let n = max_spin.double_value() as usize + 1;
+
+        use SpinConfiguration::*;
+        let named = [
+            Singlet, Doublet, Triplet, Quartet, Quintet, Sextet, Septet, Octet, Nonet, Decet,
+        ];
+
+        if n <= 10 {
+            named[0..n].into()
+        } else {
+            let mut values = Vec::from(named);
+            values.extend((10..n).map(|i| Spin(HalfU32::from_doubled(i as u32))));
+
+            values
+        }
+    }
 }
 
 impl Display for SpinConfiguration {

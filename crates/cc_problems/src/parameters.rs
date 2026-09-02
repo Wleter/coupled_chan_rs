@@ -44,6 +44,12 @@ impl ParameterRegistry {
             .downcast_ref::<T>()
             .unwrap_or_else(|| panic!("Could not get TypedParamId from ParameterRegistry: downcast error"))
     }
+
+    pub fn get_mut<T: CloneAny>(&mut self, id: TypedParamId<T>) -> &mut T {
+        self.0[id.0]
+            .downcast_mut::<T>()
+            .unwrap_or_else(|| panic!("Could not get TypedParamId from ParameterRegistry: downcast error"))
+    }
 }
 
 pub struct TypedParamId<T>(pub usize, PhantomData<T>);

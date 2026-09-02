@@ -1,3 +1,8 @@
+use std::{
+    collections::HashMap,
+    marker::PhantomData,
+};
+
 use coupled_chan::{
     cc_propagator::{
         Direction,
@@ -46,115 +51,18 @@ use unit_systems::quantities::{
 
 use crate::{
     UNITS_CONVERTER,
-    calc::{
-        CalcInput,
-        EnergyLevelsCalc,
+    calculations::{
         SingleCalc,
+        dependence::{
+            DependenceCalc,
+            Modification,
+            change_value,
+        },
     },
-    dependence::DependenceCalc,
     parameters::TypedParamId,
+    problems::Problem,
     system::System,
 };
-use anyhow::Result;
-
-#[derive(Debug, Clone, Serialize)]
-pub struct SMatrixData {
-    s_matrix_vec: Vec<Vec<Complex64>>,
-    momenta: Vec<f64>,
-    entrance_nr: usize,
-}
-
-impl SMatrixData {
-    pub fn new(s_matrix: &SMatrix) -> Self {
-        let s_matrix_mat = s_matrix.s_matrix();
-        let mut vec = vec![vec![]; s_matrix_mat.nrows()];
-        for (i, row) in s_matrix_mat.row_iter().enumerate() {
-            vec[i] = row.iter().copied().collect();
-        }
-
-        Self {
-            s_matrix_vec: vec,
-            momenta: s_matrix.momenta().iter().copied().collect(),
-            entrance_nr: s_matrix.entrance_number(),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum CoupledChanSolver {
-    RatioNumerov,
-    JohnsonLogDeriv,
-    ManolopoulosLogDeriv,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(tag = "type")]
-#[serde(rename_all = "snake_case")]
-pub enum Step {
-    Fixed {
-        dr: Scalar<Length>,
-    },
-    LocalWavelength {
-        dr_min: Scalar<Length>,
-        dr_max: Scalar<Length>,
-        wave_ratio: f64,
-    },
-    Transitioned {
-        transition_point: Scalar<Length>,
-        before: Box<Step>,
-        after: Box<Step>,
-    },
-}
-
-impl Step {
-    pub fn get_step(&self) -> DynStep {
-        match self {
-            Step::Fixed { dr } => {
-                let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
-
-                DynStep::new(SingleStep::new(converter.scalar_value(dr)))
-            }
-            Step::LocalWavelength {
-                dr_min,
-                dr_max,
-                wave_ratio,
-            } => {
-                let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
-                let dr_min = converter.scalar_value(dr_min);
-                let dr_max = converter.scalar_value(dr_max);
-
-                DynStep::new(LocalWavelengthStep::new(dr_min, dr_max, *wave_ratio))
-            }
-            Step::Transitioned {
-                transition_point,
-                before,
-                after,
-            } => {
-                let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
-                let transition_point = converter.scalar_value(transition_point);
-
-                DynStep::new(TransitionStep {
-                    r_switch: transition_point,
-                    step_short: before.get_step(),
-                    step_long: after.get_step(),
-                })
-            }
-        }
-    }
-}
-
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-#[serde(tag = "type")]
-pub enum Boundary {
-    #[default]
-    VanishingWkb,
-    Set {
-        value: Scalar<Power<Length, -1, 2>>,
-        derivative: Scalar<Power<Length, -3, 2>>,
-    },
-}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -170,9 +78,38 @@ pub struct ScatteringCalcInput {
     pub solver: CoupledChanSolver,
 }
 
-impl CalcInput for ScatteringCalcInput {}
-
 impl ScatteringCalcInput {
+    pub fn modifications() -> HashMap<Box<str>, Modification<ScatteringCalcInput>> {
+        let modifications = HashMap::from([
+            (
+                "energy".into(),
+                Modification::new(|p: &mut ScatteringCalcInput, v| {
+                    change_value(&mut p.energy, v).expect("Wrong type on energy modification")
+                }),
+            ),
+            (
+                "r_start".into(),
+                Modification::new(|p: &mut ScatteringCalcInput, v| {
+                    change_value(&mut p.r_start, v).expect("Wrong type on r_start modification")
+                }),
+            ),
+            (
+                "r_stop".into(),
+                Modification::new(|p: &mut ScatteringCalcInput, v| {
+                    change_value(&mut p.r_start, v).expect("Wrong type on r_stop modification")
+                }),
+            ),
+            (
+                "step".into(),
+                Modification::new(|p: &mut ScatteringCalcInput, v| {
+                    change_value(&mut p.step, v).expect("Wrong type on step modification")
+                }),
+            ),
+        ]);
+
+        modifications
+    }
+
     pub fn get_direction(&self) -> (f64, f64, Direction) {
         let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
         let r_start = converter.scalar_value(&self.r_start);
@@ -289,31 +226,147 @@ impl ScatteringCalcInput {
     }
 }
 
-pub struct ScatteringCalc {
-    pub mass: TypedParamId<Scalar<Mass>>,
+#[derive(Debug, Clone, Serialize)]
+pub struct SMatrixData {
+    s_matrix_vec: Vec<Vec<Complex64>>,
+    momenta: Vec<f64>,
+    entrance_nr: usize,
 }
 
-impl SingleCalc for ScatteringCalc {
-    type Input = ScatteringCalcInput;
+impl SMatrixData {
+    pub fn new(s_matrix: &SMatrix) -> Self {
+        let s_matrix_mat = s_matrix.s_matrix();
+        let mut vec = vec![vec![]; s_matrix_mat.nrows()];
+        for (i, row) in s_matrix_mat.row_iter().enumerate() {
+            vec[i] = row.iter().copied().collect();
+        }
+
+        Self {
+            s_matrix_vec: vec,
+            momenta: s_matrix.momenta().iter().copied().collect(),
+            entrance_nr: s_matrix.entrance_number(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CoupledChanSolver {
+    RatioNumerov,
+    JohnsonLogDeriv,
+    ManolopoulosLogDeriv,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type")]
+#[serde(rename_all = "snake_case")]
+pub enum Step {
+    Fixed {
+        dr: Scalar<Length>,
+    },
+    LocalWavelength {
+        dr_min: Scalar<Length>,
+        dr_max: Scalar<Length>,
+        wave_ratio: f64,
+    },
+    Transitioned {
+        transition_point: Scalar<Length>,
+        before: Box<Step>,
+        after: Box<Step>,
+    },
+}
+
+impl Step {
+    pub fn get_step(&self) -> DynStep {
+        match self {
+            Step::Fixed { dr } => {
+                let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+
+                DynStep::new(SingleStep::new(converter.scalar_value(dr)))
+            }
+            Step::LocalWavelength {
+                dr_min,
+                dr_max,
+                wave_ratio,
+            } => {
+                let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+                let dr_min = converter.scalar_value(dr_min);
+                let dr_max = converter.scalar_value(dr_max);
+
+                DynStep::new(LocalWavelengthStep::new(dr_min, dr_max, *wave_ratio))
+            }
+            Step::Transitioned {
+                transition_point,
+                before,
+                after,
+            } => {
+                let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+                let transition_point = converter.scalar_value(transition_point);
+
+                DynStep::new(TransitionStep {
+                    r_switch: transition_point,
+                    step_short: before.get_step(),
+                    step_long: after.get_step(),
+                })
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[serde(tag = "type")]
+pub enum Boundary {
+    #[default]
+    VanishingWkb,
+    Set {
+        value: Scalar<Power<Length, -1, 2>>,
+        derivative: Scalar<Power<Length, -3, 2>>,
+    },
+}
+
+pub struct ScatteringCalc<P> {
+    pub mass: TypedParamId<Scalar<Mass>>,
+    phantom: PhantomData<P>,
+}
+
+impl<P: Problem> ScatteringCalc<P> {
+    pub fn new(mass_id: TypedParamId<Scalar<Mass>>) -> Self {
+        Self {
+            mass: mass_id,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<P: Problem> SingleCalc for ScatteringCalc<P> {
+    type P = P;
+    type CalcInput = ScatteringCalcInput;
     type Data = SMatrixData;
 
-    fn calculate(&self, input: &Self::Input, system: &System) -> Result<Self::Data> {
+    fn calculate(
+        &self,
+        system: &mut System,
+        _basis_recipe: &mut P::BasisRecipe,
+        _parameters: &mut P::Params,
+        calc_input: &mut ScatteringCalcInput,
+        _problem: &P,
+    ) -> anyhow::Result<SMatrixData> {
         let registry = system.param_registry();
         let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
 
         let blocks = system.angular_blocks();
         let collision_params = CollisionParams {
             mass: converter.scalar_value(registry.get(self.mass)),
-            energy: converter.scalar_value(&input.energy),
-            entrance: input.entrance,
+            energy: converter.scalar_value(&calc_input.energy),
+            entrance: calc_input.entrance,
         };
         let asymptote = Asymptote::new_angular_blocks(blocks, collision_params);
 
         let w_matrix = CollisionWMatrix::new(system.coupling(), asymptote);
 
-        Ok(input.scattering(&w_matrix))
+        Ok(calc_input.scattering(&w_matrix))
     }
 }
 
-pub type ScatteringScan = DependenceCalc<ScatteringCalc>;
-pub type EnergyLevelsScan = DependenceCalc<EnergyLevelsCalc>;
+pub type ScatteringScan<P> = DependenceCalc<ScatteringCalc<P>>;

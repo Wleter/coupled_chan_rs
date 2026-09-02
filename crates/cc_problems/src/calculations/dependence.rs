@@ -1,14 +1,13 @@
-use cc_math_utils::{
-    linspace,
-    logspace,
-};
-use rayon::prelude::*;
-use serde_json::Value;
 use std::{
     collections::HashMap,
     path::PathBuf,
 };
 
+use anyhow::Result;
+use cc_math_utils::{
+    linspace,
+    logspace,
+};
 use cc_qol_utils::{
     params::CloneAny,
     saving::{
@@ -17,133 +16,121 @@ use cc_qol_utils::{
         JsonFormat,
     },
 };
+use rayon::prelude::*;
 use serde::{
     Deserialize,
     Serialize,
-    de::{
-        self,
-        DeserializeOwned,
-    },
+    de::DeserializeOwned,
     ser::SerializeTuple,
 };
+use serde_json::Value;
 use unit_systems::quantities::{
     PhysQuantity,
     Scalar,
 };
 
 use crate::{
-    calc::{
+    calculations::{
         Calc,
-        CalcInput,
         SingleCalc,
     },
     parameters::TypedParamId,
+    problems::{
+        Problem,
+        TypedProblemInput,
+    },
     system::{
         DynParamModifications,
-        System,
         new_param_modifications,
     },
 };
-use anyhow::Result;
 
-#[derive(Default)]
-pub struct DependantRegistry(HashMap<Box<str>, Box<dyn Fn(ParameterInput) -> DynParamModifications + Send + Sync>>);
+pub struct CalcModifications<P: Problem, CalcInput>(pub HashMap<Box<str>, ModificationType<P, CalcInput>>);
 
-impl DependantRegistry {
-    pub fn insert_parameter<T: From<ParameterInput> + PartialEq + CloneAny>(
-        &mut self,
-        name: &str,
-        param: TypedParamId<T>,
-    ) -> &mut Self {
-        let dependence = move |p: ParameterInput| {
-            let value: T = p.into();
+impl<P: Problem, C> CalcModifications<P, C> {
+    pub fn new(
+        basis_mod: HashMap<Box<str>, Modification<P::BasisRecipe>>,
+        params_mod: HashMap<Box<str>, ParametersMod>,
+        calc_mod: HashMap<Box<str>, Modification<C>>,
+    ) -> Self {
+        let mut mods = HashMap::from_iter(basis_mod.into_iter().map(|(a, b)| (a, ModificationType::BasisRecipe(b))));
+        mods.extend(params_mod.into_iter().map(|(a, b)| (a, ModificationType::Parameter(b))));
+        mods.extend(calc_mod.into_iter().map(|(a, b)| (a, ModificationType::CalcParameter(b))));
 
-            new_param_modifications(param, value).into_dyn()
-        };
-        self.0.insert(name.into(), Box::new(dependence));
-
-        self
+        Self(mods)
     }
 
-    pub fn insert_dependant(
-        &mut self,
-        name: &str,
-        dependence: impl Fn(ParameterInput) -> DynParamModifications + 'static + Send + Sync,
-    ) -> &mut Self {
-        self.0.insert(name.into(), Box::new(dependence));
-
-        self
+    pub fn from_basis_modifications(basis_mod: HashMap<Box<str>, Modification<P::BasisRecipe>>) -> Self {
+        Self(HashMap::from_iter(
+            basis_mod.into_iter().map(|(a, b)| (a, ModificationType::BasisRecipe(b))),
+        ))
     }
 
-    pub fn get_modification(
-        &self,
-        name: impl AsRef<str>,
-    ) -> &Box<dyn Fn(ParameterInput) -> DynParamModifications + Send + Sync> {
-        &self.0[name.as_ref()]
+    pub fn from_params_modifications(params_mod: HashMap<Box<str>, ParametersMod>) -> Self {
+        Self(HashMap::from_iter(
+            params_mod.into_iter().map(|(a, b)| (a, ModificationType::Parameter(b))),
+        ))
+    }
+
+    pub fn from_calc_modifications(calc_mod: HashMap<Box<str>, Modification<C>>) -> Self {
+        Self(HashMap::from_iter(
+            calc_mod.into_iter().map(|(a, b)| (a, ModificationType::CalcParameter(b))),
+        ))
+    }
+}
+
+pub enum ModificationType<P: Problem, CalcInput> {
+    BasisRecipe(Modification<P::BasisRecipe>),
+    Parameter(ParametersMod),
+    CalcParameter(Modification<CalcInput>),
+}
+
+pub struct Modification<P>(Box<dyn Fn(&mut P, Value) -> bool + Send + Sync>);
+
+pub fn change_value<T: PartialEq + DeserializeOwned>(value: &mut T, new_value: Value) -> Result<bool> {
+    let new_value = serde_json::from_value(new_value)?;
+
+    if value == &new_value {
+        Ok(false)
+    } else {
+        *value = new_value;
+        Ok(true)
+    }
+}
+
+impl<P> Modification<P> {
+    pub fn new(modification: impl Fn(&mut P, Value) -> bool + Send + Sync + 'static) -> Self {
+        Self(Box::new(modification))
+    }
+}
+
+pub struct ParametersMod(pub Box<dyn Fn(Value) -> DynParamModifications + Send + Sync>);
+
+impl ParametersMod {
+    pub fn from_id<T: DeserializeOwned + PartialEq + CloneAny>(id: TypedParamId<T>) -> Self {
+        Self(Box::new(move |v| {
+            new_param_modifications(id, serde_json::from_value(v).unwrap()).into_dyn()
+        }))
     }
 }
 
 pub struct DependenceCalc<C: SingleCalc> {
     single_calc: C,
-    dependant_registry: DependantRegistry,
+    modifications: CalcModifications<C::P, C::CalcInput>,
 }
 
 impl<C: SingleCalc> DependenceCalc<C> {
-    pub fn new(single_calc: C, dependant_registry: DependantRegistry) -> Self {
+    pub fn new(single_calc: C, modifications: CalcModifications<C::P, C::CalcInput>) -> Self {
         Self {
             single_calc,
-            dependant_registry,
+            modifications,
         }
     }
 }
 
-impl<C> Calc for DependenceCalc<C>
-where
-    C: SingleCalc,
-{
-    fn calculate(&self, system: &System, input: &Value, worker: usize, workers: usize) -> Result<()> {
-        let input = DependenceCalcInput::<C::Input>::from_value(input);
-
-        if let Some(dependant) = &input.dependant {
-            let saver = DataSaver::new(&input.save_filepath.to_string_lossy(), JsonFormat, input.save_option)?;
-            let modification = self.dependant_registry.get_modification(&dependant.name);
-            let data = dependant.range.collect();
-
-            let data = if workers > 1 {
-                data.into_iter().skip(worker).step_by(workers).collect()
-            } else {
-                data
-            };
-
-            ParallelExecutor::new(system.clone())
-                .with_parallelism(input.parallel_no)
-                .par_execute(data, |s, d| {
-                    let modification = modification(d.clone());
-                    s.modify_params(modification);
-
-                    let data = self.single_calc.calculate(&input.calc, s)?;
-                    saver.send(DependenceData { parameter: d, data });
-
-                    Ok(())
-                })?;
-        } else {
-            let saver = DataSaver::new(&input.save_filepath.to_string_lossy(), JsonFormat, input.save_option)?;
-            saver.send(self.single_calc.calculate(&input.calc, system)?);
-        }
-
-        Ok(())
-    }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct DependenceData<P, D> {
-    pub parameter: P,
-    pub data: D,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(bound(deserialize = "C: DeserializeOwned"), deny_unknown_fields)]
-pub struct DependenceCalcInput<C: CalcInput> {
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DependenceCalcInput<C> {
     pub save_filepath: PathBuf,
     #[serde(default = "default_file_access")]
     pub save_option: FileAccess,
@@ -157,11 +144,100 @@ pub struct DependenceCalcInput<C: CalcInput> {
     pub parallel_no: Parallelism,
 }
 
+#[derive(Clone, Debug, Serialize)]
+pub struct DependenceData<P, D> {
+    pub parameter: P,
+    pub data: D,
+}
+
 fn default_file_access() -> FileAccess {
     FileAccess::Append
 }
 
-impl<C: CalcInput> CalcInput for DependenceCalcInput<C> {}
+impl<C> Calc for DependenceCalc<C>
+where
+    C: SingleCalc,
+{
+    type P = C::P;
+    type CalcInput = DependenceCalcInput<C::CalcInput>;
+
+    fn name(&self) -> String {
+        format!("Dependence calc for problem {}", Self::P::NAME)
+    }
+
+    fn input_schema(&self) -> Value {
+        todo!()
+    }
+
+    fn run(
+        &self,
+        input: TypedProblemInput<<Self::P as Problem>::BasisRecipe, <Self::P as Problem>::Params, Self::CalcInput>,
+        problem: &Self::P,
+    ) -> Result<()> {
+        let system = problem.build(&input.basis_recipe, &input.parameters);
+        let save_filepath = &input.calculation_parameters.save_filepath.to_string_lossy();
+        let save_option = input.calculation_parameters.save_option;
+        let parallel_no = input.calculation_parameters.parallel_no;
+
+        if let Some(dependant) = &input.calculation_parameters.dependant {
+            let saver = DataSaver::new(save_filepath, JsonFormat, save_option)?;
+            let modification = self.modifications.0.get(&dependant.name).ok_or(anyhow::anyhow!(
+                "{} is not registered in possible modifications",
+                &dependant.name
+            ))?;
+            let data = dependant.range.collect();
+
+            let data = if input.workers > 1 {
+                data.into_iter().skip(input.worker).step_by(input.workers).collect()
+            } else {
+                data
+            };
+
+            ParallelExecutor::new((system, input))
+                .with_parallelism(parallel_no)
+                .par_execute(data, |(s, input), d| {
+                    let b = &mut input.basis_recipe;
+                    let p = &mut input.parameters;
+                    let c = &mut input.calculation_parameters;
+
+                    // todo! change d to be Value from the start
+                    let d = serde_json::to_value(d)?;
+                    match modification {
+                        ModificationType::BasisRecipe(modification) => {
+                            if modification.0(b, d.clone()) {
+                                *s = problem.build(b, p)
+                            }
+                        }
+                        ModificationType::Parameter(parameters_mod) => {
+                            s.modify_params(parameters_mod.0(d.clone()));
+                        }
+                        ModificationType::CalcParameter(modification) => {
+                            modification.0(&mut c.calc, d.clone());
+                        }
+                    }
+
+                    let data = self.single_calc.calculate(s, b, p, &mut c.calc, problem)?;
+                    saver.send(DependenceData { parameter: d, data });
+
+                    Ok(())
+                })?;
+        } else {
+            let saver = DataSaver::new(save_filepath, JsonFormat, save_option)?;
+
+            let mut input = input;
+            let mut system = system;
+            saver.send(self.single_calc.calculate(
+                &mut system,
+                &mut input.basis_recipe,
+                &mut input.parameters,
+                &mut input.calculation_parameters.calc,
+                problem,
+            )?);
+        }
+
+        Ok(())
+    }
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Dependant {
@@ -226,6 +302,8 @@ impl Serialize for ParameterInput {
         }
     }
 }
+
+use serde::de;
 
 impl<'de> Deserialize<'de> for ParameterInput {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>

@@ -1,30 +1,15 @@
+use cc_problems::problems::{AvailableProblems, ProblemInput};
 use clap::Parser;
+use serde::Deserialize;
 use serde_json::Value;
 use std::{
-    collections::HashMap,
-    marker::PhantomData,
     path::{
         Path,
         PathBuf,
     },
 };
-
-use cc_problems::{
-    calc::Calc,
-    parameters::Parameters,
-    system::{
-        HamiltonianSpec,
-        System,
-    },
-};
 use json_comments::StripComments;
-use serde::{
-    Deserialize,
-    Serialize,
-    de::DeserializeOwned,
-};
-
-pub mod input;
+use anyhow::Result;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -33,6 +18,10 @@ pub mod input;
     long_about = "CLI for coupled_chan package solving coupled channel equation given input and problem source"
 )]
 pub struct Args {
+    /// input file path
+    #[arg(short, long)]
+    input_defaults: Option<PathBuf>,
+
     /// input file path
     #[arg(short, long)]
     input: PathBuf,
@@ -50,104 +39,92 @@ pub struct Args {
     worker: usize,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ProgramInput<B, P: Parameters> {
-    pub basis: B,
-    pub parameters: P,
-    pub calculation_name: Box<str>,
-    pub calculation: Value,
-}
-
-impl<B: DeserializeOwned, P: Parameters + DeserializeOwned> ProgramInput<B, P> {
-    pub fn parse(path: impl AsRef<Path>) -> Self {
-        let path = path.as_ref();
-        if let Some(ext) = path.extension() {
-            let read = std::fs::read_to_string(path).unwrap();
-            match ext.to_str().unwrap() {
-                "toml" => toml::from_str(&read).unwrap(),
-                "json" | "jsonc" => serde_json::from_reader(StripComments::new(read.as_bytes())).unwrap(),
-                "json5" => json5::from_str(&read).unwrap(),
-                _ => panic!("Unknown file extension type"),
-            }
+impl Args {
+    pub fn run_problems(self, problems: AvailableProblems) -> Result<()> {
+        let defaults = self.input_defaults.map(|path| parse_input(&path));
+        let input = if let Some(defaults) = defaults {
+            merge(defaults, parse_input(&self.input))
         } else {
-            panic!("Expected path to contain file extension .json/.jsonc/.toml")
+            parse_input(&self.input)
+        };
+
+        problems.run(into_problem_input(input, self.worker, self.workers)?)
+    }
+}
+
+pub fn parse_input(path: impl AsRef<Path>) -> Value {
+    let path = path.as_ref();
+    if let Some(ext) = path.extension() {
+        let read = std::fs::read_to_string(path).unwrap();
+        match ext.to_str().unwrap() {
+            "toml" => toml::from_str(&read).unwrap(),
+            "json" | "jsonc" => serde_json::from_reader(StripComments::new(read.as_bytes())).unwrap(),
+            "json5" => json5::from_str(&read).unwrap(),
+            _ => panic!("Unknown file extension type"),
+        }
+    } else {
+        panic!("Expected path to contain file extension .json/.jsonc/.json5/.toml")
+    }
+}
+
+fn merge(mut defaults: Value, overrides: Value) -> Value {
+    match (&mut defaults, overrides) {
+        (Value::Object(default), Value::Object(overrides)) => {
+            for (key, value) in overrides {
+                match default.get_mut(&key) {
+                    Some(default_value) => merge_inplace(default_value, value),
+                    None => {
+                        default.insert(key, value);
+                    }
+                }
+            }
+        }
+        (default, overrides) => {
+            *default = overrides;
+        }
+    }
+
+    defaults
+}
+
+fn merge_inplace(default: &mut Value, overrides: Value) {
+    match (default, overrides) {
+        (Value::Object(default), Value::Object(overrides)) => {
+            for (key, value) in overrides {
+                match default.get_mut(&key) {
+                    Some(default_value) => merge_inplace(default_value, value),
+                    None => {
+                        default.insert(key, value);
+                    }
+                }
+            }
+        }
+
+        (default, overrides) => {
+            *default = overrides;
         }
     }
 }
 
-pub struct CalcSpec<B, P>(pub Box<dyn Fn(&B, &P) -> Box<dyn Calc>>);
-
-impl<B, P> CalcSpec<B, P> {
-    pub fn new(f: impl Fn(&B, &P) -> Box<dyn Calc> + 'static) -> Self {
-        Self(Box::new(f))
-    }
+#[derive(Deserialize)]
+struct ProgramInput {
+    problem_name: Box<str>,
+    basis_recipe: Value,
+    parameters: Value,
+    calculation: Box<str>,
+    calculation_parameters: Value,
 }
 
-pub struct ProgramExecutor<B, P, H>
-where
-    P: Parameters,
-    H: Fn(&B, &P) -> HamiltonianSpec,
-{
-    hamiltonian_builder: Option<H>,
-    calculation_specs: HashMap<Box<str>, CalcSpec<B, P>>,
-    phantom: PhantomData<(B, P)>,
-}
+pub fn into_problem_input(parsed: Value, worker: usize, workers: usize) -> Result<ProblemInput> {
+    let input: ProgramInput = serde_json::from_value(parsed)?;
 
-impl<B, P, H> Default for ProgramExecutor<B, P, H>
-where
-    P: Parameters,
-    H: Fn(&B, &P) -> HamiltonianSpec,
-{
-    fn default() -> Self {
-        Self {
-            hamiltonian_builder: Default::default(),
-            calculation_specs: Default::default(),
-            phantom: Default::default(),
-        }
-    }
-}
-
-impl<B, P, H> ProgramExecutor<B, P, H>
-where
-    B: DeserializeOwned,
-    P: Parameters + DeserializeOwned,
-    H: Fn(&B, &P) -> HamiltonianSpec,
-{
-    pub fn set_hamiltonian_builder(mut self, f: H) -> Self {
-        self.hamiltonian_builder = Some(f);
-        self
-    }
-
-    pub fn set_calculation_specs(mut self, specs: HashMap<Box<str>, CalcSpec<B, P>>) -> Self {
-        self.calculation_specs = specs;
-        self
-    }
-
-    pub fn add_calculation_spec(mut self, calc_name: impl AsRef<str>, calc: CalcSpec<B, P>) -> Self {
-        self.calculation_specs.insert(calc_name.as_ref().into(), calc);
-        self
-    }
-
-    pub fn build(self) {
-        let args = Args::parse();
-        let input: ProgramInput<B, P> = ProgramInput::parse(&args.input);
-
-        let hamiltonian_builder = self
-            .hamiltonian_builder
-            .expect("Did not provide hamiltonian builder for the program");
-
-        let calculation_spec = self
-            .calculation_specs
-            .get(&input.calculation_name)
-            .expect("Did not find calculation with given name");
-
-        let system = System::new(
-            hamiltonian_builder(&input.basis, &input.parameters),
-            input.parameters.registry(),
-        );
-
-        calculation_spec.0(&input.basis, &input.parameters)
-            .calculate(&system, &input.calculation, args.worker, args.workers)
-            .expect("Calculation encountered error");
-    }
+    Ok(ProblemInput {
+        problem_name: input.problem_name,
+        basis_recipe: input.basis_recipe,
+        parameters: input.parameters,
+        calculation: input.calculation,
+        calculation_parameters: input.calculation_parameters,
+        worker,
+        workers,
+    })
 }

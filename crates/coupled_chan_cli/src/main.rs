@@ -1,12 +1,7 @@
-use cc_problems::diatom_problems::hamiltonian_diatom_in_b_field;
-use coupled_chan_cli::{
-    ProgramExecutor,
-    input::diatom_problems,
-};
+use cc_problems::problems::available_problems;
+use clap::Parser;
+use coupled_chan_cli::Args;
 
-fn main() {
-    ProgramExecutor::default()
-        .set_hamiltonian_builder(hamiltonian_diatom_in_b_field)
-        .set_calculation_specs(diatom_problems())
-        .build();
+fn main() -> anyhow::Result<()> {
+    Args::parse().run_problems(available_problems())
 }

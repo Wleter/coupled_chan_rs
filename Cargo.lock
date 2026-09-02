@@ -352,6 +352,7 @@ dependencies = [
 name = "coupled_chan_cli"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "cc_problems",
  "cc_qol_utils",
  "clap",
