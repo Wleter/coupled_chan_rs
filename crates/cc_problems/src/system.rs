@@ -92,11 +92,13 @@ impl System {
         &self.registry
     }
 
-    pub fn modify_params(&mut self, modifications: ParamModifications<impl FnOnce(&mut ParameterRegistry) -> ParamIds>) {
+    pub fn modify_params(&mut self, modifications: ParamModifications<impl FnOnce(&mut ParameterRegistry) -> ParamIds>) -> bool {
         let ids = (modifications.modification)(&mut self.registry);
 
         self.update_operators(&ids);
         self.update_potentials(&ids);
+
+        !ids.is_empty()
     }
 
     pub fn angular_blocks(&self) -> AngularBlocks {
