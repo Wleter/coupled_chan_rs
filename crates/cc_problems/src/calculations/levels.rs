@@ -4,11 +4,9 @@ use serde::Serialize;
 
 use crate::{
     calculations::{
-        SingleCalc,
-        dependence::DependenceCalc,
+        Modified, SingleCalc, dependence::DependenceCalc
     },
     problems::Problem,
-    system::System,
 };
 
 pub struct EnergyLevelsCalc<P>(PhantomData<P>);
@@ -29,14 +27,11 @@ impl<P: Problem> SingleCalc for EnergyLevelsCalc<P> {
 
     fn calculate(
         &self,
-        system: &mut System,
-        _basis_recipe: &mut P::BasisRecipe,
-        _parameters: &mut P::Params,
-        _calc_input: &mut Self::CalcInput,
+        modified: Modified<P, ()>,
         _problem: &P,
-    ) -> anyhow::Result<Self::Data> {
-        Ok(EnergyLevelsData(system.angular_blocks().diagonalized().0.asymptote))
+    ) -> impl IntoIterator<Item = anyhow::Result<Self::Data>> {
+        [Ok(EnergyLevelsData(modified.system.angular_blocks().diagonalized().0.asymptote))]
     }
 }
 
-pub type EnergyLevelsScan<P> = DependenceCalc<EnergyLevelsCalc<P>>;
+pub type EnergyLevelsScan<P, D> = DependenceCalc<EnergyLevelsCalc<P>, D>;

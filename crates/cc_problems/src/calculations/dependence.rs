@@ -1,15 +1,11 @@
 use std::{
-    collections::HashMap,
-    path::PathBuf,
+    marker::PhantomData, 
+    path::PathBuf
 };
 
 use anyhow::Result;
-use cc_math_utils::{
-    linspace,
-    logspace,
-};
+use cc_math_utils::{linspace, logspace};
 use cc_qol_utils::{
-    params::CloneAny,
     saving::{
         DataSaver,
         FileAccess,
@@ -19,117 +15,63 @@ use cc_qol_utils::{
 use rayon::prelude::*;
 use serde::{
     Deserialize,
-    Serialize,
-    de::DeserializeOwned,
-    ser::SerializeTuple,
+    Serialize, de::DeserializeOwned,
 };
-use serde_json::Value;
-use unit_systems::quantities::{
-    PhysQuantity,
-    Scalar,
-};
+use serde_json::{Number, Value};
+use unit_systems::quantities::{PhysQuantity, Scalar, UnitsConverter};
 
 use crate::{
     calculations::{
-        Calc,
-        SingleCalc,
+        Calc, Modified, SingleCalc
     },
-    parameters::{Parameters, TypedParamId},
+    parameters::Parameters,
     problems::{
         Problem,
         TypedProblemInput,
-    },
-    system::{
-        DynParamModifications, System, new_param_modifications
-    },
+    }, system::System,
 };
 
-pub struct CalcModifications<P: Problem, CalcInput>(pub HashMap<Box<str>, ModificationType<P, CalcInput>>);
+pub trait ModifyParams: Send + Sync + DeserializeOwned {
+    type P: Problem;
+    type C;
 
-impl<P: Problem, C> CalcModifications<P, C> {
-    pub fn new(
-        basis_mod: HashMap<Box<str>, Modification<P::BasisRecipe>>,
-        params_mod: HashMap<Box<str>, ParametersMod>,
-        calc_mod: HashMap<Box<str>, Modification<C>>,
-    ) -> Self {
-        let mut mods = HashMap::from_iter(basis_mod.into_iter().map(|(a, b)| (a, ModificationType::BasisRecipe(b))));
-        mods.extend(params_mod.into_iter().map(|(a, b)| (a, ModificationType::Parameter(b))));
-        mods.extend(calc_mod.into_iter().map(|(a, b)| (a, ModificationType::CalcParameter(b))));
-
-        Self(mods)
-    }
-
-    pub fn from_basis_modifications(basis_mod: HashMap<Box<str>, Modification<P::BasisRecipe>>) -> Self {
-        Self(HashMap::from_iter(
-            basis_mod.into_iter().map(|(a, b)| (a, ModificationType::BasisRecipe(b))),
-        ))
-    }
-
-    pub fn from_params_modifications(params_mod: HashMap<Box<str>, ParametersMod>) -> Self {
-        Self(HashMap::from_iter(
-            params_mod.into_iter().map(|(a, b)| (a, ModificationType::Parameter(b))),
-        ))
-    }
-
-    pub fn from_calc_modifications(calc_mod: HashMap<Box<str>, Modification<C>>) -> Self {
-        Self(HashMap::from_iter(
-            calc_mod.into_iter().map(|(a, b)| (a, ModificationType::CalcParameter(b))),
-        ))
-    }
+    fn modify(&self, modified: &mut Modified<Self::P, Self::C>);
+    fn as_number(&self) -> Number;
+    fn from_number(&mut self, number: Number);
 }
 
-pub enum ModificationType<P: Problem, CalcInput> {
-    BasisRecipe(Modification<P::BasisRecipe>),
-    Parameter(ParametersMod),
-    CalcParameter(Modification<CalcInput>),
-}
-
-pub struct Modification<P>(Box<dyn Fn(&mut P, Value) -> bool + Send + Sync>);
-
-pub fn change_value<T: PartialEq + DeserializeOwned>(value: &mut T, new_value: Value) -> Result<bool> {
-    let new_value = serde_json::from_value(new_value)?;
-
-    if value == &new_value {
-        Ok(false)
-    } else {
-        *value = new_value;
-        Ok(true)
+/// converts value in target unit system to some scalar with unit.
+/// hacky way to get back physical quantities todo!
+pub fn scalar_from_value<Q: PhysQuantity>(converter: &UnitsConverter, value: f64) -> Scalar<Q> {
+    if value == 0.0 {
+        return Scalar::new(0.0, Q::default(), "");
     }
+
+    // first unit encountered 
+    let unit = &converter.registry.get::<Q>()[0];
+    let value_in_unit = value / Q::to_unit_system_logic(unit.name, &converter.registry, &converter.target_unit_system);
+
+    Scalar::new(value_in_unit, Q::default(), unit.name)
 }
 
-impl<P> Modification<P> {
-    pub fn new(modification: impl Fn(&mut P, Value) -> bool + Send + Sync + 'static) -> Self {
-        Self(Box::new(modification))
-    }
-}
-
-pub struct ParametersMod(pub Box<dyn Fn(Value) -> DynParamModifications + Send + Sync>);
-
-impl ParametersMod {
-    pub fn from_id<T: DeserializeOwned + PartialEq + CloneAny>(id: TypedParamId<T>) -> Self {
-        Self(Box::new(move |v| {
-            new_param_modifications(id, serde_json::from_value(v).unwrap()).into_dyn()
-        }))
-    }
-}
-
-pub struct DependenceCalc<C: SingleCalc> {
+pub struct DependenceCalc<C: SingleCalc, D: ModifyParams<P = C::P, C = C::CalcInput>> {
     single_calc: C,
-    modifications: CalcModifications<C::P, C::CalcInput>,
+    phantom: PhantomData<D>
 }
 
-impl<C: SingleCalc> DependenceCalc<C> {
-    pub fn new(single_calc: C, modifications: CalcModifications<C::P, C::CalcInput>) -> Self {
+impl<C: SingleCalc, D: ModifyParams<P = C::P, C = C::CalcInput>> DependenceCalc<C, D> {
+    pub fn new(single_calc: C) -> Self {
         Self {
             single_calc,
-            modifications,
+            phantom: PhantomData
         }
     }
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(bound = "D: DeserializeOwned, C: DeserializeOwned")]
 #[serde(deny_unknown_fields)]
-pub struct DependenceCalcInput<C> {
+pub struct DependenceCalcInput<C, D> {
     pub save_filepath: PathBuf,
     #[serde(default = "default_file_access")]
     pub save_option: FileAccess,
@@ -137,7 +79,7 @@ pub struct DependenceCalcInput<C> {
     #[serde(flatten)]
     pub calc: C,
     #[serde(default)]
-    pub dependant: Option<Dependant>,
+    pub grid: Option<Grid<D>>,
 
     #[serde(default)]
     pub parallel_no: Parallelism,
@@ -153,12 +95,13 @@ fn default_file_access() -> FileAccess {
     FileAccess::Append
 }
 
-impl<C> Calc for DependenceCalc<C>
+impl<C, D> Calc for DependenceCalc<C, D>
 where
     C: SingleCalc,
+    D: ModifyParams<P = C::P, C = C::CalcInput> + Clone + std::fmt::Debug
 {
     type P = C::P;
-    type CalcInput = DependenceCalcInput<C::CalcInput>;
+    type CalcInput = DependenceCalcInput<C::CalcInput, D>;
 
     fn name(&self) -> String {
         format!("Dependence calc for problem {}", Self::P::NAME)
@@ -173,19 +116,15 @@ where
         input: TypedProblemInput<<Self::P as Problem>::BasisRecipe, <Self::P as Problem>::Params, Self::CalcInput>,
         problem: &Self::P,
     ) -> Result<()> {
-        let hamiltonian_spec = problem.build(&input.basis_recipe, &input.parameters);
+        let hamiltonian_spec = Self::P::build(&input.basis_recipe, &input.parameters);
         let system = System::new(hamiltonian_spec, input.parameters.registry());
-        let save_filepath = &input.calculation_parameters.save_filepath.to_string_lossy();
-        let save_option = input.calculation_parameters.save_option;
-        let parallel_no = input.calculation_parameters.parallel_no;
+        let save_filepath = &input.calc_parameters.save_filepath.to_string_lossy();
+        let save_option = input.calc_parameters.save_option;
+        let parallel_no = input.calc_parameters.parallel_no;
 
-        if let Some(dependant) = &input.calculation_parameters.dependant {
+        if let Some(grid) = &input.calc_parameters.grid {
             let saver = DataSaver::new(save_filepath, JsonFormat, save_option)?;
-            let modification = self.modifications.0.get(&dependant.name).ok_or(anyhow::anyhow!(
-                "{} is not registered in possible modifications",
-                &dependant.name
-            ))?;
-            let data = dependant.range.collect();
+            let data = grid.collect();
 
             let data = if input.workers > 1 {
                 data.into_iter().skip(input.worker).step_by(input.workers).collect()
@@ -196,29 +135,18 @@ where
             ParallelExecutor::new((system, input))
                 .with_parallelism(parallel_no)
                 .par_execute(data, |(s, input), d| {
-                    let b = &mut input.basis_recipe;
-                    let p = &mut input.parameters;
-                    let c = &mut input.calculation_parameters;
+                    let mut modified = Modified {
+                        system: s,
+                        basis: &mut input.basis_recipe,
+                        params: &mut input.parameters,
+                        calc_input: &mut input.calc_parameters.calc,
+                    };
+                    d.modify(&mut modified);
 
-                    // todo! change d to be Value from the start
-                    let d = serde_json::to_value(d)?;
-                    match modification {
-                        ModificationType::BasisRecipe(modification) => {
-                            if modification.0(b, d.clone()) {
-                                let hamiltonian_spec = problem.build(b, p);
-                                *s = System::new(hamiltonian_spec, p.registry());
-                            }
-                        }
-                        ModificationType::Parameter(parameters_mod) => {
-                            s.modify_params(parameters_mod.0(d.clone()));
-                        }
-                        ModificationType::CalcParameter(modification) => {
-                            modification.0(&mut c.calc, d.clone());
-                        }
+                    for data in self.single_calc.calculate(modified, problem) {
+                        let data = data?;
+                        saver.send(DependenceData { parameter: d.as_number(), data });
                     }
-
-                    let data = self.single_calc.calculate(s, b, p, &mut c.calc, problem)?;
-                    saver.send(DependenceData { parameter: d, data });
 
                     Ok(())
                 })?;
@@ -227,13 +155,20 @@ where
 
             let mut input = input;
             let mut system = system;
-            saver.send(self.single_calc.calculate(
-                &mut system,
-                &mut input.basis_recipe,
-                &mut input.parameters,
-                &mut input.calculation_parameters.calc,
+            let calc = self.single_calc.calculate(
+                Modified {
+                    system: &mut system,
+                    basis: &mut input.basis_recipe,
+                    params: &mut input.parameters,
+                    calc_input: &mut input.calc_parameters.calc,
+                },
                 problem,
-            )?);
+            );
+
+            for data in calc {
+                let data = data?;
+                saver.send(data);
+            }
         }
 
         Ok(())
@@ -241,246 +176,120 @@ where
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Dependant {
-    pub name: Box<str>,
-    pub range: Range,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 #[serde(rename_all = "snake_case")]
-pub enum Range {
+pub enum Grid<D> {
     Linear {
-        start: ParameterInput,
-        end: ParameterInput,
+        start: D,
+        end: D,
         n: usize,
     },
     Log {
-        start: ParameterInput,
-        end: ParameterInput,
+        start: D,
+        end: D,
         n: usize,
     },
     Vec {
-        values: Vec<ParameterInput>,
+        values: Vec<D>,
     },
     Composite {
-        ranges: Vec<Range>,
+        ranges: Vec<Grid<D>>,
     },
 }
 
-impl Range {
-    pub fn collect(&self) -> Vec<ParameterInput> {
+impl<D: ModifyParams + Clone> Grid<D> {
+    pub fn collect(&self) -> Vec<D> {
         match self {
-            Range::Linear { start, end, n } => ParameterInput::linspace(start, end, *n),
-            Range::Log { start, end, n } => ParameterInput::logspace(start, end, *n),
-            Range::Vec { values } => values.clone(),
-            Range::Composite { ranges } => ranges.iter().flat_map(|x| x.collect()).collect(),
+            Grid::Linear { start, end, n } => {
+                let mut d = start.clone();
+
+                let vec = num_linspace(start.as_number(), end.as_number(), *n);
+                vec.into_iter().map(|x| {
+                    d.from_number(x);
+                    d.clone()
+                }).collect()
+            },
+            Grid::Log { start, end, n } => {
+                let mut d = start.clone();
+
+                let vec = num_logspace(start.as_number(), end.as_number(), *n);
+                vec.into_iter().map(|x| {
+                    d.from_number(x);
+                    d.clone()
+                }).collect()
+            }
+            Grid::Vec { values } => values.clone(),
+            Grid::Composite { ranges } => ranges.iter().flat_map(|x| x.collect()).collect(),
         }
     }
 }
 
-#[derive(Clone, Debug)]
-pub enum ParameterInput {
-    Float(f64),
-    Scalar(f64, Box<str>),
-    Num(i64),
-}
-
-impl Serialize for ParameterInput {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::ser::Serializer,
-    {
-        match self {
-            Self::Float(value) => serializer.serialize_f64(*value),
-            Self::Num(value) => serializer.serialize_i64(*value),
-            Self::Scalar(value, unit) => {
-                let mut tuple = serializer.serialize_tuple(2)?;
-                tuple.serialize_element(value)?;
-                tuple.serialize_element(unit)?;
-                tuple.end()
-            }
+pub fn num_linspace(start: Number, end: Number, n: usize) -> Vec<Number> {
+    if start.is_f64() && end.is_f64() {
+        let start = start.as_f64().unwrap();
+        let end = end.as_f64().unwrap();
+        
+        linspace(start, end, n).into_iter().map(|x| Number::from_f64(x).unwrap()).collect()
+    } else if start.is_i64() && end.is_i64() {
+        if n == 1 {
+            return vec![start];
         }
+        let start = start.as_i64().unwrap();
+        let end = end.as_i64().unwrap();
+
+        let step = (end - start) / (n as i64 - 1);
+        if step.abs() < 1 {
+            return (start..=end).map(|x| Number::from_i128(x as i128).unwrap()).collect();
+        }
+
+        let mut result = Vec::with_capacity(n);
+        for i in 0..(n as i64) {
+            let value = start + i * step;
+            if value > end {
+                break;
+            }
+            result.push(value);
+        }
+
+        result.into_iter().map(|x| Number::from_i128(x as i128).unwrap()).collect()
+    } else {
+        panic!("linspace grid of numbers of different type")
     }
 }
 
-use serde::de;
+pub fn num_logspace(start: Number, end: Number, n: usize) -> Vec<Number> {
+    if start.is_f64() && end.is_f64() {
+        let start = start.as_f64().unwrap();
+        let end = end.as_f64().unwrap();
+        
+        logspace(start.log10(), end.log10(), n).into_iter().map(|x| Number::from_f64(x).unwrap()).collect()
+    } else if start.is_u64() && end.is_u64() {
+        if n == 1 {
+            return vec![start];
+        }
+        let start_num = start.as_u64().unwrap();
+        let end_num = end.as_u64().unwrap();
 
-impl<'de> Deserialize<'de> for ParameterInput {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: de::Deserializer<'de>,
-    {
-        struct ParameterInputVisitor;
+        let start = start_num.ilog10();
+        let end = end_num.ilog10();
 
-        impl<'de> de::Visitor<'de> for ParameterInputVisitor {
-            type Value = ParameterInput;
+        let mut result = Vec::with_capacity(n);
+        let step = (end - start) / (n as u32 - 1);
 
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("an integer, floating-point number, or [floating-point number, unit string]")
+        for i in 0..(n as u32) {
+            let value = 10u64.pow(start + i * step);
+            if value > (end_num as u64) {
+                break;
             }
 
-            fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                Ok(ParameterInput::Num(value))
-            }
-
-            fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                let value = i64::try_from(value).map_err(|_| E::custom("integer does not fit into i64"))?;
-
-                Ok(ParameterInput::Num(value))
-            }
-
-            fn visit_f64<E>(self, value: f64) -> Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                Ok(ParameterInput::Float(value))
-            }
-
-            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-            where
-                A: de::SeqAccess<'de>,
-            {
-                let value: f64 = seq.next_element()?.ok_or_else(|| de::Error::invalid_length(0, &self))?;
-
-                let unit: Box<str> = seq.next_element()?.ok_or_else(|| de::Error::invalid_length(1, &self))?;
-
-                if seq.next_element::<de::IgnoredAny>()?.is_some() {
-                    return Err(de::Error::invalid_length(3, &self));
-                }
-
-                Ok(ParameterInput::Scalar(value, unit))
-            }
+            result.push(value);
         }
 
-        deserializer.deserialize_any(ParameterInputVisitor)
+        result.into_iter().map(|x| Number::from_i128(x as i128).unwrap()).collect()
+    } else {
+        panic!("linspace grid of numbers of different type")
     }
 }
-
-impl ParameterInput {
-    pub fn linspace(start: &Self, end: &Self, n: usize) -> Vec<Self> {
-        use ParameterInput::*;
-        match (start, end) {
-            (Float(start), Float(end)) => linspace(*start, *end, n).into_iter().map(|x| Float(x)).collect(),
-            (Num(start), Num(end)) => {
-                if n == 1 {
-                    return vec![Num(*start)];
-                }
-
-                let step = (end - start) / (n as i64 - 1);
-                if step.abs() < 1 {
-                    return (*start..=*end).map(|x| Num(x)).collect();
-                }
-
-                let mut result = Vec::with_capacity(n);
-                for i in 0..(n as i64) {
-                    let value = start + i * step;
-                    if value > *end {
-                        break;
-                    }
-                    result.push(value);
-                }
-
-                result.into_iter().map(|x| Num(x)).collect()
-            }
-            // todo! now this clones unit and requires all units to be the same
-            // possibly change DependantRegistry to have dyn Fn(Range) -> Vec<DynModifications>
-            (Scalar(start, a), Scalar(end, b)) => {
-                assert_eq!(a, b, "Scalar Range should for now have same units");
-
-                linspace(*start, *end, n).into_iter().map(|x| Scalar(x, a.clone())).collect()
-            }
-            _ => panic!("Incompatible start: {start:?}, end: {end:?} in range."),
-        }
-    }
-
-    pub fn logspace(start: &Self, end: &Self, n: usize) -> Vec<Self> {
-        use ParameterInput::*;
-        match (start, end) {
-            (Float(start), Float(end)) => logspace(start.log10(), end.log10(), n)
-                .into_iter()
-                .map(|x| Float(x))
-                .collect(),
-            (Num(start_num), Num(end_num)) => {
-                assert!(*start_num > 0 && *end_num > 0, "Only positive numbers can have log grid");
-                if n == 1 {
-                    return vec![Num(*start_num)];
-                }
-
-                let start = start_num.ilog10();
-                let end = end_num.ilog10();
-
-                let mut result = Vec::with_capacity(n);
-                let step = (end - start) / (n as u32 - 1);
-
-                for i in 0..(n as u32) {
-                    let value = 10u64.pow(start + i * step);
-                    if value > (*end_num as u64) {
-                        break;
-                    }
-
-                    result.push(value);
-                }
-
-                result.into_iter().map(|x| Num(x as i64)).collect()
-            }
-            // todo! now this clones unit and requires all units to be the same
-            // possibly change DependantRegistry to have dyn Fn(Range) -> Vec<DynModifications>
-            (Scalar(start, a), Scalar(end, b)) => {
-                assert_eq!(a, b, "Scalar Range should for now have same units");
-
-                logspace(start.log10(), end.log10(), n)
-                    .into_iter()
-                    .map(|x| Scalar(x, a.clone()))
-                    .collect()
-            }
-            _ => panic!("Incompatible start: {start:?}, end: {end:?} in range."),
-        }
-    }
-}
-
-impl From<ParameterInput> for f64 {
-    fn from(value: ParameterInput) -> Self {
-        match value {
-            ParameterInput::Float(f) => f,
-            _ => panic!("Could not convert {value:?} to f64"),
-        }
-    }
-}
-
-impl<Q: PhysQuantity> From<ParameterInput> for Scalar<Q> {
-    fn from(value: ParameterInput) -> Self {
-        match value {
-            ParameterInput::Scalar(v, u) => Scalar::new(v, Q::default(), u),
-            _ => panic!("Could not convert {value:?} to Scalar<{:?}>", Q::default()),
-        }
-    }
-}
-
-macro_rules! parameter_input_impl_from_num {
-    ($into:ident) => {
-        impl From<ParameterInput> for $into {
-            fn from(value: ParameterInput) -> Self {
-                match value {
-                    ParameterInput::Num(i) => i as $into,
-                    _ => panic!("Could not convert {value:?} to {}", stringify!($into))
-                }
-            }
-        }
-    };
-    ($($into:ident),+) => {
-        $(parameter_input_impl_from_num!($into);)+
-    };
-}
-
-parameter_input_impl_from_num!(usize, u64, u32, u16, u8);
-parameter_input_impl_from_num!(isize, i64, i32, i16, i8);
 
 use indicatif::{
     ProgressBar,

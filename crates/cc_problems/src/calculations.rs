@@ -1,4 +1,4 @@
-pub mod bounds;
+pub mod bound_states;
 pub mod dependence;
 pub mod levels;
 pub mod scattering;
@@ -37,7 +37,7 @@ impl<C: Calc<P = P>, P: Problem> DynCalc<P> for C {
         let input = TypedProblemInput {
             basis_recipe: input.basis_recipe,
             parameters: input.parameters,
-            calculation_parameters: serde_json::from_value(input.calculation_parameters)?,
+            calc_parameters: serde_json::from_value(input.calc_parameters)?,
 
             worker: input.worker,
             workers: input.workers,
@@ -67,10 +67,14 @@ pub trait SingleCalc: Send + Sync {
 
     fn calculate(
         &self,
-        system: &mut System,
-        basis_recipe: &mut <Self::P as Problem>::BasisRecipe,
-        parameters: &mut <Self::P as Problem>::Params,
-        calc_input: &mut Self::CalcInput,
+        modified: Modified<Self::P, Self::CalcInput>,
         problem: &Self::P,
-    ) -> Result<Self::Data>;
+    ) -> impl IntoIterator<Item = Result<Self::Data>>;
+}
+
+pub struct Modified<'a, P: Problem, C> {
+    pub system: &'a mut System,
+    pub basis: &'a mut P::BasisRecipe,
+    pub params: &'a mut P::Params,
+    pub calc_input: &'a mut C
 }

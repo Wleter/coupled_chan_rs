@@ -1,4 +1,3 @@
-pub mod bound_states;
 pub mod coupling;
 pub mod s_matrix;
 

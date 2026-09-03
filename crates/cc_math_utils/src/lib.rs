@@ -60,7 +60,7 @@ impl Error for RootError {}
 pub fn brent_root_method(
     lower: [f64; 2],
     upper: [f64; 2],
-    f: impl Fn(f64) -> f64,
+    mut f: impl FnMut(f64) -> f64,
     err: f64,
     max_iter: u32,
 ) -> Result<f64, RootError> {

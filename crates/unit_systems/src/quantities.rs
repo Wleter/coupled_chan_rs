@@ -64,7 +64,6 @@ pub trait PhysQuantity: std::fmt::Debug + Default + 'static {
     /// phys_quantity_ops!(ElectricField);
     /// ```
     fn to_unit_system_logic(unit: impl AsRef<str>, registry: &UnitRegistry, system: &UnitSystemTable) -> f64 {
-        // possible overflow/underflow for sufficiently exotic dimensions, todo!
         let dim = Self::dimension();
         let from_si = system.from_si(dim);
 

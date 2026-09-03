@@ -37,7 +37,7 @@ pub struct ProblemInput {
 pub struct TypedProblemInput<B: DeserializeOwned, P: DeserializeOwned, I: DeserializeOwned> {
     pub(crate) basis_recipe: B,
     pub(crate) parameters: P,
-    pub(crate) calculation_parameters: I,
+    pub(crate) calc_parameters: I,
 
     pub(crate) worker: usize,
     pub(crate) workers: usize,
@@ -87,7 +87,7 @@ impl<P: Problem> DynProblem for P {
         let input = TypedProblemInput {
             basis_recipe: serde_json::from_value(problem_input.basis_recipe)?,
             parameters: serde_json::from_value(problem_input.parameters)?,
-            calculation_parameters: problem_input.calculation_parameters,
+            calc_parameters: problem_input.calculation_parameters,
             worker: problem_input.worker,
             workers: problem_input.workers,
         };
@@ -106,6 +106,6 @@ pub trait Problem: Sync + Send {
     const DESCRIPTION: &str;
     fn schema(&self) -> Value;
 
-    fn build(&self, basis_recipe: &Self::BasisRecipe, params: &Self::Params) -> HamiltonianSpec;
+    fn build(basis_recipe: &Self::BasisRecipe, params: &Self::Params) -> HamiltonianSpec;
     fn calculations(&self) -> &HashMap<Box<str>, Box<dyn DynCalc<Self>>>;
 }

@@ -8,59 +8,34 @@ use hilbert_space::{
     },
 };
 use serde::Deserialize;
+use serde_json::Number;
 use spin_algebra::{
     SpinLike,
     SpinMagLike,
     get_spin_pair_magnitudes,
-    hu32,
 };
 use unit_systems::quantities::{
     Scalar,
     phys_quantities::{
-        MagneticField,
-        Mass,
+        Energy, Length, MagneticField, Mass
     },
 };
 
 use crate::{
-    OrbitalBasisElements,
-    atom_basis::WithProjection,
-    atom_operators::AtomParams,
-    calculations::{
-        DynCalc,
-        dependence::{
-            CalcModifications,
-            DependenceCalc,
-            ParametersMod,
-        },
-        levels::{
-            EnergyLevelsCalc,
-        },
-        scattering::{
+    OrbitalBasisElements, UNITS_CONVERTER, atom_basis::WithProjection, atom_operators::AtomParams, calculations::{
+        DynCalc, Modified, dependence::{
+            DependenceCalc, ModifyParams, scalar_from_value,
+        }, levels::EnergyLevelsCalc, scattering::{
             ScatteringCalc, ScatteringCalcInput
-        },
-    },
-    diatom_basis::{
+        }
+    }, diatom_basis::{
         CoupledSIDiatomBasis,
         DiatomRecipe,
-    },
-    interactions::{
-        PecPolarizationSpec,
-        PecPolarizations,
-        PecScalings,
-        SpinConfiguration,
-    },
-    operator_mel::spin_projection_term_coupled,
-    param_ids,
-    parameters::Parameters,
-    problems::Problem,
-    system::{
-        DynOperatorSpec,
-        DynPotentialSpec,
-        HamiltonianSpec,
-        ParamModifications,
-        System,
-    },
+    }, interactions::{
+        PecPolarizationSpec, PecPolarizations, PecScalings, Scaling, SpinConfiguration
+    }, operator_mel::spin_projection_term_coupled, param_ids, parameters::Parameters, problems::Problem, system::{
+        DynOperatorSpec, DynPotentialSpec, HamiltonianSpec, ParamModifications, System, new_param_modifications
+    }
 };
 
 pub type DiatomInBFieldBasis = WithProjection<DiatomRecipe>;
@@ -81,76 +56,17 @@ pub struct DiatomInBFieldParams {
     pub scalings: PecScalings,
 }
 
-impl DiatomInBFieldParams {
-    pub fn modifications() -> HashMap<Box<str>, ParametersMod> {
-        let ids = <Self as Parameters>::ids();
-        let mut modifications: HashMap<Box<str>, ParametersMod> = HashMap::default();
-        modifications.extend([
-            ("b_field".into(), ParametersMod::from_id(ids.b_field)),
-            ("red_mass".into(), ParametersMod::from_id(ids.red_mass)),
-        ]);
-
-        // conservative 9/2 spin maximum scaling
-        for spin in SpinConfiguration::get_configurations(hu32!(9 / 2)) {
-            modifications.insert(
-                format!("pec.scalings.{}", spin).into(),
-                ParametersMod(Box::new(move |value| {
-                    ParamModifications::new(move |r| {
-                        let ids = DiatomInBFieldParams::ids();
-                        let scalings = r.get_mut(ids.scalings);
-
-                        if scalings.scale(spin, value) {
-                            param_ids![ids.scalings.vanish()]
-                        } else {
-                            param_ids![]
-                        }
-                    })
-                    .into_dyn()
-                })),
-            );
-        }
-
-        modifications.insert(
-            "pec.scalings.all".into(),
-            ParametersMod(Box::new(move |value| {
-                ParamModifications::new(move |r| {
-                    let ids = DiatomInBFieldParams::ids();
-                    let scalings = r.get_mut(ids.scalings);
-
-                    if scalings.scale_all(value) {
-                        param_ids![]
-                    } else {
-                        param_ids![ids.scalings.vanish()]
-                    }
-                })
-                .into_dyn()
-            })),
-        );
-
-        modifications
-    }
-}
-
 pub fn diatom_levels_b_field_scan() -> Box<dyn DynCalc<DiatomInBFieldProblem>> {
-    let ids = DiatomInBFieldParams::ids();
     let levels_calc = EnergyLevelsCalc::default();
 
-    let modifications: HashMap<Box<str>, ParametersMod> =
-        HashMap::from([("b_field".into(), ParametersMod::from_id(ids.b_field))]);
-    let modifications = CalcModifications::from_params_modifications(modifications);
-
-    Box::new(DependenceCalc::new(levels_calc, modifications))
+    Box::new(DependenceCalc::<_, ModsEnergyLevels>::new(levels_calc))
 }
 
 pub fn diatom_scattering_b_field_scan() -> Box<dyn DynCalc<DiatomInBFieldProblem>> {
     let ids = DiatomInBFieldParams::ids();
     let scattering_calc = ScatteringCalc::new(ids.red_mass);
-    let param_mods = DiatomInBFieldParams::modifications();
-    let recipe_mods = ScatteringCalcInput::modifications();
 
-    let modifications = CalcModifications::new(HashMap::default(), param_mods, recipe_mods);
-
-    Box::new(DependenceCalc::new(scattering_calc, modifications))
+    Box::new(DependenceCalc::<_, ModsScattering>::new(scattering_calc))
 }
 
 pub struct DiatomInBFieldProblem {
@@ -183,7 +99,7 @@ impl Problem for DiatomInBFieldProblem {
         todo!()
     }
 
-    fn build(&self, basis_recipe: &Self::BasisRecipe, _params: &Self::Params) -> HamiltonianSpec {
+    fn build(basis_recipe: &Self::BasisRecipe, _params: &Self::Params) -> HamiltonianSpec {
         let param_ids = Self::Params::ids();
 
         let s_a = basis_recipe.recipe.atom_a.s;
@@ -225,14 +141,14 @@ impl Problem for DiatomInBFieldProblem {
                 "atom_a.zeeman_n",
                 DynOperatorSpec::new(diatom.zeeman_n_a(param_ids.b_field, param_ids.atom_a.g_n)),
             ),
-            ("atom_b.hifi", DynOperatorSpec::new(diatom.hifi_a(param_ids.atom_b.a_hifi))),
+            ("atom_b.hifi", DynOperatorSpec::new(diatom.hifi_b(param_ids.atom_b.a_hifi))),
             (
                 "atom_b.zeeman_e",
-                DynOperatorSpec::new(diatom.zeeman_e_a(param_ids.b_field, param_ids.atom_b.g_e)),
+                DynOperatorSpec::new(diatom.zeeman_e_b(param_ids.b_field, param_ids.atom_b.g_e)),
             ),
             (
                 "atom_b.zeeman_n",
-                DynOperatorSpec::new(diatom.zeeman_n_a(param_ids.b_field, param_ids.atom_b.g_n)),
+                DynOperatorSpec::new(diatom.zeeman_n_b(param_ids.b_field, param_ids.atom_b.g_n)),
             ),
         ]);
 
@@ -253,5 +169,179 @@ impl Problem for DiatomInBFieldProblem {
 
     fn calculations(&self) -> &HashMap<Box<str>, Box<dyn DynCalc<Self>>> {
         &self.calculations
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum ModsEnergyLevels {
+    MagneticField(Scalar<MagneticField>)
+}
+
+impl ModifyParams for ModsEnergyLevels {
+    type P = DiatomInBFieldProblem;
+    type C = ();
+
+    fn modify(
+        &self, 
+        modified: &mut Modified<Self::P, Self::C>
+    ) {
+        let ids = DiatomInBFieldParams::ids();
+        match self {
+            ModsEnergyLevels::MagneticField(scalar) => {
+                modified.system.modify_params(new_param_modifications(ids.b_field, scalar.clone()))
+            },
+        }
+    }
+
+    fn as_number(&self) -> serde_json::Number {
+        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+
+        match self {
+            ModsEnergyLevels::MagneticField(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
+        }
+    }
+
+    fn from_number(&mut self, number: serde_json::Number) {
+        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+
+        match self {
+            ModsEnergyLevels::MagneticField(scalar) => {
+                *scalar = scalar_from_value(&converter, number.as_f64().unwrap())
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ModsScattering {
+    MagneticField(Scalar<MagneticField>),
+    Mass(Scalar<Mass>),
+    L(u32),
+    Energy(Scalar<Energy>),
+    PecScaling {
+        configuration: SpinConfiguration,
+        scaling: f64
+    },
+    PecScalingFull(f64),
+    RStart(Scalar<Length>),
+    RStop(Scalar<Length>),
+}
+
+impl ModifyParams for ModsScattering {
+    type P = DiatomInBFieldProblem;
+    type C = ScatteringCalcInput;
+
+    fn modify(&self, modified: &mut Modified<Self::P, Self::C>) {
+        let ids = DiatomInBFieldParams::ids();
+
+        match self {
+            ModsScattering::MagneticField(scalar) => {
+                modified.system.modify_params(new_param_modifications(ids.b_field, scalar.clone()))
+            },
+            ModsScattering::Mass(scalar) => {
+                modified.system.modify_params(new_param_modifications(ids.red_mass, scalar.clone()))
+            },
+            ModsScattering::Energy(scalar) => {
+                modified.calc_input.energy = scalar.clone()
+            },
+            ModsScattering::L(l_new) => {
+                match &mut modified.basis.recipe.l {
+                    crate::OrbitalRecipe::Single(l) => {
+                        *l = *l_new
+                    },
+                    crate::OrbitalRecipe::LMax(l) => {
+                        *l = *l_new
+                    },
+                    crate::OrbitalRecipe::LMaxProjections(l) => {
+                        *l = *l_new
+                    },
+                }
+
+                let spec = Self::P::build(modified.basis, modified.params);
+                *modified.system = System::new(spec, modified.params.registry())
+            },
+            ModsScattering::PecScaling { configuration, scaling } => {
+                let scaling = *scaling;
+                let configuration = *configuration;
+                let modify = ParamModifications::new(move |r| {
+                    let scalings = r.get_mut(ids.scalings);
+                    if let Some(s) = scalings.0.get(&configuration) && s.0 == scaling {
+                        param_ids![]
+                    } else {
+                        scalings.0.insert(configuration, Scaling(scaling));
+                        param_ids![ids.scalings.vanish()]
+                    }
+                });
+
+                modified.system.modify_params(modify)
+            },
+            ModsScattering::PecScalingFull(scaling) => {
+                let scaling = *scaling;
+                let modify = ParamModifications::new(move |r| {
+                    let scalings = r.get_mut(ids.scalings);
+                    let mut changed = false;
+                    for s in scalings.0.values_mut() {
+                        if s.0 != scaling {
+                            changed = true;
+                            s.0 = scaling
+                        }
+                    }
+
+                    if changed {
+                        param_ids![ids.scalings.vanish()]
+                    } else {
+                        param_ids![]
+                    }
+                });
+
+                modified.system.modify_params(modify)
+            },
+            ModsScattering::RStart(scalar) => {
+                modified.calc_input.r_start = scalar.clone()
+            },
+            ModsScattering::RStop(scalar) => {
+                modified.calc_input.r_stop = scalar.clone()
+            }
+        }
+    }
+
+    fn as_number(&self) -> serde_json::Number {
+        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+
+        match self {
+            ModsScattering::MagneticField(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
+            ModsScattering::Mass(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
+            ModsScattering::L(l) => Number::from_u128(*l as u128).unwrap(),
+            ModsScattering::Energy(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
+            ModsScattering::PecScaling { configuration: _, scaling } => Number::from_f64(*scaling).unwrap(),
+            ModsScattering::PecScalingFull(scaling) => Number::from_f64(*scaling).unwrap(),
+            ModsScattering::RStart(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
+            ModsScattering::RStop(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
+        }
+    }
+
+    fn from_number(&mut self, number: serde_json::Number) {
+        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+
+        match self {
+            ModsScattering::MagneticField(scalar) => 
+                *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
+            ModsScattering::Mass(scalar) => 
+                *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
+            ModsScattering::L(l) => 
+                *l = number.as_u64().unwrap() as u32,
+            ModsScattering::Energy(scalar) => 
+                *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
+            ModsScattering::PecScaling { configuration: _, scaling } => 
+                *scaling = number.as_f64().unwrap(),
+            ModsScattering::PecScalingFull(scaling) => 
+                *scaling = number.as_f64().unwrap(),
+            ModsScattering::RStart(scalar) => 
+                *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
+            ModsScattering::RStop(scalar) => 
+                *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
+        }
     }
 }

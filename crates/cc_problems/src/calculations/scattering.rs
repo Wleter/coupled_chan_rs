@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     marker::PhantomData,
 };
 
@@ -52,12 +51,7 @@ use unit_systems::quantities::{
 use crate::{
     UNITS_CONVERTER,
     calculations::{
-        SingleCalc,
-        dependence::{
-            DependenceCalc,
-            Modification,
-            change_value,
-        },
+        Modified, SingleCalc, dependence::DependenceCalc
     },
     parameters::TypedParamId,
     problems::Problem,
@@ -79,117 +73,18 @@ pub struct ScatteringCalcInput {
 }
 
 impl ScatteringCalcInput {
-    pub fn modifications() -> HashMap<Box<str>, Modification<ScatteringCalcInput>> {
-        let modifications = HashMap::from([
-            (
-                "energy".into(),
-                Modification::new(|p: &mut ScatteringCalcInput, v| {
-                    change_value(&mut p.energy, v).expect("Wrong type on energy modification")
-                }),
-            ),
-            (
-                "r_start".into(),
-                Modification::new(|p: &mut ScatteringCalcInput, v| {
-                    change_value(&mut p.r_start, v).expect("Wrong type on r_start modification")
-                }),
-            ),
-            (
-                "r_stop".into(),
-                Modification::new(|p: &mut ScatteringCalcInput, v| {
-                    change_value(&mut p.r_start, v).expect("Wrong type on r_stop modification")
-                }),
-            ),
-            (
-                "step".into(),
-                Modification::new(|p: &mut ScatteringCalcInput, v| {
-                    change_value(&mut p.step, v).expect("Wrong type on step modification")
-                }),
-            ),
-        ]);
-
-        modifications
-    }
-
-    pub fn get_direction(&self) -> (f64, f64, Direction) {
+    pub fn scattering(&self, w_matrix: &CollisionWMatrix<impl RCoupling>) -> SMatrixData {
         let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
         let r_start = converter.scalar_value(&self.r_start);
         let r_stop = converter.scalar_value(&self.r_stop);
 
-        if r_start <= r_stop {
-            (r_start, r_stop, Direction::Outwards)
-        } else {
-            (r_stop, r_start, Direction::Inwards)
-        }
-    }
-
-    pub fn get_boundary(
-        &self,
-        w_matrix: &CollisionWMatrix<impl RCoupling>,
-    ) -> coupled_chan::cc_propagator::Boundary<Matrix> {
-        let (r_start, _, direction) = self.get_direction();
-
-        let (value, derivative) = match &self.boundary {
-            Boundary::VanishingWkb => {
-                let mut mat = Matrix::zeros(w_matrix.size(), w_matrix.size());
-                w_matrix.value_inplace(r_start, &mut mat);
-                let eigen = mat
-                    .self_adjoint_eigen(hilbert_space::faer::Side::Lower)
-                    .expect("Couled not diagonalize w_matrix at r_start");
-
-                for v in eigen.S().column_vector().iter() {
-                    assert!(
-                        *v < 0.0,
-                        "Locally open channels at r = {:?}, cannot make boundary prediction based on WKB",
-                        self.r_start
-                    );
-                }
-
-                let derivative = match direction {
-                    Direction::Inwards => {
-                        let diag = Col::from_iter(eigen.S().column_vector().iter().map(|x| -(-x).sqrt()));
-                        let diag = diag.as_diagonal();
-
-                        eigen.U() * diag * eigen.U().transpose()
-                    }
-                    Direction::Outwards => {
-                        let diag = Col::from_iter(eigen.S().column_vector().iter().map(|x| (-x).sqrt()));
-                        let diag = diag.as_diagonal();
-
-                        eigen.U() * diag * eigen.U().transpose()
-                    }
-                };
-
-                (w_matrix.id().to_owned(), derivative)
-            }
-            Boundary::Set { value, derivative } => {
-                let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
-                let value = converter.scalar_value(value);
-                let derivative = converter.scalar_value(derivative);
-
-                (value * w_matrix.id(), derivative * w_matrix.id())
-            }
-        };
-
-        coupled_chan::cc_propagator::Boundary {
-            r_start,
-            direction,
-            value,
-            derivative,
-        }
-    }
-
-    pub fn scattering(&self, w_matrix: &CollisionWMatrix<impl RCoupling>) -> SMatrixData {
-        let (r_start, r_stop, direction) = self.get_direction();
-        assert!(
-            matches!(direction, Direction::Outwards),
-            "Scattering calculation should be in outward direction"
-        );
+        assert!(r_start < r_stop, "Expected r_start < r_stop");
 
         let mut mat = Matrix::zeros(w_matrix.size(), w_matrix.size());
         w_matrix.value_inplace(r_start, &mut mat);
         let values = mat
             .self_adjoint_eigenvalues(hilbert_space::faer::Side::Lower)
-            .expect("Couled not diagonalize w_matrix at r_start");
+            .expect("Could not diagonalize w_matrix at r_start");
 
         for v in values {
             assert!(
@@ -200,7 +95,7 @@ impl ScatteringCalcInput {
         }
 
         let step = self.step.get_step();
-        let boundary = self.get_boundary(w_matrix);
+        let boundary = self.boundary.get_boundary(&self.r_start, Direction::Outwards, w_matrix);
 
         // todo! simplify, log-derivatives should be together
         match &self.solver {
@@ -325,6 +220,59 @@ pub enum Boundary {
     },
 }
 
+impl Boundary {
+    pub fn get_boundary(
+        &self,
+        r_start: &Scalar<Length>,
+        direction: Direction,
+        w_matrix: &CollisionWMatrix<impl RCoupling>,
+    ) -> coupled_chan::cc_propagator::Boundary<Matrix> {
+        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+        let r = converter.scalar_value(r_start);
+
+        let (value, derivative) = match &self {
+            Boundary::VanishingWkb => {
+                let mut mat = Matrix::zeros(w_matrix.size(), w_matrix.size());
+                w_matrix.value_inplace(r, &mut mat);
+                let eigen = mat
+                    .self_adjoint_eigen(hilbert_space::faer::Side::Lower)
+                    .expect("Could not diagonalize w_matrix at r_start");
+
+                let derivative = match direction {
+                    Direction::Inwards => {
+                        let diag = Col::from_iter(eigen.S().column_vector().iter().map(|x| -x.abs().sqrt()));
+                        let diag = diag.as_diagonal();
+
+                        eigen.U() * diag * eigen.U().transpose()
+                    }
+                    Direction::Outwards => {
+                        let diag = Col::from_iter(eigen.S().column_vector().iter().map(|x| x.abs().sqrt()));
+                        let diag = diag.as_diagonal();
+
+                        eigen.U() * diag * eigen.U().transpose()
+                    }
+                };
+
+                (w_matrix.id().to_owned(), derivative)
+            }
+            Boundary::Set { value, derivative } => {
+                let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+                let value = converter.scalar_value(value);
+                let derivative = converter.scalar_value(derivative);
+
+                (value * w_matrix.id(), derivative * w_matrix.id())
+            }
+        };
+
+        coupled_chan::cc_propagator::Boundary {
+            r_start: r,
+            direction,
+            value,
+            derivative,
+        }
+    }
+}
+
 pub struct ScatteringCalc<P> {
     pub mass: TypedParamId<Scalar<Mass>>,
     phantom: PhantomData<P>,
@@ -346,27 +294,24 @@ impl<P: Problem> SingleCalc for ScatteringCalc<P> {
 
     fn calculate(
         &self,
-        system: &mut System,
-        _basis_recipe: &mut P::BasisRecipe,
-        _parameters: &mut P::Params,
-        calc_input: &mut ScatteringCalcInput,
+        modified: Modified<P, ScatteringCalcInput>,
         _problem: &P,
-    ) -> anyhow::Result<SMatrixData> {
-        let registry = system.param_registry();
+    ) -> impl IntoIterator<Item = anyhow::Result<SMatrixData>> {
+        let registry = modified.system.param_registry();
         let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
 
-        let blocks = system.angular_blocks();
+        let blocks = modified.system.angular_blocks();
         let collision_params = CollisionParams {
             mass: converter.scalar_value(registry.get(self.mass)),
-            energy: converter.scalar_value(&calc_input.energy),
-            entrance: calc_input.entrance,
+            energy: converter.scalar_value(&modified.calc_input.energy),
+            entrance: modified.calc_input.entrance,
         };
         let asymptote = Asymptote::new_angular_blocks(blocks, collision_params);
 
-        let w_matrix = CollisionWMatrix::new(system.coupling(), asymptote);
+        let w_matrix = CollisionWMatrix::new(modified.system.coupling(), asymptote);
 
-        Ok(calc_input.scattering(&w_matrix))
+        [Ok(modified.calc_input.scattering(&w_matrix))]
     }
 }
 
-pub type ScatteringScan<P> = DependenceCalc<ScatteringCalc<P>>;
+pub type ScatteringScan<P, D> = DependenceCalc<ScatteringCalc<P>, D>;
