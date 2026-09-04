@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use cc_math_utils::brent_root_method;
 use coupled_chan::{cc_propagator::{Direction, Propagator, WithNodeCount, WithWaveStorage}, coupling::{Asymptote, CollisionParams, CollisionWMatrix, RCoupling}, multi_channel::log_derivative::{JohnsonLogDerivative, ManolopoulosLogDerivative}};
-use hilbert_space::faer::{self, Mat};
+use hilbert_space::faer;
 use serde::{
     Deserialize,
     Serialize, de::DeserializeOwned,
@@ -160,6 +160,15 @@ pub struct BoundStateCalc<P: Problem, D: ModifyParams<P = P, C = BoundStateCalcI
     phantom: PhantomData<D>
 }
 
+impl<P: Problem, D: ModifyParams<P = P, C = BoundStateCalcInput<D>>> BoundStateCalc<P, D> {
+    pub fn new(mass: TypedParamId<Scalar<Mass>>) -> Self {
+        Self {
+            mass,
+            phantom: PhantomData,
+        }
+    }
+}
+
 impl<P, D> SingleCalc for BoundStateCalc<P, D> 
 where
     P: Problem,
@@ -212,9 +221,12 @@ where
         let states_no = (upper_node - lower_node) as usize;
 
         let mut lower_bounds = vec![None; states_no];
-        lower_bounds[0] = Some(lower_mismatch);
         let mut upper_bounds = vec![None; states_no];
-        upper_bounds[states_no-1] = Some(upper_mismatch);
+        // if no nodes found skip this part 
+        if !lower_bounds.is_empty() {
+            lower_bounds[0] = Some(lower_mismatch);
+            upper_bounds[states_no-1] = Some(upper_mismatch);
+        }
 
         let nodes: Vec<u64> = match modified.calc_input.node_monotony {
             NodeMonotony::Increasing => (lower_node..upper_node).collect(),
@@ -316,7 +328,7 @@ where
 
         let mut upper_bound = upper_bounds
             .iter()
-            .skip(node_index + 1)
+            .skip(node_index)
             .find(|&x| x.is_some())
             .unwrap()
             .as_ref()
@@ -360,11 +372,15 @@ where
                 if let Some(lower) = &mut lower_bounds[index] 
                     && ((lower.parameter < mid_mismatch.parameter) ^ !monotony) {
                     *lower = mid_mismatch.clone()
+                } else if lower_bounds[index].is_none() {
+                    lower_bounds[index] = Some(mid_mismatch.clone())
                 }
 
                 if let Some(upper) = &mut upper_bounds[index - 1] 
                     && ((upper.parameter > mid_mismatch.parameter) ^ !monotony) {
                     *upper = mid_mismatch.clone()
+                } else if upper_bounds[index - 1].is_none() {
+                    upper_bounds[index - 1] = Some(mid_mismatch.clone())
                 }
             }
 
@@ -393,7 +409,7 @@ where
                 let index = (mismatch.nodes_match + target_nodes - mismatch.nodes) as usize;
 
                 if mismatch.nodes > target_nodes {
-                    mismatch.matching_eigenvalues[index - 1]
+                    mismatch.matching_eigenvalues[index]
                 } else {
                     mismatch.matching_eigenvalues[index]
                 }
@@ -411,7 +427,71 @@ where
         min_nodes: u64,
         target_nodes: u64,
     ) -> f64 {
-        todo!()
+        let n = lower_bounds.len();
+        let node_index = (target_nodes - min_nodes) as usize;
+        let p_err = modify_to_f64(&modified.calc_input.dependant_err);
+
+        let mut lower_bound = lower_bounds
+            .iter()
+            .take(node_index + 1)
+            .filter(|&x| x.is_some())
+            .next_back()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .clone();
+
+        let mut upper_bound = upper_bounds
+            .iter()
+            .skip(node_index + 1)
+            .find(|&x| x.is_some())
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .clone();
+
+        let mut p_mod = modified.calc_input.dependant_err.clone();
+        let monotony = upper_bound.parameter > lower_bound.parameter;
+        while (upper_bound.parameter - lower_bound.parameter).abs() > p_err {
+            let field_mid = (upper_bound.parameter + lower_bound.parameter) / 2.;
+
+            modify_from_f64(&mut p_mod, field_mid);
+            p_mod.modify(modified);
+            let w_matrix = self.get_w_matrix(modified.system, modified.calc_input);
+            let mid_mismatch = bound_mismatch(&w_matrix, modified.calc_input, field_mid);
+
+            if mid_mismatch.nodes <= min_nodes
+                && ((lower_bounds[0].as_ref().unwrap().parameter < mid_mismatch.parameter) ^ !monotony) {
+                lower_bounds[0] = Some(mid_mismatch.clone())
+            }
+            else if mid_mismatch.nodes >= min_nodes + n as u64
+                && ((upper_bounds[n - 1].as_ref().unwrap().parameter > mid_mismatch.parameter) ^ !monotony) {
+                upper_bounds[n - 1] = Some(mid_mismatch.clone())
+            } else {
+                let index = (mid_mismatch.nodes - min_nodes) as usize;
+                if let Some(lower) = &mut lower_bounds[index] 
+                    && ((lower.parameter < mid_mismatch.parameter) ^ !monotony) {
+                    *lower = mid_mismatch.clone()
+                } else if lower_bounds[index].is_none() {
+                    lower_bounds[index] = Some(mid_mismatch.clone())
+                }
+
+                if let Some(upper) = &mut upper_bounds[index - 1] 
+                    && ((upper.parameter > mid_mismatch.parameter) ^ !monotony) {
+                    *upper = mid_mismatch.clone()
+                } else if upper_bounds[index - 1].is_none() {
+                    upper_bounds[index - 1] = Some(mid_mismatch.clone())
+                }
+            }
+
+            if mid_mismatch.nodes > target_nodes {
+                upper_bound = mid_mismatch;
+            } else {
+                lower_bound = mid_mismatch;
+            }
+        }
+
+        (upper_bound.parameter + lower_bound.parameter) / 2.
     }
 }
 

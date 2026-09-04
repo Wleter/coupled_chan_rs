@@ -23,7 +23,7 @@ use unit_systems::quantities::{
 
 use crate::{
     OrbitalBasisElements, UNITS_CONVERTER, atom_basis::WithProjection, atom_operators::AtomParams, calculations::{
-        DynCalc, Modified, dependence::{
+        DynCalc, Modified, bound_states::{BoundStateCalc, BoundStateCalcInput}, dependence::{
             DependenceCalc, ModifyParams, scalar_from_value,
         }, levels::EnergyLevelsCalc, scattering::{
             ScatteringCalc, ScatteringCalcInput
@@ -69,6 +69,13 @@ pub fn diatom_scattering_b_field_scan() -> Box<dyn DynCalc<DiatomInBFieldProblem
     Box::new(DependenceCalc::<_, ModsScattering>::new(scattering_calc))
 }
 
+pub fn diatom_bound_states_b_field_scan() -> Box<dyn DynCalc<DiatomInBFieldProblem>> {
+    let ids = DiatomInBFieldParams::ids();
+    let bound_state_calc: BoundStateCalc<_, ModsBoundSearch> = BoundStateCalc::new(ids.red_mass);
+
+    Box::new(DependenceCalc::<_, ModsBoundScan>::new(bound_state_calc))
+}
+
 pub struct DiatomInBFieldProblem {
     pub calculations: HashMap<Box<str>, Box<dyn DynCalc<Self>>>,
 }
@@ -79,6 +86,7 @@ impl DiatomInBFieldProblem {
         calculations.extend([
             ("levels scan".into(), diatom_levels_b_field_scan()),
             ("scattering scan".into(), diatom_scattering_b_field_scan()),
+            ("bound states scan".into(), diatom_bound_states_b_field_scan()),
         ]);
 
         Self {
@@ -342,6 +350,216 @@ impl ModifyParams for ModsScattering {
                 *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
             ModsScattering::RStop(scalar) => 
                 *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ModsBoundScan {
+    MagneticField(Scalar<MagneticField>),
+    Mass(Scalar<Mass>),
+    L(u32),
+    Energy(Scalar<Energy>),
+    PecScaling {
+        configuration: SpinConfiguration,
+        scaling: f64
+    },
+    PecScalingFull(f64),
+    RStart(Scalar<Length>),
+    RStop(Scalar<Length>),
+}
+
+impl ModifyParams for ModsBoundScan {
+    type P = DiatomInBFieldProblem;
+    type C = BoundStateCalcInput<ModsBoundSearch>;
+
+    fn modify(&self, modified: &mut Modified<Self::P, Self::C>) {
+        let ids = DiatomInBFieldParams::ids();
+
+        match self {
+            ModsBoundScan::MagneticField(scalar) => {
+                modified.system.modify_params(new_param_modifications(ids.b_field, scalar.clone()))
+            },
+            ModsBoundScan::Mass(scalar) => {
+                modified.system.modify_params(new_param_modifications(ids.red_mass, scalar.clone()))
+            },
+            ModsBoundScan::Energy(scalar) => {
+                modified.calc_input.energy = scalar.clone()
+            },
+            ModsBoundScan::L(l_new) => {
+                match &mut modified.basis.recipe.l {
+                    crate::OrbitalRecipe::Single(l) => {
+                        *l = *l_new
+                    },
+                    crate::OrbitalRecipe::LMax(l) => {
+                        *l = *l_new
+                    },
+                    crate::OrbitalRecipe::LMaxProjections(l) => {
+                        *l = *l_new
+                    },
+                }
+
+                let spec = Self::P::build(modified.basis, modified.params);
+                *modified.system = System::new(spec, modified.params.registry())
+            },
+            ModsBoundScan::PecScaling { configuration, scaling } => {
+                let scaling = *scaling;
+                let configuration = *configuration;
+                let modify = ParamModifications::new(move |r| {
+                    let scalings = r.get_mut(ids.scalings);
+                    if let Some(s) = scalings.0.get(&configuration) && s.0 == scaling {
+                        param_ids![]
+                    } else {
+                        scalings.0.insert(configuration, Scaling(scaling));
+                        param_ids![ids.scalings.vanish()]
+                    }
+                });
+
+                modified.system.modify_params(modify)
+            },
+            ModsBoundScan::PecScalingFull(scaling) => {
+                let scaling = *scaling;
+                let modify = ParamModifications::new(move |r| {
+                    let scalings = r.get_mut(ids.scalings);
+                    let mut changed = false;
+                    for s in scalings.0.values_mut() {
+                        if s.0 != scaling {
+                            changed = true;
+                            s.0 = scaling
+                        }
+                    }
+
+                    if changed {
+                        param_ids![ids.scalings.vanish()]
+                    } else {
+                        param_ids![]
+                    }
+                });
+
+                modified.system.modify_params(modify)
+            },
+            ModsBoundScan::RStart(scalar) => {
+                modified.calc_input.r_min = scalar.clone()
+            },
+            ModsBoundScan::RStop(scalar) => {
+                modified.calc_input.r_max = scalar.clone()
+            }
+        }
+    }
+
+    fn as_number(&self) -> serde_json::Number {
+        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+
+        match self {
+            ModsBoundScan::MagneticField(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
+            ModsBoundScan::Mass(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
+            ModsBoundScan::L(l) => Number::from_u128(*l as u128).unwrap(),
+            ModsBoundScan::Energy(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
+            ModsBoundScan::PecScaling { configuration: _, scaling } => Number::from_f64(*scaling).unwrap(),
+            ModsBoundScan::PecScalingFull(scaling) => Number::from_f64(*scaling).unwrap(),
+            ModsBoundScan::RStart(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
+            ModsBoundScan::RStop(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
+        }
+    }
+
+    fn from_number(&mut self, number: serde_json::Number) {
+        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+
+        match self {
+            ModsBoundScan::MagneticField(scalar) => 
+                *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
+            ModsBoundScan::Mass(scalar) => 
+                *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
+            ModsBoundScan::L(l) => 
+                *l = number.as_u64().unwrap() as u32,
+            ModsBoundScan::Energy(scalar) => 
+                *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
+            ModsBoundScan::PecScaling { configuration: _, scaling } => 
+                *scaling = number.as_f64().unwrap(),
+            ModsBoundScan::PecScalingFull(scaling) => 
+                *scaling = number.as_f64().unwrap(),
+            ModsBoundScan::RStart(scalar) => 
+                *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
+            ModsBoundScan::RStop(scalar) => 
+                *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ModsBoundSearch {
+    MagneticField(Scalar<MagneticField>),
+    Mass(Scalar<Mass>),
+    Energy(Scalar<Energy>),
+    PecScalingFull(f64),
+}
+
+impl ModifyParams for ModsBoundSearch {
+    type P = DiatomInBFieldProblem;
+    type C = BoundStateCalcInput<Self>;
+
+    fn modify(&self, modified: &mut Modified<Self::P, Self::C>) {
+        let ids = DiatomInBFieldParams::ids();
+
+        match self {
+            ModsBoundSearch::MagneticField(scalar) => {
+                modified.system.modify_params(new_param_modifications(ids.b_field, scalar.clone()))
+            },
+            ModsBoundSearch::Mass(scalar) => {
+                modified.system.modify_params(new_param_modifications(ids.red_mass, scalar.clone()))
+            },
+            ModsBoundSearch::Energy(scalar) => {
+                modified.calc_input.energy = scalar.clone()
+            },
+            ModsBoundSearch::PecScalingFull(scaling) => {
+                let scaling = *scaling;
+                let modify = ParamModifications::new(move |r| {
+                    let scalings = r.get_mut(ids.scalings);
+                    let mut changed = false;
+                    for s in scalings.0.values_mut() {
+                        if s.0 != scaling {
+                            changed = true;
+                            s.0 = scaling
+                        }
+                    }
+
+                    if changed {
+                        param_ids![ids.scalings.vanish()]
+                    } else {
+                        param_ids![]
+                    }
+                });
+
+                modified.system.modify_params(modify)
+            },
+        }
+    }
+
+    fn as_number(&self) -> serde_json::Number {
+        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+
+        match self {
+            ModsBoundSearch::MagneticField(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
+            ModsBoundSearch::Mass(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
+            ModsBoundSearch::Energy(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
+            ModsBoundSearch::PecScalingFull(scaling) => Number::from_f64(*scaling).unwrap(),
+        }
+    }
+
+    fn from_number(&mut self, number: serde_json::Number) {
+        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+
+        match self {
+            ModsBoundSearch::MagneticField(scalar) => 
+                *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
+            ModsBoundSearch::Mass(scalar) => 
+                *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
+            ModsBoundSearch::Energy(scalar) => 
+                *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
+            ModsBoundSearch::PecScalingFull(scaling) => 
+                *scaling = number.as_f64().unwrap(),
         }
     }
 }

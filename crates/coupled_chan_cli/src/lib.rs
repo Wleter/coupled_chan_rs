@@ -23,7 +23,7 @@ pub struct Args {
     input: PathBuf,
 
     /// input file path
-    #[arg(short, long)]
+    #[arg(short = 'd', long)]
     input_defaults: Option<PathBuf>,
 
     /// plugin library file path

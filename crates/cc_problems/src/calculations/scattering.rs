@@ -55,7 +55,6 @@ use crate::{
     },
     parameters::TypedParamId,
     problems::Problem,
-    system::System,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

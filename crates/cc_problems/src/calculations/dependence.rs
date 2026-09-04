@@ -82,7 +82,7 @@ pub struct DependenceCalcInput<C, D> {
     pub grid: Option<Grid<D>>,
 
     #[serde(default)]
-    pub parallel_no: Parallelism,
+    pub parallelism: Parallelism,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -120,7 +120,7 @@ where
         let system = System::new(hamiltonian_spec, input.parameters.registry());
         let save_filepath = &input.calc_parameters.save_filepath.to_string_lossy();
         let save_option = input.calc_parameters.save_option;
-        let parallel_no = input.calc_parameters.parallel_no;
+        let parallel_no = input.calc_parameters.parallelism;
 
         if let Some(grid) = &input.calc_parameters.grid {
             let saver = DataSaver::new(save_filepath, JsonFormat, save_option)?;
