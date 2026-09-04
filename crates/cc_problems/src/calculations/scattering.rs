@@ -137,7 +137,7 @@ impl SMatrixData {
 
         Self {
             s_matrix_vec: vec,
-            momenta: s_matrix.momenta().iter().copied().collect(),
+            momenta: s_matrix.momenta().to_vec(),
             entrance_nr: s_matrix.entrance_number(),
         }
     }

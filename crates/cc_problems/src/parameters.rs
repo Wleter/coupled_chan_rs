@@ -68,7 +68,7 @@ impl<T: std::fmt::Debug> std::fmt::Debug for TypedParamId<T> {
 impl<T> Copy for TypedParamId<T> {}
 impl<T> Clone for TypedParamId<T> {
     fn clone(&self) -> Self {
-        Self(self.0.clone(), self.1.clone())
+        *self
     }
 }
 

@@ -10,7 +10,7 @@ pub trait WFunction {
 }
 
 #[inline]
-pub(self) fn local_wavelength(w_function: f64) -> f64 {
+fn local_wavelength(w_function: f64) -> f64 {
     2. * std::f64::consts::PI / w_function.abs().sqrt()
 }
 
@@ -22,14 +22,14 @@ impl WaveStorage<f64> {
         values.push(wave_recent);
         let rs = if last_first {
             for c in self.connections.iter().skip(1).rev() {
-                wave_recent = c * wave_recent;
+                wave_recent *= c;
                 values.push(wave_recent)
             }
 
             self.rs.iter().rev().copied().collect()
         } else {
             for c in self.connections.iter().take(self.connections.len() - 1) {
-                wave_recent = 1. / c * wave_recent;
+                wave_recent /= c;
                 values.push(wave_recent)
             }
             self.rs.clone()

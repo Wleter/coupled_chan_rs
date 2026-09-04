@@ -68,7 +68,7 @@ impl<'a, W: WFunction, S: Step> LogDerivative<'a, W, S> {
         let w_function_half = self.w_function.value(self.solution.r + h);
         let w_function_new = self.w_function.value(self.solution.r + 2. * h);
 
-        let closed = if w_function_half < 0. { true } else { false };
+        let closed = w_function_half < 0.;
         let k = w_function_half.abs().sqrt();
 
         let y14_0 = if closed { k / f64::tanh(k * h) } else { k / f64::tan(k * h) };

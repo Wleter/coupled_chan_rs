@@ -28,10 +28,10 @@ pub struct SValue {
 
 impl SValue {
     pub fn from_ratio(sol: &Solution<Ratio<f64>>, w_function: &CollisionWFunction<impl Interaction>) -> Self {
-        if let Err(err) = scattering_suitable(w_function.interaction_asymptote_dep()) {
-            if let ScatteringSuitable::WrongDependence = err {
-                panic!("{err}")
-            }
+        if let Err(err) = scattering_suitable(w_function.interaction_asymptote_dep()) 
+            && let ScatteringSuitable::WrongDependence = err
+        {
+            panic!("{err}")
         }
 
         let r_last = sol.r;
@@ -65,10 +65,10 @@ impl SValue {
     }
 
     pub fn from_log_deriv(sol: &Solution<LogDeriv<f64>>, w_function: &CollisionWFunction<impl Interaction>) -> Self {
-        if let Err(err) = scattering_suitable(w_function.interaction_asymptote_dep()) {
-            if let ScatteringSuitable::WrongDependence = err {
-                panic!("{err}")
-            }
+        if let Err(err) = scattering_suitable(w_function.interaction_asymptote_dep()) 
+            && let ScatteringSuitable::WrongDependence = err 
+        {
+            panic!("{err}")
         }
 
         let r = sol.r;

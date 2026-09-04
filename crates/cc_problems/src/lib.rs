@@ -97,9 +97,9 @@ impl From<Spin> for Angular {
     }
 }
 
-impl Into<Spin> for Angular {
-    fn into(self) -> Spin {
-        Spin::new(self.l, self.m)
+impl From<Angular> for Spin {
+    fn from(val: Angular) -> Spin {
+        Spin::new(val.l, val.m)
     }
 }
 
@@ -146,8 +146,7 @@ impl OrbitalRecipe {
             OrbitalRecipe::Single(ang_l) => vec![Angular::new(*ang_l, 0)],
             OrbitalRecipe::LMax(l_max) => angular_range(*l_max),
             OrbitalRecipe::LMaxProjections(l_max) => (0..=*l_max)
-                .map(|l| get_spin_basis(l).into_iter().map(|x| x.into()))
-                .flatten()
+                .flat_map(|l| get_spin_basis(l).into_iter().map(|x| x.into()))
                 .collect(),
         }
     }

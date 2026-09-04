@@ -42,7 +42,7 @@ pub fn energy_units() -> Vec<Unit> {
     let kelvin = CODATA_2022.boltzmann_constant;
     let hz = TAU * CODATA_2022.reduced_planck;
     let cm_inv = 100.0 * hz * CODATA_2022.speed_of_light;
-    let hartree = 4.359_744_722_2060e-18;
+    let hartree = 4.359_744_722_206_0e-18;
 
     vec![
         Unit::new("au", hartree),
@@ -59,7 +59,7 @@ pub fn energy_units() -> Vec<Unit> {
 }
 
 pub fn mass_units() -> Vec<Unit> {
-    vec![Unit::new("m_e", 9.109_383_7139e-31), Unit::new("u", 1.660_539_068_92e-27)]
+    vec![Unit::new("m_e", 9.109_383_713_9e-31), Unit::new("u", 1.660_539_068_92e-27)]
 }
 
 pub fn length_units() -> Vec<Unit> {
@@ -77,8 +77,8 @@ pub fn b_field_units() -> Vec<Unit> {
 
 pub fn magnetic_moment_units() -> Vec<Unit> {
     vec![
-        Unit::new("mu_bohr", 9.274_010_0657e-24),
-        Unit::new("mu_nuclear", 5.050_783_7393e-27),
+        Unit::new("mu_bohr", 9.274_010_065_7e-24),
+        Unit::new("mu_nuclear", 5.050_783_739_3e-27),
     ]
 }
 

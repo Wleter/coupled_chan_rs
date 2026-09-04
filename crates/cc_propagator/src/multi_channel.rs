@@ -22,7 +22,7 @@ pub trait WMatrix<E> {
 }
 
 #[inline]
-pub(self) fn local_wavelength(red_coupling: &Mat<f64>) -> f64 {
+fn local_wavelength(red_coupling: &Mat<f64>) -> f64 {
     let max_g_val = red_coupling
         .diagonal()
         .column_vector()

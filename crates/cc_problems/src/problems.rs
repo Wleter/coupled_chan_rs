@@ -61,8 +61,7 @@ impl AvailableProblems {
                 problem_input.problem_name,
                 self.0.keys()
             ))
-            .map(|s| s.run(problem_input))
-            .flatten()
+            .and_then(|s| s.run(problem_input))
     }
 }
 
@@ -78,7 +77,7 @@ impl<P: Problem> DynProblem for P {
     }
 
     fn schema(&self) -> Value {
-        P::schema(&self)
+        P::schema(self)
     }
 
     fn run(&self, problem_input: ProblemInput) -> Result<()> {
@@ -94,7 +93,7 @@ impl<P: Problem> DynProblem for P {
 
         map.get(&problem_input.calculation)
             .ok_or(anyhow::anyhow!("Did not find {} in {:?}", problem_input.calculation, map.keys()))?
-            .run(input, &self)
+            .run(input, self)
     }
 }
 

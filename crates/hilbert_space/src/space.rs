@@ -71,7 +71,7 @@ impl<Type> Debug for BasisId<Type> {
 impl<Type> Copy for BasisId<Type> {}
 impl<Type> Clone for BasisId<Type> {
     fn clone(&self) -> Self {
-        Self(self.0.clone(), self.1.clone())
+        *self
     }
 }
 
@@ -106,6 +106,7 @@ pub struct SubspaceBasis {
 }
 
 impl SubspaceBasis {
+    #[allow(clippy::new_ret_no_self)]
     pub fn new<Type: DynSubspaceElement>(basis: Vec<Type>) -> SubspaceBasisOf<Type> {
         assert!(!basis.is_empty(), "0 size basis is not allowed");
 

@@ -146,7 +146,7 @@ impl SMatrix {
 
         let momenta = momenta
             .into_iter()
-            .zip(is_open_channel.into_iter())
+            .zip(is_open_channel)
             .filter(|(_, i)| *i)
             .map(|(p, _)| p)
             .collect();
@@ -252,7 +252,7 @@ impl SMatrix {
 
         let momenta = momenta
             .into_iter()
-            .zip(is_open_channel.into_iter())
+            .zip(is_open_channel)
             .filter(|(_, i)| *i)
             .map(|(p, _)| p)
             .collect();

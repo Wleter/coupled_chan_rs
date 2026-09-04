@@ -76,6 +76,7 @@ pub fn diatom_bound_states_b_field_scan() -> Box<dyn DynCalc<DiatomInBFieldProbl
     Box::new(DependenceCalc::<_, ModsBoundScan>::new(bound_state_calc))
 }
 
+#[derive(Default)]
 pub struct DiatomInBFieldProblem {
     pub calculations: HashMap<Box<str>, Box<dyn DynCalc<Self>>>,
 }
@@ -210,7 +211,7 @@ impl ModifyParams for ModsEnergyLevels {
         }
     }
 
-    fn from_number(&mut self, number: serde_json::Number) {
+    fn mut_number(&mut self, number: serde_json::Number) {
         let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
 
         match self {
@@ -288,12 +289,17 @@ impl ModifyParams for ModsScattering {
             ModsScattering::PecScalingFull(scaling) => {
                 let scaling = *scaling;
                 let modify = ParamModifications::new(move |r| {
-                    let scalings = r.get_mut(ids.scalings);
+                    let configurations: Vec<SpinConfiguration> = r.get(ids.pecs).0.keys().copied().collect();
+
                     let mut changed = false;
-                    for s in scalings.0.values_mut() {
-                        if s.0 != scaling {
-                            changed = true;
-                            s.0 = scaling
+                    let scalings = r.get_mut(ids.scalings);
+                    for configuration in configurations {
+                        let overridden = scalings.0.insert(configuration, Scaling(scaling));
+
+                        if let Some(overridden) = overridden && overridden.0 == scaling {
+                            
+                        } else {
+                            changed = true
                         }
                     }
 
@@ -330,7 +336,7 @@ impl ModifyParams for ModsScattering {
         }
     }
 
-    fn from_number(&mut self, number: serde_json::Number) {
+    fn mut_number(&mut self, number: serde_json::Number) {
         let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
 
         match self {
@@ -421,12 +427,17 @@ impl ModifyParams for ModsBoundScan {
             ModsBoundScan::PecScalingFull(scaling) => {
                 let scaling = *scaling;
                 let modify = ParamModifications::new(move |r| {
-                    let scalings = r.get_mut(ids.scalings);
+                    let configurations: Vec<SpinConfiguration> = r.get(ids.pecs).0.keys().copied().collect();
+
                     let mut changed = false;
-                    for s in scalings.0.values_mut() {
-                        if s.0 != scaling {
-                            changed = true;
-                            s.0 = scaling
+                    let scalings = r.get_mut(ids.scalings);
+                    for configuration in configurations {
+                        let overridden = scalings.0.insert(configuration, Scaling(scaling));
+
+                        if let Some(overridden) = overridden && overridden.0 == scaling {
+                            
+                        } else {
+                            changed = true
                         }
                     }
 
@@ -463,7 +474,7 @@ impl ModifyParams for ModsBoundScan {
         }
     }
 
-    fn from_number(&mut self, number: serde_json::Number) {
+    fn mut_number(&mut self, number: serde_json::Number) {
         let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
 
         match self {
@@ -516,12 +527,17 @@ impl ModifyParams for ModsBoundSearch {
             ModsBoundSearch::PecScalingFull(scaling) => {
                 let scaling = *scaling;
                 let modify = ParamModifications::new(move |r| {
-                    let scalings = r.get_mut(ids.scalings);
+                    let configurations: Vec<SpinConfiguration> = r.get(ids.pecs).0.keys().copied().collect();
+
                     let mut changed = false;
-                    for s in scalings.0.values_mut() {
-                        if s.0 != scaling {
-                            changed = true;
-                            s.0 = scaling
+                    let scalings = r.get_mut(ids.scalings);
+                    for configuration in configurations {
+                        let overridden = scalings.0.insert(configuration, Scaling(scaling));
+
+                        if let Some(overridden) = overridden && overridden.0 == scaling {
+                            
+                        } else {
+                            changed = true
                         }
                     }
 
@@ -548,7 +564,7 @@ impl ModifyParams for ModsBoundSearch {
         }
     }
 
-    fn from_number(&mut self, number: serde_json::Number) {
+    fn mut_number(&mut self, number: serde_json::Number) {
         let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
 
         match self {

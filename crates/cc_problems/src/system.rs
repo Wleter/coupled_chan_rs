@@ -143,10 +143,10 @@ impl System {
 
         for m in modified {
             for (i, ops) in specs.iter().enumerate() {
-                if let Some(_) = ops.build_params().iter().find(|x| *x == m) {
+                if ops.build_params().iter().find(|x| *x == m).is_some() {
                     rebuild_queue.insert(i);
                 }
-                if let Some(_) = ops.coupling_params().iter().find(|x| *x == m) {
+                if ops.coupling_params().iter().find(|x| *x == m).is_some() {
                     coupling_queue.insert(i);
                 }
             }
@@ -170,10 +170,10 @@ impl System {
 
         for m in modified {
             for (i, ops) in specs.iter().enumerate() {
-                if let Some(_) = ops.build_params().iter().find(|x| *x == m) {
+                if ops.build_params().iter().find(|x| *x == m).is_some() {
                     rebuild_queue.insert(i);
                 }
-                if let Some(_) = ops.scaling_params().iter().find(|x| *x == m) {
+                if ops.scaling_params().iter().find(|x| *x == m).is_some() {
                     scaling_queue.insert(i);
                 }
             }
@@ -427,7 +427,7 @@ pub fn new_param_modifications<T: PartialEq + CloneAny>(
     ParamModifications { modification }
 }
 
-impl<'a, F: FnOnce(&mut ParameterRegistry) -> ParamIds + 'static> ParamModifications<F> {
+impl<F: FnOnce(&mut ParameterRegistry) -> ParamIds + 'static> ParamModifications<F> {
     pub fn new(modification: F) -> Self {
         Self { modification }
     }

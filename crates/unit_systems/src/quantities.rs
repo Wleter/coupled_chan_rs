@@ -126,7 +126,7 @@ pub mod phys_quantities {
     phys_quantity!(ElectricDipole, Dimension::ELECTRIC_DIPOLE);
 }
 
-const COMPOUND_ERROR_MSG: &'static str = "Expected unit of type: \"A * B^n / C^(n/m)\" in order specified by the quantity";
+const COMPOUND_ERROR_MSG: &str = "Expected unit of type: \"A * B^n / C^(n/m)\" in order specified by the quantity";
 
 #[derive(Clone, Copy, Default, PartialEq)]
 pub struct Prod<L: PhysQuantity, R: PhysQuantity>(pub L, pub R);

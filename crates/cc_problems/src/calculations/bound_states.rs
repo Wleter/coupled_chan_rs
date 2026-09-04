@@ -58,9 +58,9 @@ pub enum LogDerivSolver {
     ManolopoulosLogDeriv,
 }
 
-impl Into<CoupledChanSolver> for LogDerivSolver {
-    fn into(self) -> CoupledChanSolver {
-        match self {
+impl From<LogDerivSolver> for CoupledChanSolver {
+    fn from(val: LogDerivSolver) -> Self {
+        match val {
             LogDerivSolver::JohnsonLogDeriv => CoupledChanSolver::JohnsonLogDeriv,
             LogDerivSolver::ManolopoulosLogDeriv => CoupledChanSolver::ManolopoulosLogDeriv,
         }
@@ -319,8 +319,7 @@ where
         let mut lower_bound = lower_bounds
             .iter()
             .take(node_index + 1)
-            .filter(|&x| x.is_some())
-            .next_back()
+            .rfind(|&x| x.is_some())
             .unwrap()
             .as_ref()
             .unwrap()
@@ -407,12 +406,7 @@ where
                 let mismatch = bound_mismatch(&w_matrix, modified.calc_input, x);
 
                 let index = (mismatch.nodes_match + target_nodes - mismatch.nodes) as usize;
-
-                if mismatch.nodes > target_nodes {
-                    mismatch.matching_eigenvalues[index]
-                } else {
-                    mismatch.matching_eigenvalues[index]
-                }
+                mismatch.matching_eigenvalues[index]
             },
             p_err,
             max_iter,
@@ -434,8 +428,7 @@ where
         let mut lower_bound = lower_bounds
             .iter()
             .take(node_index + 1)
-            .filter(|&x| x.is_some())
-            .next_back()
+            .rfind(|&x| x.is_some())
             .unwrap()
             .as_ref()
             .unwrap()
@@ -644,7 +637,7 @@ fn bound_wave(w_matrix: &CollisionWMatrix<impl RCoupling>, input: &BoundStateCal
 }
 
 fn modify_from_f64<D: ModifyParams>(modify: &mut D, value: f64) {
-    modify.from_number(Number::from_f64(value).unwrap())
+    modify.mut_number(Number::from_f64(value).unwrap())
 }
 
 fn modify_to_f64<D: ModifyParams>(value: &D) -> f64 {

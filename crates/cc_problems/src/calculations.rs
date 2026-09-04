@@ -26,11 +26,11 @@ pub trait DynCalc<P: Problem>: Send + Sync {
 
 impl<C: Calc<P = P>, P: Problem> DynCalc<P> for C {
     fn name(&self) -> String {
-        C::name(&self)
+        C::name(self)
     }
 
     fn input_schema(&self) -> Value {
-        C::input_schema(&self)
+        C::input_schema(self)
     }
 
     fn run(&self, input: TypedProblemInput<P::BasisRecipe, P::Params, Value>, problem: &P) -> Result<()> {
@@ -43,7 +43,7 @@ impl<C: Calc<P = P>, P: Problem> DynCalc<P> for C {
             workers: input.workers,
         };
 
-        C::run(&self, input, problem)
+        C::run(self, input, problem)
     }
 }
 

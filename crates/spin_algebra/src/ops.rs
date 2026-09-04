@@ -51,7 +51,7 @@ pub fn triangle_condition(s1: impl SpinMagLike, s2: impl SpinMagLike, s3: impl S
     let ds2 = s2.s().double_value();
     let ds3 = s3.s().double_value();
 
-    return (ds3 <= ds1 + ds2) && (ds1 <= ds2 + ds3) && (ds2 <= ds3 + ds1) && (ds1 + ds2 + ds3) % 2 == 0;
+    (ds3 <= ds1 + ds2) && (ds1 <= ds2 + ds3) && (ds2 <= ds3 + ds1) && (ds1 + ds2 + ds3).is_multiple_of(2)
 }
 
 ///Returns right hand side of the equation

@@ -37,7 +37,7 @@ pub trait ModifyParams: Send + Sync + DeserializeOwned {
 
     fn modify(&self, modified: &mut Modified<Self::P, Self::C>);
     fn as_number(&self) -> Number;
-    fn from_number(&mut self, number: Number);
+    fn mut_number(&mut self, number: Number);
 }
 
 /// converts value in target unit system to some scalar with unit.
@@ -205,7 +205,7 @@ impl<D: ModifyParams + Clone> Grid<D> {
 
                 let vec = num_linspace(start.as_number(), end.as_number(), *n);
                 vec.into_iter().map(|x| {
-                    d.from_number(x);
+                    d.mut_number(x);
                     d.clone()
                 }).collect()
             },
@@ -214,7 +214,7 @@ impl<D: ModifyParams + Clone> Grid<D> {
 
                 let vec = num_logspace(start.as_number(), end.as_number(), *n);
                 vec.into_iter().map(|x| {
-                    d.from_number(x);
+                    d.mut_number(x);
                     d.clone()
                 }).collect()
             }
@@ -278,7 +278,7 @@ pub fn num_logspace(start: Number, end: Number, n: usize) -> Vec<Number> {
 
         for i in 0..(n as u32) {
             let value = 10u64.pow(start + i * step);
-            if value > (end_num as u64) {
+            if value > end_num {
                 break;
             }
 

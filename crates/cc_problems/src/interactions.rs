@@ -259,7 +259,7 @@ impl PecScalings {
     pub fn scale_all(&mut self, value: Value) -> bool {
         let value: f64 = serde_json::from_value(value).expect("Expecting pec scaling to be of type f64");
         let mut changed = false;
-        for (_, s) in self.0.iter_mut() {
+        for s in self.0.values_mut() {
             if s.0 != value {
                 s.0 = value;
                 changed = true;
