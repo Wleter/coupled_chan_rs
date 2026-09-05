@@ -15,7 +15,7 @@ use crate::WaveStorage;
 pub type Matrix = Mat<f64>;
 
 /// Trait for representing W matrix
-/// in an equation y''(x) + W(x) y(x) = 0
+/// in an equation y''(x) = W(x) y(x)
 pub trait WMatrix<E> {
     fn size(&self) -> usize;
     fn value_inplace(&self, r: f64, value: &mut Mat<E>);

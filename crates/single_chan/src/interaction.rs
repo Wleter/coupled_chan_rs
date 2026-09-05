@@ -129,7 +129,7 @@ impl<I: Interaction> CollisionWFunction<I> {
 
 impl<I: Interaction> WFunction for CollisionWFunction<I> {
     fn value(&self, r: f64) -> f64 {
-        self.value_interaction(r) + self.centrifugal.value(r)
+        self.value_interaction(r) - self.centrifugal.value(r)
     }
 }
 

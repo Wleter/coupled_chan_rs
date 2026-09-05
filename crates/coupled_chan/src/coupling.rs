@@ -350,6 +350,10 @@ impl RedMultiCentrifugal {
     pub fn value_inplace_add(&self, r: f64, channels: &mut Matrix) {
         zip!(channels.as_mut(), self.mask.as_ref()).for_each(|unzip!(o, m)| *o += m / (r * r));
     }
+
+    pub fn value_inplace_sub(&self, r: f64, channels: &mut Matrix) {
+        zip!(channels.as_mut(), self.mask.as_ref()).for_each(|unzip!(o, m)| *o -= m / (r * r));
+    }
 }
 
 #[derive(Clone)]
@@ -390,7 +394,7 @@ impl<V: RCoupling> WMatrix<f64> for CollisionWMatrix<V> {
         zip!(value.as_mut(), self.id.as_ref())
             .for_each(|unzip!(c, i)| *c = 2.0 * self.asymptote.collision_params.mass * (self.asymptote.energy * i - *c));
 
-        self.asymptote.centrifugal.value_inplace_add(r, value);
+        self.asymptote.centrifugal.value_inplace_sub(r, value);
     }
 
     fn size(&self) -> usize {

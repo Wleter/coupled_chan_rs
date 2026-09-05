@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use coupled_chan::coupling::RCoupling;
+use coupled_chan::{coupling::{Asymptote, CollisionParams, CollisionWMatrix}, multi_channel::WMatrix};
 use serde::Deserialize;
 use unit_systems::quantities::{Scalar, phys_quantities::Length};
 
@@ -36,10 +36,20 @@ impl<P: Problem> SingleCalc for AdiabatsCalc<P> {
     ) -> impl IntoIterator<Item = anyhow::Result<Self::Data>> {
         let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
 
-        let mut blocks = modified.system.angular_blocks().as_matrix();
-        let interaction = modified.system.coupling();
-        interaction.value_inplace_add(converter.scalar_value(&modified.calc_input.distance), &mut blocks);
-        let values = blocks.self_adjoint_eigenvalues(hilbert_space::faer::Side::Lower)
+        let blocks = modified.system.angular_blocks();
+        let collision_params = CollisionParams {
+            mass: 0.5,
+            energy: 0.0,
+            entrance: 0,
+        };
+        let mut asymptote = Asymptote::new_angular_blocks(blocks, collision_params);
+        asymptote.energy = 0.0;
+
+        let w_matrix = CollisionWMatrix::new(modified.system.coupling(), asymptote);
+
+        let mut blocks = w_matrix.id().clone();
+        w_matrix.value_inplace(converter.scalar_value(&modified.calc_input.distance), &mut blocks);
+        let values = (-blocks).self_adjoint_eigenvalues(hilbert_space::faer::Side::Lower)
             .expect("Could not diagonalize adiabats");
 
         [Ok(EnergyLevelsData(values))]

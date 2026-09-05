@@ -4,7 +4,7 @@ pub mod log_derivative;
 pub mod numerov;
 
 /// Trait for representing W function
-/// in an equation y''(x) + W(x) y(x) = 0
+/// in an equation y''(x) = W(x) y(x)
 pub trait WFunction {
     fn value(&self, r: f64) -> f64;
 }
