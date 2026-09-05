@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use coupled_chan::coupling::RCoupling;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use unit_systems::quantities::{Scalar, phys_quantities::Length};
 
 use crate::{
@@ -12,7 +12,8 @@ use crate::{
 
 pub struct AdiabatsCalc<P>(PhantomData<P>);
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Default, Deserialize)]
+#[serde(default)]
 pub struct AdiabatsInput {
     pub distance: Scalar<Length>
 }
