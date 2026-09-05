@@ -1,7 +1,5 @@
 use std::{
-    collections::HashMap,
-    fmt::Display,
-    path::PathBuf,
+    collections::HashMap, fmt::Display, fs::File, path::PathBuf
 };
 
 use cc_derive::Parameters;
@@ -14,8 +12,7 @@ use coupled_chan::{
         lennard_jones,
     },
     interpolated::{
-        Transitioned,
-        sin_transition,
+        InterpolatedPotential, Transitioned, sin_transition, spline_interpolation::SplineBuilder
     },
     morse_long_range,
 };
@@ -68,7 +65,7 @@ impl<const N: i8> C_N<N> {
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize, Parameters)]
 #[serde(default)]
-pub struct Tail {
+pub struct Analytic {
     pub c3: C_N<3>,
     pub c4: C_N<4>,
     pub c5: C_N<3>,
@@ -81,7 +78,7 @@ pub struct Tail {
     pub c12: C_N<10>,
 }
 
-impl Tail {
+impl Analytic {
     pub fn interaction(&self) -> Composite<PowerLaw> {
         let laws = vec![
             self.c3.interaction(),
@@ -122,25 +119,10 @@ impl LennardJones {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Analytic {
-    tail: Tail,
-    wall: Wall,
-}
-
-impl Analytic {
-    pub fn interaction(&self) -> Composite<PowerLaw> {
-        let mut tail = self.tail.interaction();
-        tail.add_component(self.wall.c12.interaction());
-
-        tail
-    }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MorseLongRange {
     d0: Scalar<Energy>,
     r_e: Scalar<Length>,
-    tail: Tail,
+    tail: Analytic,
 
     p: Option<i32>,
     q: Option<i32>,
@@ -169,12 +151,41 @@ impl MorseLongRange {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Spline(PathBuf, Option<usize>);
+pub struct Spline(PathBuf, #[serde(default)]Option<u32>);
+
+#[derive(Deserialize)]
+pub struct PotentialData {
+    distance_units: Box<str>,
+    value_units: Box<str>,
+    distances: Vec<f64>,
+    values: Vec<f64>,
+}
+
+impl Spline {
+    pub fn interaction(&self) -> InterpolatedPotential {
+        let file = File::open(&self.0).expect("Could not open potential data");
+        let data: PotentialData = serde_json::from_reader(file).expect("Could not parse potential data");
+
+        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+        let distance_conversion = converter.scalar_value(&Scalar::new(1.0, Length, &data.distance_units));
+        let value_conversion = converter.scalar_value(&Scalar::new(1.0, Energy, &data.value_units));
+        let distances: Vec<f64> = data.distances.into_iter().map(|x| x * distance_conversion).collect();
+        let values: Vec<f64> = data.values.into_iter().map(|x| x * value_conversion).collect();
+
+        let mut builder = SplineBuilder::new(&distances, &values);
+        if let Some(k) = self.1 {
+            builder = builder.with_degree(k)
+        }
+
+        InterpolatedPotential(builder.build())
+    }
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RKHSInterpolation(PathBuf);
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum SwitchingRegion {
     SinTransition,
 }
@@ -202,7 +213,7 @@ impl Interactions {
             Interactions::LennardJones(lenard_jones) => DynInteraction::new(lenard_jones.interaction()),
             Interactions::Analytic(analytic) => DynInteraction::new(analytic.interaction()),
             Interactions::MorseLongRange(morse_long_range) => DynInteraction::new(morse_long_range.interaction()),
-            Interactions::Spline(_spline) => todo!(),
+            Interactions::Spline(spline) => DynInteraction::new(spline.interaction()),
             Interactions::RKHSInterpolation(_rkhs_interpolation) => todo!(),
             Interactions::Transition {
                 near,
