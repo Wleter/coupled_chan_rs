@@ -335,10 +335,10 @@ where
             .clone();
 
         let index = (lower_bound.nodes_match + target_nodes - lower_bound.nodes) as usize;
-        let mut lower_eigenvalue = lower_bound.matching_eigenvalues.get(index);
+        let mut lower_eigenvalue = lower_bound.matching_eigenvalues.get(index).filter(|x| **x > 0.0);
 
         let index = (upper_bound.nodes_match + target_nodes - upper_bound.nodes) as usize;
-        let mut upper_eigenvalue = upper_bound.matching_eigenvalues.get(index);
+        let mut upper_eigenvalue = upper_bound.matching_eigenvalues.get(index).filter(|x| **x < 0.0);
 
         let monotony = upper_bound.parameter > lower_bound.parameter;
 
@@ -383,16 +383,16 @@ where
                 }
             }
 
-            if mid_mismatch.nodes > target_nodes {
-                upper_bound = mid_mismatch;
-
-                let index = (upper_bound.nodes_match + target_nodes - upper_bound.nodes) as usize;
-                upper_eigenvalue = upper_bound.matching_eigenvalues.get(index);
-            } else {
+            if mid_mismatch.nodes <= target_nodes {
                 lower_bound = mid_mismatch;
 
                 let index = (lower_bound.nodes_match + target_nodes - lower_bound.nodes) as usize;
-                lower_eigenvalue = lower_bound.matching_eigenvalues.get(index);
+                lower_eigenvalue = lower_bound.matching_eigenvalues.get(index).filter(|x| **x > 0.0);
+            } else {
+                upper_bound = mid_mismatch;
+
+                let index = (upper_bound.nodes_match + target_nodes - upper_bound.nodes) as usize;
+                upper_eigenvalue = upper_bound.matching_eigenvalues.get(index).filter(|x| **x < 0.0);
             }
         }
 
@@ -406,6 +406,10 @@ where
                 let mismatch = bound_mismatch(&w_matrix, modified.calc_input, x);
 
                 let index = (mismatch.nodes_match + target_nodes - mismatch.nodes) as usize;
+
+                if index >= mismatch.matching_eigenvalues.len() {
+                    println!("{:?} {} {x}", mismatch, target_nodes)
+                }
                 mismatch.matching_eigenvalues[index]
             },
             p_err,
