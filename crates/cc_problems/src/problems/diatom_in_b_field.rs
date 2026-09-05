@@ -23,7 +23,7 @@ use unit_systems::quantities::{
 
 use crate::{
     OrbitalBasisElements, UNITS_CONVERTER, atom_basis::WithProjection, atom_operators::AtomParams, calculations::{
-        DynCalc, Modified, bound_states::{BoundStateCalc, BoundStateCalcInput}, dependence::{
+        DynCalc, Modified, adiabats::{AdiabatsCalc, AdiabatsInput}, bound_states::{BoundStateCalc, BoundStateCalcInput}, dependence::{
             DependenceCalc, ModifyParams, scalar_from_value,
         }, levels::EnergyLevelsCalc, scattering::{
             ScatteringCalc, ScatteringCalcInput
@@ -45,8 +45,10 @@ pub struct DiatomInBFieldParams {
     #[serde(default)]
     pub b_field: Scalar<MagneticField>,
     #[parameter(nested)]
+    #[serde(default)]
     pub atom_a: AtomParams,
     #[parameter(nested)]
+    #[serde(default)]
     pub atom_b: AtomParams,
 
     pub red_mass: Scalar<Mass>,
@@ -60,6 +62,12 @@ pub fn diatom_levels_b_field_scan() -> Box<dyn DynCalc<DiatomInBFieldProblem>> {
     let levels_calc = EnergyLevelsCalc::default();
 
     Box::new(DependenceCalc::<_, ModsEnergyLevels>::new(levels_calc))
+}
+
+pub fn diatom_adiabats_b_field_scan() -> Box<dyn DynCalc<DiatomInBFieldProblem>> {
+    let adiabats_calc = AdiabatsCalc::default();
+
+    Box::new(DependenceCalc::<_, ModsAdiabatsScan>::new(adiabats_calc))
 }
 
 pub fn diatom_scattering_b_field_scan() -> Box<dyn DynCalc<DiatomInBFieldProblem>> {
@@ -86,6 +94,7 @@ impl DiatomInBFieldProblem {
         let mut calculations: HashMap<Box<str>, Box<dyn DynCalc<Self>>> = HashMap::default();
         calculations.extend([
             ("levels scan".into(), diatom_levels_b_field_scan()),
+            ("adiabats scan".into(), diatom_adiabats_b_field_scan()),
             ("scattering scan".into(), diatom_scattering_b_field_scan()),
             ("bound states scan".into(), diatom_bound_states_b_field_scan()),
         ]);
@@ -216,6 +225,46 @@ impl ModifyParams for ModsEnergyLevels {
 
         match self {
             ModsEnergyLevels::MagneticField(scalar) => {
+                *scalar = scalar_from_value(&converter, number.as_f64().unwrap())
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum ModsAdiabatsScan {
+    Distance(Scalar<Length>)
+}
+
+impl ModifyParams for ModsAdiabatsScan {
+    type P = DiatomInBFieldProblem;
+    type C = AdiabatsInput;
+
+    fn modify(
+        &self, 
+        modified: &mut Modified<Self::P, Self::C>
+    ) {
+        match self {
+            ModsAdiabatsScan::Distance(scalar) => {
+                modified.calc_input.distance = scalar.clone()
+            },
+        }
+    }
+
+    fn as_number(&self) -> serde_json::Number {
+        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+
+        match self {
+            ModsAdiabatsScan::Distance(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
+        }
+    }
+
+    fn mut_number(&mut self, number: serde_json::Number) {
+        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+
+        match self {
+            ModsAdiabatsScan::Distance(scalar) => {
                 *scalar = scalar_from_value(&converter, number.as_f64().unwrap())
             },
         }

@@ -2,6 +2,7 @@ pub mod bound_states;
 pub mod dependence;
 pub mod levels;
 pub mod scattering;
+pub mod adiabats;
 
 use anyhow::Result;
 use serde::{
