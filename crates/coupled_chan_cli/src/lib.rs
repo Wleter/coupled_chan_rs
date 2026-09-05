@@ -9,7 +9,7 @@ use std::{
     },
 };
 use json_comments::StripComments;
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -21,10 +21,6 @@ pub struct Args {
     /// input file path
     #[arg(short, long)]
     input: PathBuf,
-
-    /// input file path
-    #[arg(short = 'd', long)]
-    input_defaults: Option<PathBuf>,
 
     /// plugin library file path
     #[arg(short, long)]
@@ -41,12 +37,22 @@ pub struct Args {
 
 impl Args {
     pub fn run_problems(self, problems: AvailableProblems) -> Result<()> {
-        let defaults = self.input_defaults.map(|path| parse_input(&path));
-        let input = if let Some(defaults) = defaults {
-            merge(defaults, parse_input(&self.input))
-        } else {
-            parse_input(&self.input)
-        };
+        let mut input = parse_input(&self.input);
+        if let Some(defaults) = input.get("defaults") {
+            let relative_path: PathBuf = serde_json::from_value(defaults.clone())
+                .expect("could not convert defaults to relative_path");
+
+            let path = if let Some(parent) = self.input.parent() {
+                let mut path = parent.to_owned();
+                path.push(relative_path);
+                path
+            } else {
+                relative_path
+            };
+
+            let defaults = parse_input(&path);
+            input = merge(defaults, input)
+        }
 
         problems.run(into_problem_input(input, self.worker, self.workers)?)
     }
@@ -55,7 +61,9 @@ impl Args {
 pub fn parse_input(path: impl AsRef<Path>) -> Value {
     let path = path.as_ref();
     if let Some(ext) = path.extension() {
-        let read = std::fs::read_to_string(path).unwrap();
+        let read = std::fs::read_to_string(path)
+            .with_context(|| format!("Could not read {}", path.to_string_lossy()))
+            .unwrap();
         match ext.to_str().unwrap() {
             "toml" => toml::from_str(&read).unwrap(),
             "json" | "jsonc" => serde_json::from_reader(StripComments::new(read.as_bytes())).unwrap(),
@@ -107,7 +115,10 @@ fn merge_inplace(default: &mut Value, overrides: Value) {
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct ProgramInput {
+    #[allow(unused)]
+    defaults: PathBuf,
     problem_name: Box<str>,
     basis_recipe: Value,
     parameters: Value,
