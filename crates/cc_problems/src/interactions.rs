@@ -74,8 +74,8 @@ pub struct Analytic {
     pub c8: C_N<8>,
     pub c9: C_N<9>,
     pub c10: C_N<10>,
-    pub c11: C_N<10>,
-    pub c12: C_N<10>,
+    pub c11: C_N<11>,
+    pub c12: C_N<12>,
 }
 
 impl Analytic {
