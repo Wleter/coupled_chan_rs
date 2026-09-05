@@ -98,7 +98,9 @@ pub struct BoundStateData {
     pub nodes: u64,
     pub parameter: f64,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub occupations: Option<Vec<f64>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub wave_function: Option<WaveFunction>,
 }
 
@@ -334,11 +336,19 @@ where
             .unwrap()
             .clone();
 
-        let index = (lower_bound.nodes_match + target_nodes - lower_bound.nodes) as usize;
-        let mut lower_eigenvalue = lower_bound.matching_eigenvalues.get(index).filter(|x| **x > 0.0);
+        let index = lower_bound.nodes_match as i64 + target_nodes as i64 - lower_bound.nodes as i64;
+        let mut lower_eigenvalue = if index >= 0 {
+            lower_bound.matching_eigenvalues.get(index as usize).copied().filter(|x| *x > 0.0)
+        } else {
+            None
+        };
 
-        let index = (upper_bound.nodes_match + target_nodes - upper_bound.nodes) as usize;
-        let mut upper_eigenvalue = upper_bound.matching_eigenvalues.get(index).filter(|x| **x < 0.0);
+        let index = upper_bound.nodes_match as i64 + target_nodes as i64 - upper_bound.nodes as i64;
+        let mut upper_eigenvalue = if index >= 0 {
+            upper_bound.matching_eigenvalues.get(index as usize).copied().filter(|x| *x < 0.0)
+        } else {
+            None
+        };
 
         let monotony = upper_bound.parameter > lower_bound.parameter;
 
@@ -386,19 +396,27 @@ where
             if mid_mismatch.nodes <= target_nodes {
                 lower_bound = mid_mismatch;
 
-                let index = (lower_bound.nodes_match + target_nodes - lower_bound.nodes) as usize;
-                lower_eigenvalue = lower_bound.matching_eigenvalues.get(index).filter(|x| **x > 0.0);
+                let index = lower_bound.nodes_match as i64 + target_nodes as i64 - lower_bound.nodes as i64;
+                lower_eigenvalue = if index >= 0 {
+                    lower_bound.matching_eigenvalues.get(index as usize).copied().filter(|x| *x > 0.0)
+                } else {
+                    None
+                };
             } else {
                 upper_bound = mid_mismatch;
 
-                let index = (upper_bound.nodes_match + target_nodes - upper_bound.nodes) as usize;
-                upper_eigenvalue = upper_bound.matching_eigenvalues.get(index).filter(|x| **x < 0.0);
+                let index = upper_bound.nodes_match as i64 + target_nodes as i64 - upper_bound.nodes as i64;
+                upper_eigenvalue = if index >= 0 {
+                    upper_bound.matching_eigenvalues.get(index as usize).copied().filter(|x| *x < 0.0)
+                } else {
+                    None
+                };
             }
         }
 
         Ok(brent_root_method(
-            [lower_bound.parameter, *lower_eigenvalue.unwrap()],
-            [upper_bound.parameter, *upper_eigenvalue.unwrap()],
+            [lower_bound.parameter, lower_eigenvalue.unwrap()],
+            [upper_bound.parameter, upper_eigenvalue.unwrap()],
             |x| {
                 modify_from_f64(&mut p_mod, x);
                 p_mod.modify(modified);
@@ -406,10 +424,6 @@ where
                 let mismatch = bound_mismatch(&w_matrix, modified.calc_input, x);
 
                 let index = (mismatch.nodes_match + target_nodes - mismatch.nodes) as usize;
-
-                if index >= mismatch.matching_eigenvalues.len() {
-                    println!("{:?} {} {x}", mismatch, target_nodes)
-                }
                 mismatch.matching_eigenvalues[index]
             },
             p_err,
