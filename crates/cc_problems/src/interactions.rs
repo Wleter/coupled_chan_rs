@@ -197,7 +197,7 @@ pub enum Interactions {
     Analytic(Analytic),
     MorseLongRange(MorseLongRange),
     Spline(Spline),
-    RKHSInterpolation(RKHSInterpolation),
+    RkhsInterpolation(RKHSInterpolation),
     Transition {
         near: Box<Interactions>,
         far: Box<Interactions>,
@@ -214,7 +214,7 @@ impl Interactions {
             Interactions::Analytic(analytic) => DynInteraction::new(analytic.interaction()),
             Interactions::MorseLongRange(morse_long_range) => DynInteraction::new(morse_long_range.interaction()),
             Interactions::Spline(spline) => DynInteraction::new(spline.interaction()),
-            Interactions::RKHSInterpolation(_rkhs_interpolation) => todo!(),
+            Interactions::RkhsInterpolation(_rkhs_interpolation) => todo!(),
             Interactions::Transition {
                 near,
                 far,

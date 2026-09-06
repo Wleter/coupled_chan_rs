@@ -119,15 +119,13 @@ impl WaveFunction {
     pub fn normalize(mut self) -> Self {
         let normalization: f64 = self
             .distances
-            .windows(2)
-            .zip(self.values.windows(2))
-            .map(|(x, f)| unsafe {
-                let f1 = f.get_unchecked(1);
-                let f0 = f.get_unchecked(0);
+            .array_windows()
+            .zip(self.values.array_windows())
+            .map(|([x0, x1], [f0, f1])| {
                 let f1_norm = f1.iter().fold(0., |acc, x| acc + x * x);
                 let f0_norm = f0.iter().fold(0., |acc, x| acc + x * x);
 
-                0.5 * (x.get_unchecked(1) - x.get_unchecked(0)) * (f1_norm + f0_norm)
+                0.5 * (x1 - x0) * (f1_norm + f0_norm)
             })
             .sum();
 
@@ -596,13 +594,13 @@ fn bound_wave(w_matrix: &CollisionWMatrix<impl RCoupling>, input: &BoundStateCal
 
             let init_wave = eigen.U().col((target_nodes - nodes) as usize);
 
-            let wave_in = solver_in.get_wave_storage().as_ref().unwrap().reconstruct(init_wave, false);
+            let wave_in = solver_in.get_wave_storage().as_ref().unwrap().reconstruct(init_wave, true);
             let wave_in = WaveFunction {
                 distances: wave_in.0,
                 values: wave_in.1,
             };
 
-            let wave_out = solver_out.get_wave_storage().as_ref().unwrap().reconstruct(init_wave, false);
+            let wave_out = solver_out.get_wave_storage().as_ref().unwrap().reconstruct(init_wave, true);
             let mut wave_out = WaveFunction {
                 distances: wave_out.0,
                 values: wave_out.1,
@@ -633,13 +631,13 @@ fn bound_wave(w_matrix: &CollisionWMatrix<impl RCoupling>, input: &BoundStateCal
 
             let init_wave = eigen.U().col((target_nodes - nodes) as usize);
 
-                        let wave_in = solver_in.get_wave_storage().as_ref().unwrap().reconstruct(init_wave, false);
+            let wave_in = solver_in.get_wave_storage().as_ref().unwrap().reconstruct(init_wave, true);
             let wave_in = WaveFunction {
                 distances: wave_in.0,
                 values: wave_in.1,
             };
 
-            let wave_out = solver_out.get_wave_storage().as_ref().unwrap().reconstruct(init_wave, false);
+            let wave_out = solver_out.get_wave_storage().as_ref().unwrap().reconstruct(init_wave, true);
             let mut wave_out = WaveFunction {
                 distances: wave_out.0,
                 values: wave_out.1,
