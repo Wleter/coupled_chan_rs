@@ -1,13 +1,32 @@
 use std::marker::PhantomData;
 
-use coupled_chan::{coupling::{Asymptote, CollisionParams, CollisionWMatrix}, multi_channel::WMatrix};
+use coupled_chan::{
+    coupling::{
+        Asymptote,
+        CollisionParams,
+        CollisionWMatrix,
+    },
+    multi_channel::WMatrix,
+};
 use serde::Deserialize;
-use unit_systems::quantities::{Scalar, phys_quantities::{Length, Mass}};
+use unit_systems::quantities::{
+    Scalar,
+    phys_quantities::{
+        Length,
+        Mass,
+    },
+};
 
 use crate::{
-    UNITS_CONVERTER, calculations::{
-        Modified, SingleCalc, dependence::DependenceCalc, levels::EnergyLevelsData
-    }, parameters::TypedParamId, problems::Problem
+    UNITS_CONVERTER,
+    calculations::{
+        Modified,
+        SingleCalc,
+        dependence::DependenceCalc,
+        levels::EnergyLevelsData,
+    },
+    parameters::TypedParamId,
+    problems::Problem,
 };
 
 pub struct AdiabatsCalc<P> {
@@ -24,12 +43,10 @@ impl<P> AdiabatsCalc<P> {
     }
 }
 
-
-
 #[derive(Clone, Default, Deserialize)]
 #[serde(default)]
 pub struct AdiabatsInput {
-    pub distance: Scalar<Length>
+    pub distance: Scalar<Length>,
 }
 
 impl<P: Problem> SingleCalc for AdiabatsCalc<P> {
@@ -58,7 +75,8 @@ impl<P: Problem> SingleCalc for AdiabatsCalc<P> {
 
         let mut blocks = w_matrix.id().clone();
         w_matrix.value_inplace(converter.scalar_value(&modified.calc_input.distance), &mut blocks);
-        let values = (-blocks / (2.0 * mass)).self_adjoint_eigenvalues(hilbert_space::faer::Side::Lower)
+        let values = (-blocks / (2.0 * mass))
+            .self_adjoint_eigenvalues(hilbert_space::faer::Side::Lower)
             .expect("Could not diagonalize adiabats");
 
         [Ok(EnergyLevelsData(values))]

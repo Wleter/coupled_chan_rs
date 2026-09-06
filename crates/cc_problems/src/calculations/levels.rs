@@ -4,7 +4,9 @@ use serde::Serialize;
 
 use crate::{
     calculations::{
-        Modified, SingleCalc, dependence::DependenceCalc
+        Modified,
+        SingleCalc,
+        dependence::DependenceCalc,
     },
     problems::Problem,
 };
@@ -25,12 +27,10 @@ impl<P: Problem> SingleCalc for EnergyLevelsCalc<P> {
     type CalcInput = ();
     type Data = EnergyLevelsData;
 
-    fn calculate(
-        &self,
-        modified: Modified<P, ()>,
-        _problem: &P,
-    ) -> impl IntoIterator<Item = anyhow::Result<Self::Data>> {
-        [Ok(EnergyLevelsData(modified.system.angular_blocks().diagonalized().0.asymptote))]
+    fn calculate(&self, modified: Modified<P, ()>, _problem: &P) -> impl IntoIterator<Item = anyhow::Result<Self::Data>> {
+        [Ok(EnergyLevelsData(
+            modified.system.angular_blocks().diagonalized().0.asymptote,
+        ))]
     }
 }
 

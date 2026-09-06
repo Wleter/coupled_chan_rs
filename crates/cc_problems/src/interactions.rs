@@ -1,5 +1,8 @@
 use std::{
-    collections::HashMap, fmt::Display, fs::File, path::PathBuf
+    collections::HashMap,
+    fmt::Display,
+    fs::File,
+    path::PathBuf,
 };
 
 use cc_derive::Parameters;
@@ -12,7 +15,10 @@ use coupled_chan::{
         lennard_jones,
     },
     interpolated::{
-        InterpolatedPotential, Transitioned, sin_transition, spline_interpolation::SplineBuilder
+        InterpolatedPotential,
+        Transitioned,
+        sin_transition,
+        spline_interpolation::SplineBuilder,
     },
     morse_long_range,
 };
@@ -151,7 +157,7 @@ impl MorseLongRange {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Spline(PathBuf, #[serde(default)]Option<u32>);
+pub struct Spline(PathBuf, #[serde(default)] Option<u32>);
 
 #[derive(Deserialize)]
 pub struct PotentialData {

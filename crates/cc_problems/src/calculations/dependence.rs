@@ -1,34 +1,46 @@
 use std::{
-    marker::PhantomData, 
-    path::PathBuf
+    marker::PhantomData,
+    path::PathBuf,
 };
 
 use anyhow::Result;
-use cc_math_utils::{linspace, logspace};
-use cc_qol_utils::{
-    saving::{
-        DataSaver,
-        FileAccess,
-        JsonFormat,
-    },
+use cc_math_utils::{
+    linspace,
+    logspace,
+};
+use cc_qol_utils::saving::{
+    DataSaver,
+    FileAccess,
+    JsonFormat,
 };
 use rayon::prelude::*;
 use serde::{
     Deserialize,
-    Serialize, de::DeserializeOwned,
+    Serialize,
+    de::DeserializeOwned,
 };
-use serde_json::{Number, Value};
-use unit_systems::quantities::{PhysQuantity, Scalar, UnitsConverter};
+use serde_json::{
+    Number,
+    Value,
+};
+use unit_systems::quantities::{
+    PhysQuantity,
+    Scalar,
+    UnitsConverter,
+};
 
 use crate::{
     calculations::{
-        Calc, Modified, SingleCalc
+        Calc,
+        Modified,
+        SingleCalc,
     },
     parameters::Parameters,
     problems::{
         Problem,
         TypedProblemInput,
-    }, system::System,
+    },
+    system::System,
 };
 
 pub trait ModifyParams: Send + Sync + DeserializeOwned {
@@ -47,7 +59,7 @@ pub fn scalar_from_value<Q: PhysQuantity>(converter: &UnitsConverter, value: f64
         return Scalar::new(0.0, Q::default(), "");
     }
 
-    // first unit encountered 
+    // first unit encountered
     let unit = &converter.registry.get::<Q>()[0];
     let value_in_unit = value / Q::to_unit_system_logic(unit.name, &converter.registry, &converter.target_unit_system);
 
@@ -56,14 +68,14 @@ pub fn scalar_from_value<Q: PhysQuantity>(converter: &UnitsConverter, value: f64
 
 pub struct DependenceCalc<C: SingleCalc, D: ModifyParams<P = C::P, C = C::CalcInput>> {
     single_calc: C,
-    phantom: PhantomData<D>
+    phantom: PhantomData<D>,
 }
 
 impl<C: SingleCalc, D: ModifyParams<P = C::P, C = C::CalcInput>> DependenceCalc<C, D> {
     pub fn new(single_calc: C) -> Self {
         Self {
             single_calc,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 }
@@ -98,7 +110,7 @@ fn default_file_access() -> FileAccess {
 impl<C, D> Calc for DependenceCalc<C, D>
 where
     C: SingleCalc,
-    D: ModifyParams<P = C::P, C = C::CalcInput> + Clone + std::fmt::Debug
+    D: ModifyParams<P = C::P, C = C::CalcInput> + Clone + std::fmt::Debug,
 {
     type P = C::P;
     type CalcInput = DependenceCalcInput<C::CalcInput, D>;
@@ -145,7 +157,10 @@ where
 
                     for data in self.single_calc.calculate(modified, problem) {
                         let data = data?;
-                        saver.send(DependenceData { parameter: d.as_number(), data });
+                        saver.send(DependenceData {
+                            parameter: d.as_number(),
+                            data,
+                        });
                     }
 
                     Ok(())
@@ -179,22 +194,10 @@ where
 #[serde(tag = "type")]
 #[serde(rename_all = "snake_case")]
 pub enum Grid<D> {
-    Linear {
-        start: D,
-        end: D,
-        n: usize,
-    },
-    Log {
-        start: D,
-        end: D,
-        n: usize,
-    },
-    Vec {
-        values: Vec<D>,
-    },
-    Composite {
-        ranges: Vec<Grid<D>>,
-    },
+    Linear { start: D, end: D, n: usize },
+    Log { start: D, end: D, n: usize },
+    Vec { values: Vec<D> },
+    Composite { ranges: Vec<Grid<D>> },
 }
 
 impl<D: ModifyParams + Clone> Grid<D> {
@@ -204,19 +207,23 @@ impl<D: ModifyParams + Clone> Grid<D> {
                 let mut d = start.clone();
 
                 let vec = num_linspace(start.as_number(), end.as_number(), *n);
-                vec.into_iter().map(|x| {
-                    d.mut_number(x);
-                    d.clone()
-                }).collect()
-            },
+                vec.into_iter()
+                    .map(|x| {
+                        d.mut_number(x);
+                        d.clone()
+                    })
+                    .collect()
+            }
             Grid::Log { start, end, n } => {
                 let mut d = start.clone();
 
                 let vec = num_logspace(start.as_number(), end.as_number(), *n);
-                vec.into_iter().map(|x| {
-                    d.mut_number(x);
-                    d.clone()
-                }).collect()
+                vec.into_iter()
+                    .map(|x| {
+                        d.mut_number(x);
+                        d.clone()
+                    })
+                    .collect()
             }
             Grid::Vec { values } => values.clone(),
             Grid::Composite { ranges } => ranges.iter().flat_map(|x| x.collect()).collect(),
@@ -228,8 +235,11 @@ pub fn num_linspace(start: Number, end: Number, n: usize) -> Vec<Number> {
     if start.is_f64() && end.is_f64() {
         let start = start.as_f64().unwrap();
         let end = end.as_f64().unwrap();
-        
-        linspace(start, end, n).into_iter().map(|x| Number::from_f64(x).unwrap()).collect()
+
+        linspace(start, end, n)
+            .into_iter()
+            .map(|x| Number::from_f64(x).unwrap())
+            .collect()
     } else if start.is_i64() && end.is_i64() {
         if n == 1 {
             return vec![start];
@@ -261,8 +271,11 @@ pub fn num_logspace(start: Number, end: Number, n: usize) -> Vec<Number> {
     if start.is_f64() && end.is_f64() {
         let start = start.as_f64().unwrap();
         let end = end.as_f64().unwrap();
-        
-        logspace(start.log10(), end.log10(), n).into_iter().map(|x| Number::from_f64(x).unwrap()).collect()
+
+        logspace(start.log10(), end.log10(), n)
+            .into_iter()
+            .map(|x| Number::from_f64(x).unwrap())
+            .collect()
     } else if start.is_u64() && end.is_u64() {
         if n == 1 {
             return vec![start];

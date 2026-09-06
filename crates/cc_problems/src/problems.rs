@@ -10,7 +10,10 @@ use serde::{
 use serde_json::Value;
 
 use crate::{
-    calculations::DynCalc, parameters::Parameters, problems::diatom_in_b_field::DiatomInBFieldProblem, system::HamiltonianSpec
+    calculations::DynCalc,
+    parameters::Parameters,
+    problems::diatom_in_b_field::DiatomInBFieldProblem,
+    system::HamiltonianSpec,
 };
 
 pub fn available_problems() -> AvailableProblems {
@@ -92,7 +95,11 @@ impl<P: Problem> DynProblem for P {
         };
 
         map.get(&problem_input.calculation)
-            .ok_or(anyhow::anyhow!("Did not find {} in {:?}", problem_input.calculation, map.keys()))?
+            .ok_or(anyhow::anyhow!(
+                "Did not find {} in {:?}",
+                problem_input.calculation,
+                map.keys()
+            ))?
             .run(input, self)
     }
 }

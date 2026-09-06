@@ -1,22 +1,59 @@
 use std::marker::PhantomData;
 
 use cc_math_utils::brent_root_method;
-use coupled_chan::{cc_propagator::{Direction, Propagator, WithNodeCount, WithWaveStorage}, coupling::{Asymptote, CollisionParams, CollisionWMatrix, RCoupling}, multi_channel::log_derivative::{JohnsonLogDerivative, ManolopoulosLogDerivative}};
+use coupled_chan::{
+    cc_propagator::{
+        Direction,
+        Propagator,
+        WithNodeCount,
+        WithWaveStorage,
+    },
+    coupling::{
+        Asymptote,
+        CollisionParams,
+        CollisionWMatrix,
+        RCoupling,
+    },
+    multi_channel::log_derivative::{
+        JohnsonLogDerivative,
+        ManolopoulosLogDerivative,
+    },
+};
 use hilbert_space::faer;
 use serde::{
     Deserialize,
-    Serialize, de::DeserializeOwned,
+    Serialize,
+    de::DeserializeOwned,
 };
 use serde_json::Number;
 use unit_systems::quantities::{
     Scalar,
     phys_quantities::{
         Energy,
-        Length, Mass,
+        Length,
+        Mass,
     },
 };
 
-use crate::{UNITS_CONVERTER, calculations::{Modified, SingleCalc, dependence::ModifyParams, scattering::{Boundary, CoupledChanSolver, Step}}, parameters::TypedParamId, problems::Problem, system::{Coupling, System}};
+use crate::{
+    UNITS_CONVERTER,
+    calculations::{
+        Modified,
+        SingleCalc,
+        dependence::ModifyParams,
+        scattering::{
+            Boundary,
+            CoupledChanSolver,
+            Step,
+        },
+    },
+    parameters::TypedParamId,
+    problems::Problem,
+    system::{
+        Coupling,
+        System,
+    },
+};
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(bound = "D: DeserializeOwned")]
@@ -157,7 +194,7 @@ pub struct BoundStatesData(pub Vec<BoundStateData>);
 
 pub struct BoundStateCalc<P: Problem, D: ModifyParams<P = P, C = BoundStateCalcInput<D>>> {
     pub mass: TypedParamId<Scalar<Mass>>,
-    phantom: PhantomData<D>
+    phantom: PhantomData<D>,
 }
 
 impl<P: Problem, D: ModifyParams<P = P, C = BoundStateCalcInput<D>>> BoundStateCalc<P, D> {
@@ -169,7 +206,7 @@ impl<P: Problem, D: ModifyParams<P = P, C = BoundStateCalcInput<D>>> BoundStateC
     }
 }
 
-impl<P, D> SingleCalc for BoundStateCalc<P, D> 
+impl<P, D> SingleCalc for BoundStateCalc<P, D>
 where
     P: Problem,
     D: ModifyParams<P = P, C = BoundStateCalcInput<D>> + Clone,
@@ -222,10 +259,10 @@ where
 
         let mut lower_bounds = vec![None; states_no];
         let mut upper_bounds = vec![None; states_no];
-        // if no nodes found skip this part 
+        // if no nodes found skip this part
         if !lower_bounds.is_empty() {
             lower_bounds[0] = Some(lower_mismatch);
-            upper_bounds[states_no-1] = Some(upper_mismatch);
+            upper_bounds[states_no - 1] = Some(upper_mismatch);
         }
 
         let nodes: Vec<u64> = match modified.calc_input.node_monotony {
@@ -238,19 +275,15 @@ where
             let p = match modified.calc_input.search_method {
                 BoundSearchMethod::Brent(max_iter) => self.brent_search(
                     &mut modified,
-                    &mut lower_bounds, 
-                    &mut upper_bounds, 
-                    lower_node, 
-                    target_node, 
-                    max_iter
-                ),
-                BoundSearchMethod::Bisection => Ok(self.bisection_search(
-                    &mut modified,
-                    &mut lower_bounds, 
-                    &mut upper_bounds, 
-                    lower_node, 
+                    &mut lower_bounds,
+                    &mut upper_bounds,
+                    lower_node,
                     target_node,
-                )),
+                    max_iter,
+                ),
+                BoundSearchMethod::Bisection => {
+                    Ok(self.bisection_search(&mut modified, &mut lower_bounds, &mut upper_bounds, lower_node, target_node))
+                }
             };
 
             p.map(|p| {
@@ -261,7 +294,7 @@ where
                     modify_from_f64(&mut p_mod, p);
                     p_mod.modify(&mut modified);
                     let w_matrix = self.get_w_matrix(modified.system, modified.calc_input);
-                    
+
                     let wave = bound_wave(&w_matrix, modified.calc_input, target_node);
 
                     if modified.calc_input.get_occupations {
@@ -275,7 +308,7 @@ where
                 BoundStateData {
                     nodes: target_node,
                     parameter: p,
-        
+
                     occupations,
                     wave_function,
                 }
@@ -284,7 +317,7 @@ where
     }
 }
 
-impl<P, D> BoundStateCalc<P, D> 
+impl<P, D> BoundStateCalc<P, D>
 where
     P: Problem,
     D: ModifyParams<P = P, C = BoundStateCalcInput<D>> + Clone,
@@ -304,13 +337,13 @@ where
     }
 
     fn brent_search(
-        &self, 
+        &self,
         modified: &mut Modified<P, BoundStateCalcInput<D>>,
         lower_bounds: &mut [Option<BoundMismatch>],
         upper_bounds: &mut [Option<BoundMismatch>],
         min_nodes: u64,
         target_nodes: u64,
-        max_iter: u32
+        max_iter: u32,
     ) -> anyhow::Result<f64> {
         let n = lower_bounds.len();
         let node_index = (target_nodes - min_nodes) as usize;
@@ -336,14 +369,22 @@ where
 
         let index = lower_bound.nodes_match as i64 + target_nodes as i64 - lower_bound.nodes as i64;
         let mut lower_eigenvalue = if index >= 0 {
-            lower_bound.matching_eigenvalues.get(index as usize).copied().filter(|x| *x > 0.0)
+            lower_bound
+                .matching_eigenvalues
+                .get(index as usize)
+                .copied()
+                .filter(|x| *x > 0.0)
         } else {
             None
         };
 
         let index = upper_bound.nodes_match as i64 + target_nodes as i64 - upper_bound.nodes as i64;
         let mut upper_eigenvalue = if index >= 0 {
-            upper_bound.matching_eigenvalues.get(index as usize).copied().filter(|x| *x < 0.0)
+            upper_bound
+                .matching_eigenvalues
+                .get(index as usize)
+                .copied()
+                .filter(|x| *x < 0.0)
         } else {
             None
         };
@@ -368,23 +409,26 @@ where
             let mid_mismatch = bound_mismatch(&w_matrix, modified.calc_input, p_mid);
 
             if mid_mismatch.nodes <= min_nodes
-                && ((lower_bounds[0].as_ref().unwrap().parameter < mid_mismatch.parameter) ^ !monotony) {
+                && ((lower_bounds[0].as_ref().unwrap().parameter < mid_mismatch.parameter) ^ !monotony)
+            {
                 lower_bounds[0] = Some(mid_mismatch.clone())
-            }
-            else if mid_mismatch.nodes >= min_nodes + n as u64
-                && ((upper_bounds[n - 1].as_ref().unwrap().parameter > mid_mismatch.parameter) ^ !monotony) {
+            } else if mid_mismatch.nodes >= min_nodes + n as u64
+                && ((upper_bounds[n - 1].as_ref().unwrap().parameter > mid_mismatch.parameter) ^ !monotony)
+            {
                 upper_bounds[n - 1] = Some(mid_mismatch.clone())
             } else {
                 let index = (mid_mismatch.nodes - min_nodes) as usize;
-                if let Some(lower) = &mut lower_bounds[index] 
-                    && ((lower.parameter < mid_mismatch.parameter) ^ !monotony) {
+                if let Some(lower) = &mut lower_bounds[index]
+                    && ((lower.parameter < mid_mismatch.parameter) ^ !monotony)
+                {
                     *lower = mid_mismatch.clone()
                 } else if lower_bounds[index].is_none() {
                     lower_bounds[index] = Some(mid_mismatch.clone())
                 }
 
-                if let Some(upper) = &mut upper_bounds[index - 1] 
-                    && ((upper.parameter > mid_mismatch.parameter) ^ !monotony) {
+                if let Some(upper) = &mut upper_bounds[index - 1]
+                    && ((upper.parameter > mid_mismatch.parameter) ^ !monotony)
+                {
                     *upper = mid_mismatch.clone()
                 } else if upper_bounds[index - 1].is_none() {
                     upper_bounds[index - 1] = Some(mid_mismatch.clone())
@@ -396,7 +440,11 @@ where
 
                 let index = lower_bound.nodes_match as i64 + target_nodes as i64 - lower_bound.nodes as i64;
                 lower_eigenvalue = if index >= 0 {
-                    lower_bound.matching_eigenvalues.get(index as usize).copied().filter(|x| *x > 0.0)
+                    lower_bound
+                        .matching_eigenvalues
+                        .get(index as usize)
+                        .copied()
+                        .filter(|x| *x > 0.0)
                 } else {
                     None
                 };
@@ -405,7 +453,11 @@ where
 
                 let index = upper_bound.nodes_match as i64 + target_nodes as i64 - upper_bound.nodes as i64;
                 upper_eigenvalue = if index >= 0 {
-                    upper_bound.matching_eigenvalues.get(index as usize).copied().filter(|x| *x < 0.0)
+                    upper_bound
+                        .matching_eigenvalues
+                        .get(index as usize)
+                        .copied()
+                        .filter(|x| *x < 0.0)
                 } else {
                     None
                 };
@@ -429,8 +481,8 @@ where
         )?)
     }
 
-    fn bisection_search(        
-        &self, 
+    fn bisection_search(
+        &self,
         modified: &mut Modified<P, BoundStateCalcInput<D>>,
         lower_bounds: &mut [Option<BoundMismatch>],
         upper_bounds: &mut [Option<BoundMismatch>],
@@ -470,23 +522,26 @@ where
             let mid_mismatch = bound_mismatch(&w_matrix, modified.calc_input, field_mid);
 
             if mid_mismatch.nodes <= min_nodes
-                && ((lower_bounds[0].as_ref().unwrap().parameter < mid_mismatch.parameter) ^ !monotony) {
+                && ((lower_bounds[0].as_ref().unwrap().parameter < mid_mismatch.parameter) ^ !monotony)
+            {
                 lower_bounds[0] = Some(mid_mismatch.clone())
-            }
-            else if mid_mismatch.nodes >= min_nodes + n as u64
-                && ((upper_bounds[n - 1].as_ref().unwrap().parameter > mid_mismatch.parameter) ^ !monotony) {
+            } else if mid_mismatch.nodes >= min_nodes + n as u64
+                && ((upper_bounds[n - 1].as_ref().unwrap().parameter > mid_mismatch.parameter) ^ !monotony)
+            {
                 upper_bounds[n - 1] = Some(mid_mismatch.clone())
             } else {
                 let index = (mid_mismatch.nodes - min_nodes) as usize;
-                if let Some(lower) = &mut lower_bounds[index] 
-                    && ((lower.parameter < mid_mismatch.parameter) ^ !monotony) {
+                if let Some(lower) = &mut lower_bounds[index]
+                    && ((lower.parameter < mid_mismatch.parameter) ^ !monotony)
+                {
                     *lower = mid_mismatch.clone()
                 } else if lower_bounds[index].is_none() {
                     lower_bounds[index] = Some(mid_mismatch.clone())
                 }
 
-                if let Some(upper) = &mut upper_bounds[index - 1] 
-                    && ((upper.parameter > mid_mismatch.parameter) ^ !monotony) {
+                if let Some(upper) = &mut upper_bounds[index - 1]
+                    && ((upper.parameter > mid_mismatch.parameter) ^ !monotony)
+                {
                     *upper = mid_mismatch.clone()
                 } else if upper_bounds[index - 1].is_none() {
                     upper_bounds[index - 1] = Some(mid_mismatch.clone())
@@ -512,7 +567,11 @@ pub struct BoundMismatch {
     matching_eigenvalues: Vec<f64>,
 }
 
-pub fn bound_mismatch(w_matrix: &CollisionWMatrix<impl RCoupling>, input: &BoundStateCalcInput<impl ModifyParams>, parameter: f64) -> BoundMismatch {
+pub fn bound_mismatch(
+    w_matrix: &CollisionWMatrix<impl RCoupling>,
+    input: &BoundStateCalcInput<impl ModifyParams>,
+    parameter: f64,
+) -> BoundMismatch {
     let boundary_out = input.boundaries.0.get_boundary(&input.r_min, Direction::Outwards, w_matrix);
     let boundary_in = input.boundaries.0.get_boundary(&input.r_max, Direction::Inwards, w_matrix);
 
@@ -533,7 +592,7 @@ pub fn bound_mismatch(w_matrix: &CollisionWMatrix<impl RCoupling>, input: &Bound
             let nodes = solver_in.nodes().0 + solver_out.nodes().0;
 
             (matching_matrix, nodes)
-        },
+        }
         LogDerivSolver::ManolopoulosLogDeriv => {
             let step = input.step.get_step();
             let mut solver_in = ManolopoulosLogDerivative::new(w_matrix, step, boundary_in);
@@ -547,7 +606,7 @@ pub fn bound_mismatch(w_matrix: &CollisionWMatrix<impl RCoupling>, input: &Bound
             let nodes = solver_in.nodes().0 + solver_out.nodes().0;
 
             (matching_matrix, nodes)
-        },
+        }
     };
 
     let eigenvalues = matching_matrix
@@ -565,7 +624,11 @@ pub fn bound_mismatch(w_matrix: &CollisionWMatrix<impl RCoupling>, input: &Bound
     }
 }
 
-fn bound_wave(w_matrix: &CollisionWMatrix<impl RCoupling>, input: &BoundStateCalcInput<impl ModifyParams>, target_nodes: u64) -> WaveFunction {
+fn bound_wave(
+    w_matrix: &CollisionWMatrix<impl RCoupling>,
+    input: &BoundStateCalcInput<impl ModifyParams>,
+    target_nodes: u64,
+) -> WaveFunction {
     let boundary_out = input.boundaries.0.get_boundary(&input.r_min, Direction::Outwards, w_matrix);
     let boundary_in = input.boundaries.0.get_boundary(&input.r_max, Direction::Inwards, w_matrix);
 
@@ -611,7 +674,7 @@ fn bound_wave(w_matrix: &CollisionWMatrix<impl RCoupling>, input: &BoundStateCal
             wave_out.values.extend(wave_in.values);
 
             wave_out.normalize()
-        },
+        }
         LogDerivSolver::ManolopoulosLogDeriv => {
             let step = input.step.get_step();
             let mut solver_in = ManolopoulosLogDerivative::new(w_matrix, step, boundary_in);
@@ -623,11 +686,10 @@ fn bound_wave(w_matrix: &CollisionWMatrix<impl RCoupling>, input: &BoundStateCal
 
             let matching_matrix = &sol_out.sol.0 - &sol_in.sol.0;
             let nodes = solver_in.nodes().0 + solver_out.nodes().0;
-            
+
             let eigen = matching_matrix
                 .self_adjoint_eigen(faer::Side::Lower)
                 .expect("could not diagonalize matching matrix");
-
 
             let init_wave = eigen.U().col((target_nodes - nodes) as usize);
 
@@ -648,7 +710,7 @@ fn bound_wave(w_matrix: &CollisionWMatrix<impl RCoupling>, input: &BoundStateCal
             wave_out.values.extend(wave_in.values);
 
             wave_out.normalize()
-        },
+        }
     }
 }
 

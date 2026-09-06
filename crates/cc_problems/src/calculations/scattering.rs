@@ -1,6 +1,4 @@
-use std::{
-    marker::PhantomData,
-};
+use std::marker::PhantomData;
 
 use coupled_chan::{
     cc_propagator::{
@@ -51,7 +49,9 @@ use unit_systems::quantities::{
 use crate::{
     UNITS_CONVERTER,
     calculations::{
-        Modified, SingleCalc, dependence::DependenceCalc
+        Modified,
+        SingleCalc,
+        dependence::DependenceCalc,
     },
     parameters::TypedParamId,
     problems::Problem,

@@ -1,8 +1,8 @@
+pub mod adiabats;
 pub mod bound_states;
 pub mod dependence;
 pub mod levels;
 pub mod scattering;
-pub mod adiabats;
 
 use anyhow::Result;
 use serde::{
@@ -77,5 +77,5 @@ pub struct Modified<'a, P: Problem, C> {
     pub system: &'a mut System,
     pub basis: &'a mut P::BasisRecipe,
     pub params: &'a mut P::Params,
-    pub calc_input: &'a mut C
+    pub calc_input: &'a mut C,
 }

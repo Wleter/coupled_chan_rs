@@ -17,25 +17,63 @@ use spin_algebra::{
 use unit_systems::quantities::{
     Scalar,
     phys_quantities::{
-        Energy, Length, MagneticField, Mass
+        Energy,
+        Length,
+        MagneticField,
+        Mass,
     },
 };
 
 use crate::{
-    OrbitalBasisElements, UNITS_CONVERTER, atom_basis::WithProjection, atom_operators::AtomParams, calculations::{
-        DynCalc, Modified, adiabats::{AdiabatsCalc, AdiabatsInput}, bound_states::{BoundStateCalc, BoundStateCalcInput}, dependence::{
-            DependenceCalc, ModifyParams, scalar_from_value,
-        }, levels::EnergyLevelsCalc, scattering::{
-            ScatteringCalc, ScatteringCalcInput
-        }
-    }, diatom_basis::{
+    OrbitalBasisElements,
+    UNITS_CONVERTER,
+    atom_basis::WithProjection,
+    atom_operators::AtomParams,
+    calculations::{
+        DynCalc,
+        Modified,
+        adiabats::{
+            AdiabatsCalc,
+            AdiabatsInput,
+        },
+        bound_states::{
+            BoundStateCalc,
+            BoundStateCalcInput,
+        },
+        dependence::{
+            DependenceCalc,
+            ModifyParams,
+            scalar_from_value,
+        },
+        levels::EnergyLevelsCalc,
+        scattering::{
+            ScatteringCalc,
+            ScatteringCalcInput,
+        },
+    },
+    diatom_basis::{
         CoupledSIDiatomBasis,
         DiatomRecipe,
-    }, interactions::{
-        PecPolarizationSpec, PecPolarizations, PecScalings, Scaling, SpinConfiguration
-    }, operator_mel::spin_projection_term_coupled, param_ids, parameters::Parameters, problems::Problem, system::{
-        DynOperatorSpec, DynPotentialSpec, HamiltonianSpec, ParamModifications, System, new_param_modifications
-    }
+    },
+    interactions::{
+        PecPolarizationSpec,
+        PecPolarizations,
+        PecScalings,
+        Scaling,
+        SpinConfiguration,
+    },
+    operator_mel::spin_projection_term_coupled,
+    param_ids,
+    parameters::Parameters,
+    problems::Problem,
+    system::{
+        DynOperatorSpec,
+        DynPotentialSpec,
+        HamiltonianSpec,
+        ParamModifications,
+        System,
+        new_param_modifications,
+    },
 };
 
 pub type DiatomInBFieldBasis = WithProjection<DiatomRecipe>;
@@ -100,9 +138,7 @@ impl DiatomInBFieldProblem {
             ("bound states scan".into(), diatom_bound_states_b_field_scan()),
         ]);
 
-        Self {
-            calculations
-        }
+        Self { calculations }
     }
 }
 
@@ -194,22 +230,19 @@ impl Problem for DiatomInBFieldProblem {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "snake_case")]
 enum ModsEnergyLevels {
-    MagneticField(Scalar<MagneticField>)
+    MagneticField(Scalar<MagneticField>),
 }
 
 impl ModifyParams for ModsEnergyLevels {
     type P = DiatomInBFieldProblem;
     type C = ();
 
-    fn modify(
-        &self, 
-        modified: &mut Modified<Self::P, Self::C>
-    ) {
+    fn modify(&self, modified: &mut Modified<Self::P, Self::C>) {
         let ids = DiatomInBFieldParams::ids();
         match self {
-            ModsEnergyLevels::MagneticField(scalar) => {
-                modified.system.modify_params(new_param_modifications(ids.b_field, scalar.clone()))
-            },
+            ModsEnergyLevels::MagneticField(scalar) => modified
+                .system
+                .modify_params(new_param_modifications(ids.b_field, scalar.clone())),
         }
     }
 
@@ -225,9 +258,7 @@ impl ModifyParams for ModsEnergyLevels {
         let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
 
         match self {
-            ModsEnergyLevels::MagneticField(scalar) => {
-                *scalar = scalar_from_value(&converter, number.as_f64().unwrap())
-            },
+            ModsEnergyLevels::MagneticField(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
         }
     }
 }
@@ -235,21 +266,16 @@ impl ModifyParams for ModsEnergyLevels {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "snake_case")]
 enum ModsAdiabatsScan {
-    Distance(Scalar<Length>)
+    Distance(Scalar<Length>),
 }
 
 impl ModifyParams for ModsAdiabatsScan {
     type P = DiatomInBFieldProblem;
     type C = AdiabatsInput;
 
-    fn modify(
-        &self, 
-        modified: &mut Modified<Self::P, Self::C>
-    ) {
+    fn modify(&self, modified: &mut Modified<Self::P, Self::C>) {
         match self {
-            ModsAdiabatsScan::Distance(scalar) => {
-                modified.calc_input.distance = scalar.clone()
-            },
+            ModsAdiabatsScan::Distance(scalar) => modified.calc_input.distance = scalar.clone(),
         }
     }
 
@@ -265,9 +291,7 @@ impl ModifyParams for ModsAdiabatsScan {
         let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
 
         match self {
-            ModsAdiabatsScan::Distance(scalar) => {
-                *scalar = scalar_from_value(&converter, number.as_f64().unwrap())
-            },
+            ModsAdiabatsScan::Distance(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
         }
     }
 }
@@ -279,10 +303,7 @@ pub enum ModsScattering {
     Mass(Scalar<Mass>),
     L(u32),
     Energy(Scalar<Energy>),
-    PecScaling {
-        configuration: SpinConfiguration,
-        scaling: f64
-    },
+    PecScaling { configuration: SpinConfiguration, scaling: f64 },
     PecScalingFull(f64),
     RStart(Scalar<Length>),
     RStop(Scalar<Length>),
@@ -296,37 +317,31 @@ impl ModifyParams for ModsScattering {
         let ids = DiatomInBFieldParams::ids();
 
         match self {
-            ModsScattering::MagneticField(scalar) => {
-                modified.system.modify_params(new_param_modifications(ids.b_field, scalar.clone()))
-            },
-            ModsScattering::Mass(scalar) => {
-                modified.system.modify_params(new_param_modifications(ids.red_mass, scalar.clone()))
-            },
-            ModsScattering::Energy(scalar) => {
-                modified.calc_input.energy = scalar.clone()
-            },
+            ModsScattering::MagneticField(scalar) => modified
+                .system
+                .modify_params(new_param_modifications(ids.b_field, scalar.clone())),
+            ModsScattering::Mass(scalar) => modified
+                .system
+                .modify_params(new_param_modifications(ids.red_mass, scalar.clone())),
+            ModsScattering::Energy(scalar) => modified.calc_input.energy = scalar.clone(),
             ModsScattering::L(l_new) => {
                 match &mut modified.basis.recipe.l {
-                    crate::OrbitalRecipe::Single(l) => {
-                        *l = *l_new
-                    },
-                    crate::OrbitalRecipe::LMax(l) => {
-                        *l = *l_new
-                    },
-                    crate::OrbitalRecipe::LMaxProjections(l) => {
-                        *l = *l_new
-                    },
+                    crate::OrbitalRecipe::Single(l) => *l = *l_new,
+                    crate::OrbitalRecipe::LMax(l) => *l = *l_new,
+                    crate::OrbitalRecipe::LMaxProjections(l) => *l = *l_new,
                 }
 
                 let spec = Self::P::build(modified.basis, modified.params);
                 *modified.system = System::new(spec, modified.params.registry())
-            },
+            }
             ModsScattering::PecScaling { configuration, scaling } => {
                 let scaling = *scaling;
                 let configuration = *configuration;
                 let modify = ParamModifications::new(move |r| {
                     let scalings = r.get_mut(ids.scalings);
-                    if let Some(s) = scalings.0.get(&configuration) && s.0 == scaling {
+                    if let Some(s) = scalings.0.get(&configuration)
+                        && s.0 == scaling
+                    {
                         param_ids![]
                     } else {
                         scalings.0.insert(configuration, Scaling(scaling));
@@ -335,7 +350,7 @@ impl ModifyParams for ModsScattering {
                 });
 
                 modified.system.modify_params(modify)
-            },
+            }
             ModsScattering::PecScalingFull(scaling) => {
                 let scaling = *scaling;
                 let modify = ParamModifications::new(move |r| {
@@ -346,8 +361,9 @@ impl ModifyParams for ModsScattering {
                     for configuration in configurations {
                         let overridden = scalings.0.insert(configuration, Scaling(scaling));
 
-                        if let Some(overridden) = overridden && overridden.0 == scaling {
-                            
+                        if let Some(overridden) = overridden
+                            && overridden.0 == scaling
+                        {
                         } else {
                             changed = true
                         }
@@ -361,13 +377,9 @@ impl ModifyParams for ModsScattering {
                 });
 
                 modified.system.modify_params(modify)
-            },
-            ModsScattering::RStart(scalar) => {
-                modified.calc_input.r_start = scalar.clone()
-            },
-            ModsScattering::RStop(scalar) => {
-                modified.calc_input.r_stop = scalar.clone()
             }
+            ModsScattering::RStart(scalar) => modified.calc_input.r_start = scalar.clone(),
+            ModsScattering::RStop(scalar) => modified.calc_input.r_stop = scalar.clone(),
         }
     }
 
@@ -379,7 +391,10 @@ impl ModifyParams for ModsScattering {
             ModsScattering::Mass(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
             ModsScattering::L(l) => Number::from_u128(*l as u128).unwrap(),
             ModsScattering::Energy(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
-            ModsScattering::PecScaling { configuration: _, scaling } => Number::from_f64(*scaling).unwrap(),
+            ModsScattering::PecScaling {
+                configuration: _,
+                scaling,
+            } => Number::from_f64(*scaling).unwrap(),
             ModsScattering::PecScalingFull(scaling) => Number::from_f64(*scaling).unwrap(),
             ModsScattering::RStart(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
             ModsScattering::RStop(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
@@ -390,22 +405,17 @@ impl ModifyParams for ModsScattering {
         let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
 
         match self {
-            ModsScattering::MagneticField(scalar) => 
-                *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
-            ModsScattering::Mass(scalar) => 
-                *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
-            ModsScattering::L(l) => 
-                *l = number.as_u64().unwrap() as u32,
-            ModsScattering::Energy(scalar) => 
-                *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
-            ModsScattering::PecScaling { configuration: _, scaling } => 
-                *scaling = number.as_f64().unwrap(),
-            ModsScattering::PecScalingFull(scaling) => 
-                *scaling = number.as_f64().unwrap(),
-            ModsScattering::RStart(scalar) => 
-                *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
-            ModsScattering::RStop(scalar) => 
-                *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
+            ModsScattering::MagneticField(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
+            ModsScattering::Mass(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
+            ModsScattering::L(l) => *l = number.as_u64().unwrap() as u32,
+            ModsScattering::Energy(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
+            ModsScattering::PecScaling {
+                configuration: _,
+                scaling,
+            } => *scaling = number.as_f64().unwrap(),
+            ModsScattering::PecScalingFull(scaling) => *scaling = number.as_f64().unwrap(),
+            ModsScattering::RStart(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
+            ModsScattering::RStop(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
         }
     }
 }
@@ -417,10 +427,7 @@ pub enum ModsBoundScan {
     Mass(Scalar<Mass>),
     L(u32),
     Energy(Scalar<Energy>),
-    PecScaling {
-        configuration: SpinConfiguration,
-        scaling: f64
-    },
+    PecScaling { configuration: SpinConfiguration, scaling: f64 },
     PecScalingFull(f64),
     RStart(Scalar<Length>),
     RStop(Scalar<Length>),
@@ -434,37 +441,31 @@ impl ModifyParams for ModsBoundScan {
         let ids = DiatomInBFieldParams::ids();
 
         match self {
-            ModsBoundScan::MagneticField(scalar) => {
-                modified.system.modify_params(new_param_modifications(ids.b_field, scalar.clone()))
-            },
-            ModsBoundScan::Mass(scalar) => {
-                modified.system.modify_params(new_param_modifications(ids.red_mass, scalar.clone()))
-            },
-            ModsBoundScan::Energy(scalar) => {
-                modified.calc_input.energy = scalar.clone()
-            },
+            ModsBoundScan::MagneticField(scalar) => modified
+                .system
+                .modify_params(new_param_modifications(ids.b_field, scalar.clone())),
+            ModsBoundScan::Mass(scalar) => modified
+                .system
+                .modify_params(new_param_modifications(ids.red_mass, scalar.clone())),
+            ModsBoundScan::Energy(scalar) => modified.calc_input.energy = scalar.clone(),
             ModsBoundScan::L(l_new) => {
                 match &mut modified.basis.recipe.l {
-                    crate::OrbitalRecipe::Single(l) => {
-                        *l = *l_new
-                    },
-                    crate::OrbitalRecipe::LMax(l) => {
-                        *l = *l_new
-                    },
-                    crate::OrbitalRecipe::LMaxProjections(l) => {
-                        *l = *l_new
-                    },
+                    crate::OrbitalRecipe::Single(l) => *l = *l_new,
+                    crate::OrbitalRecipe::LMax(l) => *l = *l_new,
+                    crate::OrbitalRecipe::LMaxProjections(l) => *l = *l_new,
                 }
 
                 let spec = Self::P::build(modified.basis, modified.params);
                 *modified.system = System::new(spec, modified.params.registry())
-            },
+            }
             ModsBoundScan::PecScaling { configuration, scaling } => {
                 let scaling = *scaling;
                 let configuration = *configuration;
                 let modify = ParamModifications::new(move |r| {
                     let scalings = r.get_mut(ids.scalings);
-                    if let Some(s) = scalings.0.get(&configuration) && s.0 == scaling {
+                    if let Some(s) = scalings.0.get(&configuration)
+                        && s.0 == scaling
+                    {
                         param_ids![]
                     } else {
                         scalings.0.insert(configuration, Scaling(scaling));
@@ -473,7 +474,7 @@ impl ModifyParams for ModsBoundScan {
                 });
 
                 modified.system.modify_params(modify)
-            },
+            }
             ModsBoundScan::PecScalingFull(scaling) => {
                 let scaling = *scaling;
                 let modify = ParamModifications::new(move |r| {
@@ -484,8 +485,9 @@ impl ModifyParams for ModsBoundScan {
                     for configuration in configurations {
                         let overridden = scalings.0.insert(configuration, Scaling(scaling));
 
-                        if let Some(overridden) = overridden && overridden.0 == scaling {
-                            
+                        if let Some(overridden) = overridden
+                            && overridden.0 == scaling
+                        {
                         } else {
                             changed = true
                         }
@@ -499,13 +501,9 @@ impl ModifyParams for ModsBoundScan {
                 });
 
                 modified.system.modify_params(modify)
-            },
-            ModsBoundScan::RStart(scalar) => {
-                modified.calc_input.r_min = scalar.clone()
-            },
-            ModsBoundScan::RStop(scalar) => {
-                modified.calc_input.r_max = scalar.clone()
             }
+            ModsBoundScan::RStart(scalar) => modified.calc_input.r_min = scalar.clone(),
+            ModsBoundScan::RStop(scalar) => modified.calc_input.r_max = scalar.clone(),
         }
     }
 
@@ -517,7 +515,10 @@ impl ModifyParams for ModsBoundScan {
             ModsBoundScan::Mass(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
             ModsBoundScan::L(l) => Number::from_u128(*l as u128).unwrap(),
             ModsBoundScan::Energy(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
-            ModsBoundScan::PecScaling { configuration: _, scaling } => Number::from_f64(*scaling).unwrap(),
+            ModsBoundScan::PecScaling {
+                configuration: _,
+                scaling,
+            } => Number::from_f64(*scaling).unwrap(),
             ModsBoundScan::PecScalingFull(scaling) => Number::from_f64(*scaling).unwrap(),
             ModsBoundScan::RStart(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
             ModsBoundScan::RStop(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
@@ -528,22 +529,17 @@ impl ModifyParams for ModsBoundScan {
         let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
 
         match self {
-            ModsBoundScan::MagneticField(scalar) => 
-                *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
-            ModsBoundScan::Mass(scalar) => 
-                *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
-            ModsBoundScan::L(l) => 
-                *l = number.as_u64().unwrap() as u32,
-            ModsBoundScan::Energy(scalar) => 
-                *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
-            ModsBoundScan::PecScaling { configuration: _, scaling } => 
-                *scaling = number.as_f64().unwrap(),
-            ModsBoundScan::PecScalingFull(scaling) => 
-                *scaling = number.as_f64().unwrap(),
-            ModsBoundScan::RStart(scalar) => 
-                *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
-            ModsBoundScan::RStop(scalar) => 
-                *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
+            ModsBoundScan::MagneticField(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
+            ModsBoundScan::Mass(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
+            ModsBoundScan::L(l) => *l = number.as_u64().unwrap() as u32,
+            ModsBoundScan::Energy(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
+            ModsBoundScan::PecScaling {
+                configuration: _,
+                scaling,
+            } => *scaling = number.as_f64().unwrap(),
+            ModsBoundScan::PecScalingFull(scaling) => *scaling = number.as_f64().unwrap(),
+            ModsBoundScan::RStart(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
+            ModsBoundScan::RStop(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
         }
     }
 }
@@ -565,15 +561,13 @@ impl ModifyParams for ModsBoundSearch {
         let ids = DiatomInBFieldParams::ids();
 
         match self {
-            ModsBoundSearch::MagneticField(scalar) => {
-                modified.system.modify_params(new_param_modifications(ids.b_field, scalar.clone()))
-            },
-            ModsBoundSearch::Mass(scalar) => {
-                modified.system.modify_params(new_param_modifications(ids.red_mass, scalar.clone()))
-            },
-            ModsBoundSearch::Energy(scalar) => {
-                modified.calc_input.energy = scalar.clone()
-            },
+            ModsBoundSearch::MagneticField(scalar) => modified
+                .system
+                .modify_params(new_param_modifications(ids.b_field, scalar.clone())),
+            ModsBoundSearch::Mass(scalar) => modified
+                .system
+                .modify_params(new_param_modifications(ids.red_mass, scalar.clone())),
+            ModsBoundSearch::Energy(scalar) => modified.calc_input.energy = scalar.clone(),
             ModsBoundSearch::PecScalingFull(scaling) => {
                 let scaling = *scaling;
                 let modify = ParamModifications::new(move |r| {
@@ -584,8 +578,9 @@ impl ModifyParams for ModsBoundSearch {
                     for configuration in configurations {
                         let overridden = scalings.0.insert(configuration, Scaling(scaling));
 
-                        if let Some(overridden) = overridden && overridden.0 == scaling {
-                            
+                        if let Some(overridden) = overridden
+                            && overridden.0 == scaling
+                        {
                         } else {
                             changed = true
                         }
@@ -599,7 +594,7 @@ impl ModifyParams for ModsBoundSearch {
                 });
 
                 modified.system.modify_params(modify)
-            },
+            }
         }
     }
 
@@ -618,14 +613,10 @@ impl ModifyParams for ModsBoundSearch {
         let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
 
         match self {
-            ModsBoundSearch::MagneticField(scalar) => 
-                *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
-            ModsBoundSearch::Mass(scalar) => 
-                *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
-            ModsBoundSearch::Energy(scalar) => 
-                *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
-            ModsBoundSearch::PecScalingFull(scaling) => 
-                *scaling = number.as_f64().unwrap(),
+            ModsBoundSearch::MagneticField(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
+            ModsBoundSearch::Mass(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
+            ModsBoundSearch::Energy(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
+            ModsBoundSearch::PecScalingFull(scaling) => *scaling = number.as_f64().unwrap(),
         }
     }
 }

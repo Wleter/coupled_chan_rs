@@ -1,15 +1,19 @@
-use cc_problems::problems::{AvailableProblems, ProblemInput};
+use anyhow::{
+    Context,
+    Result,
+};
+use cc_problems::problems::{
+    AvailableProblems,
+    ProblemInput,
+};
 use clap::Parser;
+use json_comments::StripComments;
 use serde::Deserialize;
 use serde_json::Value;
-use std::{
-    path::{
-        Path,
-        PathBuf,
-    },
+use std::path::{
+    Path,
+    PathBuf,
 };
-use json_comments::StripComments;
-use anyhow::{Context, Result};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -39,8 +43,8 @@ impl Args {
     pub fn run_problems(self, problems: AvailableProblems) -> Result<()> {
         let mut input = parse_input(&self.input);
         if let Some(defaults) = input.get("defaults") {
-            let relative_path: PathBuf = serde_json::from_value(defaults.clone())
-                .expect("could not convert defaults to relative_path");
+            let relative_path: PathBuf =
+                serde_json::from_value(defaults.clone()).expect("could not convert defaults to relative_path");
 
             let path = if let Some(parent) = self.input.parent() {
                 let mut path = parent.to_owned();
