@@ -65,7 +65,8 @@ pub fn diatom_levels_b_field_scan() -> Box<dyn DynCalc<DiatomInBFieldProblem>> {
 }
 
 pub fn diatom_adiabats_b_field_scan() -> Box<dyn DynCalc<DiatomInBFieldProblem>> {
-    let adiabats_calc = AdiabatsCalc::default();
+    let ids = DiatomInBFieldParams::ids();
+    let adiabats_calc = AdiabatsCalc::new(ids.red_mass);
 
     Box::new(DependenceCalc::<_, ModsAdiabatsScan>::new(adiabats_calc))
 }
