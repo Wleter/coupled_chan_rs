@@ -122,9 +122,10 @@ impl ScatteringCalcInput {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct SMatrixData {
-    s_matrix_vec: Vec<Vec<Complex64>>,
-    momenta: Vec<f64>,
-    entrance_nr: usize,
+    pub s_matrix_vec: Vec<Vec<Complex64>>,
+    pub momenta: Vec<f64>,
+    pub entrance_nr: usize,
+    pub s_length: Complex64,
 }
 
 impl SMatrixData {
@@ -139,6 +140,7 @@ impl SMatrixData {
             s_matrix_vec: vec,
             momenta: s_matrix.momenta().to_vec(),
             entrance_nr: s_matrix.entrance_number(),
+            s_length: s_matrix.scattering_length(),
         }
     }
 }
@@ -293,7 +295,7 @@ impl<P: Problem> SingleCalc for ScatteringCalc<P> {
 
     fn calculate(
         &self,
-        modified: Modified<P, ScatteringCalcInput>,
+        modified: &mut Modified<P, ScatteringCalcInput>,
         _problem: &P,
     ) -> impl IntoIterator<Item = anyhow::Result<SMatrixData>> {
         let registry = modified.system.param_registry();

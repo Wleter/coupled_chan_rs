@@ -27,7 +27,7 @@ impl<P: Problem> SingleCalc for EnergyLevelsCalc<P> {
     type CalcInput = ();
     type Data = EnergyLevelsData;
 
-    fn calculate(&self, modified: Modified<P, ()>, _problem: &P) -> impl IntoIterator<Item = anyhow::Result<Self::Data>> {
+    fn calculate(&self, modified: &mut Modified<P, ()>, _problem: &P) -> impl IntoIterator<Item = anyhow::Result<Self::Data>> {
         [Ok(EnergyLevelsData(
             modified.system.angular_blocks().diagonalized().0.asymptote,
         ))]

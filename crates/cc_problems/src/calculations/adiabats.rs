@@ -56,7 +56,7 @@ impl<P: Problem> SingleCalc for AdiabatsCalc<P> {
 
     fn calculate(
         &self,
-        modified: Modified<P, AdiabatsInput>,
+        modified: &mut Modified<P, AdiabatsInput>,
         _problem: &P,
     ) -> impl IntoIterator<Item = anyhow::Result<Self::Data>> {
         let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");

@@ -30,26 +30,20 @@ use crate::{
     atom_basis::WithProjection,
     atom_operators::AtomParams,
     calculations::{
-        DynCalc,
-        Modified,
-        adiabats::{
+        DynCalc, Modified, adiabats::{
             AdiabatsCalc,
             AdiabatsInput,
-        },
-        bound_states::{
+        }, bound_states::{
             BoundStateCalc,
             BoundStateCalcInput,
-        },
-        dependence::{
+        }, dependence::{
             DependenceCalc,
             ModifyParams,
             scalar_from_value,
-        },
-        levels::EnergyLevelsCalc,
-        scattering::{
+        }, levels::EnergyLevelsCalc, resonances::{ResonancesCalc, ResonancesInput}, scattering::{
             ScatteringCalc,
             ScatteringCalcInput,
-        },
+        }
     },
     diatom_basis::{
         CoupledSIDiatomBasis,
@@ -123,6 +117,16 @@ pub fn diatom_bound_states_b_field_scan() -> Box<dyn DynCalc<DiatomInBFieldProbl
     Box::new(DependenceCalc::<_, ModsBoundScan>::new(bound_state_calc))
 }
 
+pub fn diatom_resonances_scan() -> Box<dyn DynCalc<DiatomInBFieldProblem>> {
+    let ids = DiatomInBFieldParams::ids();
+    let scattering_calc = ScatteringCalc::new(ids.red_mass);
+    let bound_state_calc: BoundStateCalc<_, ModsBoundSearch> = BoundStateCalc::new(ids.red_mass);
+
+    let resonances_calc = ResonancesCalc::new(scattering_calc, bound_state_calc);
+
+    Box::new(DependenceCalc::<_, ModsResonanceScan>::new(resonances_calc))
+}
+
 #[derive(Default)]
 pub struct DiatomInBFieldProblem {
     pub calculations: HashMap<Box<str>, Box<dyn DynCalc<Self>>>,
@@ -136,6 +140,7 @@ impl DiatomInBFieldProblem {
             ("adiabats scan".into(), diatom_adiabats_b_field_scan()),
             ("scattering scan".into(), diatom_scattering_b_field_scan()),
             ("bound states scan".into(), diatom_bound_states_b_field_scan()),
+            ("resonances scan".into(), diatom_resonances_scan()),
         ]);
 
         Self { calculations }
@@ -617,6 +622,89 @@ impl ModifyParams for ModsBoundSearch {
             ModsBoundSearch::Mass(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
             ModsBoundSearch::Energy(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
             ModsBoundSearch::PecScalingFull(scaling) => *scaling = number.as_f64().unwrap(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ModsResonanceScan {
+    PecScaling { configuration: SpinConfiguration, scaling: f64 },
+    PecScalingFull(f64),
+}
+
+impl ModifyParams for ModsResonanceScan {
+    type P = DiatomInBFieldProblem;
+    type C = ResonancesInput<ModsBoundSearch>;
+
+    fn modify(&self, modified: &mut Modified<Self::P, Self::C>) {
+        let ids = DiatomInBFieldParams::ids();
+
+        match self {
+            ModsResonanceScan::PecScaling { configuration, scaling } => {
+                let scaling = *scaling;
+                let configuration = *configuration;
+                let modify = ParamModifications::new(move |r| {
+                    let scalings = r.get_mut(ids.scalings);
+                    if let Some(s) = scalings.0.get(&configuration)
+                        && s.0 == scaling
+                    {
+                        param_ids![]
+                    } else {
+                        scalings.0.insert(configuration, Scaling(scaling));
+                        param_ids![ids.scalings.vanish()]
+                    }
+                });
+
+                modified.system.modify_params(modify)
+            }
+            ModsResonanceScan::PecScalingFull(scaling) => {
+                let scaling = *scaling;
+                let modify = ParamModifications::new(move |r| {
+                    let configurations: Vec<SpinConfiguration> = r.get(ids.pecs).0.keys().copied().collect();
+
+                    let mut changed = false;
+                    let scalings = r.get_mut(ids.scalings);
+                    for configuration in configurations {
+                        let overridden = scalings.0.insert(configuration, Scaling(scaling));
+
+                        if let Some(overridden) = overridden
+                            && overridden.0 == scaling
+                        {
+                        } else {
+                            changed = true
+                        }
+                    }
+
+                    if changed {
+                        param_ids![ids.scalings.vanish()]
+                    } else {
+                        param_ids![]
+                    }
+                });
+
+                modified.system.modify_params(modify)
+            }
+        }
+    }
+
+    fn as_number(&self) -> serde_json::Number {
+        match self {
+            Self::PecScaling {
+                configuration: _,
+                scaling,
+            } => Number::from_f64(*scaling).unwrap(),
+            Self::PecScalingFull(scaling) => Number::from_f64(*scaling).unwrap(),
+        }
+    }
+
+    fn mut_number(&mut self, number: serde_json::Number) {
+        match self {
+            Self::PecScaling {
+                configuration: _,
+                scaling,
+            } => *scaling = number.as_f64().unwrap(),
+            Self::PecScalingFull(scaling) => *scaling = number.as_f64().unwrap(),
         }
     }
 }

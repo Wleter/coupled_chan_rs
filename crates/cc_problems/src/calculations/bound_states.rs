@@ -217,7 +217,7 @@ where
 
     fn calculate(
         &self,
-        mut modified: Modified<P, BoundStateCalcInput<D>>,
+        modified: &mut Modified<P, BoundStateCalcInput<D>>,
         _problem: &P,
     ) -> impl IntoIterator<Item = anyhow::Result<Self::Data>> {
         let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
@@ -230,11 +230,11 @@ where
         let p_start_f64 = modify_to_f64(&p_start);
         let p_end_f64 = modify_to_f64(&p_end);
 
-        p_start.modify(&mut modified);
+        p_start.modify(modified);
         let w_matrix = self.get_w_matrix(modified.system, modified.calc_input);
         let mut lower_mismatch = bound_mismatch(&w_matrix, modified.calc_input, p_start_f64);
 
-        p_end.modify(&mut modified);
+        p_end.modify(modified);
         let w_matrix = self.get_w_matrix(modified.system, modified.calc_input);
         let mut upper_mismatch = bound_mismatch(&w_matrix, modified.calc_input, p_end_f64);
 
@@ -274,7 +274,7 @@ where
         nodes.into_iter().map(move |target_node| {
             let p = match modified.calc_input.search_method {
                 BoundSearchMethod::Brent(max_iter) => self.brent_search(
-                    &mut modified,
+                    modified,
                     &mut lower_bounds,
                     &mut upper_bounds,
                     lower_node,
@@ -282,7 +282,7 @@ where
                     max_iter,
                 ),
                 BoundSearchMethod::Bisection => {
-                    Ok(self.bisection_search(&mut modified, &mut lower_bounds, &mut upper_bounds, lower_node, target_node))
+                    Ok(self.bisection_search(modified, &mut lower_bounds, &mut upper_bounds, lower_node, target_node))
                 }
             };
 
@@ -292,7 +292,7 @@ where
 
                 if modified.calc_input.get_occupations || modified.calc_input.get_wave_function {
                     modify_from_f64(&mut p_mod, p);
-                    p_mod.modify(&mut modified);
+                    p_mod.modify(modified);
                     let w_matrix = self.get_w_matrix(modified.system, modified.calc_input);
 
                     let wave = bound_wave(&w_matrix, modified.calc_input, target_node);
@@ -714,10 +714,10 @@ fn bound_wave(
     }
 }
 
-fn modify_from_f64<D: ModifyParams>(modify: &mut D, value: f64) {
+pub fn modify_from_f64<D: ModifyParams>(modify: &mut D, value: f64) {
     modify.mut_number(Number::from_f64(value).unwrap())
 }
 
-fn modify_to_f64<D: ModifyParams>(value: &D) -> f64 {
+pub fn modify_to_f64<D: ModifyParams>(value: &D) -> f64 {
     value.as_number().as_f64().unwrap()
 }

@@ -155,7 +155,7 @@ where
                     };
                     d.modify(&mut modified);
 
-                    for data in self.single_calc.calculate(modified, problem) {
+                    for data in self.single_calc.calculate(&mut modified, problem) {
                         let data = data?;
                         saver.send(DependenceData {
                             parameter: d.as_number(),
@@ -170,15 +170,13 @@ where
 
             let mut input = input;
             let mut system = system;
-            let calc = self.single_calc.calculate(
-                Modified {
-                    system: &mut system,
-                    basis: &mut input.basis_recipe,
-                    params: &mut input.parameters,
-                    calc_input: &mut input.calc_parameters.calc,
-                },
-                problem,
-            );
+            let mut modified = &mut Modified {
+                system: &mut system,
+                basis: &mut input.basis_recipe,
+                params: &mut input.parameters,
+                calc_input: &mut input.calc_parameters.calc,
+            };
+            let calc = self.single_calc.calculate(&mut modified, problem);
 
             for data in calc {
                 let data = data?;

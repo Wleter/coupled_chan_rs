@@ -3,6 +3,7 @@ pub mod bound_states;
 pub mod dependence;
 pub mod levels;
 pub mod scattering;
+pub mod resonances;
 
 use anyhow::Result;
 use serde::{
@@ -68,7 +69,7 @@ pub trait SingleCalc: Send + Sync {
 
     fn calculate(
         &self,
-        modified: Modified<Self::P, Self::CalcInput>,
+        modified: &mut Modified<Self::P, Self::CalcInput>,
         problem: &Self::P,
     ) -> impl IntoIterator<Item = Result<Self::Data>>;
 }
