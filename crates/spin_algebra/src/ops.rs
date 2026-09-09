@@ -243,6 +243,16 @@ pub fn red_harmonics_mel(l: Braket<impl SpinMagLike>, l_sph: impl SpinMagLike) -
     f64::sqrt((l_sph.dim() * l_ket.dim()) as f64 / (4. * PI)) * wigner_3j(l_bra, l_sph, l_ket, hi32!(0), hi32!(0), hi32!(0))
 }
 
+#[inline]
+///Returns <l'||C^(l_sph)||l>
+pub fn red_reduced_harmonics_mel(l: Braket<impl SpinMagLike>, l_sph: impl SpinMagLike) -> f64 {
+    let l_sph = l_sph.s();
+    let l_bra = l.bra.s();
+    let l_ket = l.ket.s();
+
+    f64::sqrt(l_ket.dim() as f64) * wigner_3j(l_bra, l_sph, l_ket, hi32!(0), hi32!(0), hi32!(0))
+}
+
 #[cfg(test)]
 mod tests {
     use clebsch_gordan::{
