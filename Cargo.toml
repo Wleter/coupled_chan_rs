@@ -36,7 +36,7 @@ faer = "0.24"
 nalgebra = "0.34"
 ndarray = "0.16.1"
 
-clebsch-gordan = { git = "https://github.com/Wleter/clebsch-gordan", branch = "master", features = ["serde"]}
+clebsch-gordan = { git = "https://github.com/Wleter/clebsch-gordan", features = ["serde"]}
 cc_problems = { path = "crates/cc_problems" }
 
 [profile.dev.package.faer]

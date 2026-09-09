@@ -134,8 +134,8 @@ pub fn red_second_subsystem_mel_factor(
 ///
 ///
 /// ```text
-///                                                            (s1 + s2' + S)                     ⎧s1' S s2'⎫
-/// <γ'(s1 s2') S'M'_S|T^k(s1) * T^k(s2)|γ(s1 s2) S M_S = (-1)^              delta^(S'M'S)_(SM_S) ⎩s2  k s1 ⎭ \sum_γ"<γ's1'||T^k(s1)||γ"s1><γ"s2'||T^k(s2)||γ s2>
+///                                                             (s1 + s2' + S)                     ⎧s1' S s2'⎫
+/// <γ'(s1 s2') S'M'_S|T^k(s1) * T^k(s2)|γ(s1 s2) S M_S> = (-1)^              delta^(S'M'S)_(SM_S) ⎩s2  k s1 ⎭ \sum_γ"<γ's1'||T^k(s1)||γ"s1><γ"s2'||T^k(s2)||γ s2>
 /// ```
 pub fn wigner_eckart_dot_product_factor(
     s: Braket<SpinPair<impl SpinMagLike, impl SpinMagLike>>,
@@ -163,8 +163,8 @@ pub fn wigner_eckart_dot_product_factor(
 ///
 ///
 /// ```text
-///                                                              (s1 + s2' + S + k)                     ⎧s1' S s2'⎫
-/// <γ'(s1 s2') S'M'_S||T^k(s1) * T^k(s2)||γ(s1 s2) S M_S = (-1)^                  delta^(S'M'S)_(SM_S) ⎩s2  k s1 ⎭ \sum_γ"<γ's1'||T^k(s1)||γ"s1><γ"s2'||T^k(s2)||γ s2>
+///                                                               (s1 + s2' + S + k)                     ⎧s1' S s2'⎫
+/// <γ'(s1 s2') S'M'_S||T^k(s1) * T^k(s2)||γ(s1 s2) S M_S> = (-1)^                  delta^(S'M'S)_(SM_S) ⎩s2  k s1 ⎭ \sum_γ"<γ's1'||T^k(s1)||γ"s1><γ"s2'||T^k(s2)||γ s2>
 /// ```
 pub fn red_dot_product_factor(s: Braket<SpinPairMag<impl SpinMagLike, impl SpinMagLike>>, k: impl SpinMagLike) -> f64 {
     if s.bra.s() == s.ket.s() {
@@ -182,6 +182,41 @@ pub fn red_dot_product_factor(s: Braket<SpinPairMag<impl SpinMagLike, impl SpinM
     } else {
         0.
     }
+}
+
+/// Returns right hand side of the equation
+/// without sum over reduced matrix elements.
+///
+///
+/// ```text
+///                                                                                                ⎧s1' s1 k1⎫
+///                                                                                                {s2' s2 k2}
+/// <γ'(s1 s2') S'M'_S||(T^k1(s1) ⊗ T^k2(s2))^k||γ(s1 s2) S M_S> = sqrt((2S + 1)(2S' + 1)(2k + 1)) ⎩S'  S  k⎭ \sum_γ"<γ's1'||T^k1(s1)||γ"s1><γ"s2'||T^k2(s2)||γ s2>
+/// ```
+pub fn red_tensor_product_factor(
+    s: Braket<SpinPairMag<impl SpinMagLike, impl SpinMagLike>>, 
+    k1: impl SpinMagLike,
+    k2: impl SpinMagLike,
+    k: impl SpinMagLike
+) -> f64 {
+    let k1 = k1.s();
+    let k2 = k2.s();
+    let k = k.s();
+    let s_bra_1 = s.bra.pair.0.s();
+    let s_ket_1 = s.ket.pair.0.s();
+    let s_bra_2 = s.bra.pair.1.s();
+    let s_ket_2 = s.ket.pair.1.s();
+    let s_bra = s.bra.s();
+    let s_ket = s.ket.s();
+
+    let factor = red_id_mel(k) * red_id_mel(s_bra) * red_id_mel(s_ket);
+    let wigner = wigner_9j(
+        [s_bra_1, s_ket_1, k1],
+        [s_bra_2, s_ket_2, k2],
+        [s_bra, s_ket, k]
+    );
+
+    factor * wigner
 }
 
 ///Returns <s||1||s> = (2s + 1).sqrt()

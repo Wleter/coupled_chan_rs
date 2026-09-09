@@ -294,7 +294,7 @@ checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
 [[package]]
 name = "clebsch-gordan"
 version = "0.3.0"
-source = "git+https://github.com/Wleter/clebsch-gordan?branch=master#30b8f7a6c77ce465381979353316aeb95498cb58"
+source = "git+https://github.com/Wleter/clebsch-gordan#f0552aae2bce74c1fa1da48bf51d057db0b41148"
 dependencies = [
  "lazy_static",
  "lru",
