@@ -133,38 +133,75 @@ where
         let save_filepath = &input.calc_parameters.save_filepath.to_string_lossy();
         let save_option = input.calc_parameters.save_option;
         let parallel_no = input.calc_parameters.parallelism;
+        println!("{:?}", system.basis());
 
+        // also disgusting for sake of calculations now todo!
         if let Some(grid) = &input.calc_parameters.grid {
-            let saver = DataSaver::new(save_filepath, JsonFormat, save_option)?;
-            let data = grid.collect();
+            if matches!(grid, Grid::Dim2 { first: _, second: _ }) {
+                let saver = DataSaver::new(save_filepath, JsonFormat, save_option)?;
+                let data = grid.dim2();
+    
+                let data = if input.workers > 1 {
+                    data.into_iter().skip(input.worker).step_by(input.workers).collect()
+                } else {
+                    data
+                };
 
-            let data = if input.workers > 1 {
-                data.into_iter().skip(input.worker).step_by(input.workers).collect()
+                ParallelExecutor::new((system, input))
+                    .with_parallelism(parallel_no)
+                    .par_execute(data, |(s, input), (d1, d2)| {
+                        let mut modified = Modified {
+                            system: s,
+                            basis: &mut input.basis_recipe,
+                            params: &mut input.parameters,
+                            calc_input: &mut input.calc_parameters.calc,
+                        };
+                        d1.modify(&mut modified);
+                        d2.modify(&mut modified);
+    
+                        for data in self.single_calc.calculate(&mut modified, problem) {
+                            let data = data?;
+                            saver.send(DependenceData {
+                                parameter: (d1.as_number(), d2.as_number()),
+                                data,
+                            });
+                        }
+    
+                        Ok(())
+                    })?;
             } else {
-                data
-            };
 
-            ParallelExecutor::new((system, input))
-                .with_parallelism(parallel_no)
-                .par_execute(data, |(s, input), d| {
-                    let mut modified = Modified {
-                        system: s,
-                        basis: &mut input.basis_recipe,
-                        params: &mut input.parameters,
-                        calc_input: &mut input.calc_parameters.calc,
-                    };
-                    d.modify(&mut modified);
-
-                    for data in self.single_calc.calculate(&mut modified, problem) {
-                        let data = data?;
-                        saver.send(DependenceData {
-                            parameter: d.as_number(),
-                            data,
-                        });
-                    }
-
-                    Ok(())
-                })?;
+                let saver = DataSaver::new(save_filepath, JsonFormat, save_option)?;
+                let data = grid.collect();
+    
+                let data = if input.workers > 1 {
+                    data.into_iter().skip(input.worker).step_by(input.workers).collect()
+                } else {
+                    data
+                };
+    
+                ParallelExecutor::new((system, input))
+                    .with_parallelism(parallel_no)
+                    .par_execute(data, |(s, input), d| {
+                        let mut modified = Modified {
+                            system: s,
+                            basis: &mut input.basis_recipe,
+                            params: &mut input.parameters,
+                            calc_input: &mut input.calc_parameters.calc,
+                        };
+                        d.modify(&mut modified);
+    
+                        for data in self.single_calc.calculate(&mut modified, problem) {
+                            let data = data?;
+                            saver.send(DependenceData {
+                                parameter: d.as_number(),
+                                data,
+                            });
+                        }
+    
+                        Ok(())
+                    })?;
+            }
         } else {
             let saver = DataSaver::new(save_filepath, JsonFormat, save_option)?;
 
@@ -196,6 +233,8 @@ pub enum Grid<D> {
     Log { start: D, end: D, n: usize },
     Vec { values: Vec<D> },
     Composite { ranges: Vec<Grid<D>> },
+    // dirty disgusting thing to do, but for now for calculations done todo!
+    Dim2 { first: Box<Grid<D>>, second: Box<Grid<D>> },
 }
 
 impl<D: ModifyParams + Clone> Grid<D> {
@@ -225,6 +264,19 @@ impl<D: ModifyParams + Clone> Grid<D> {
             }
             Grid::Vec { values } => values.clone(),
             Grid::Composite { ranges } => ranges.iter().flat_map(|x| x.collect()).collect(),
+            Grid::Dim2 { first: _, second: _ } => panic!("2 dimensional grid cannot collect into single vec"),
+        }
+    }
+
+    pub fn dim2(&self) -> Vec<(D, D)> {
+        match self {
+            Grid::Dim2 { first, second } => {
+                let f = first.collect();
+                let s = second.collect();
+                
+                f.into_iter().flat_map(|x| s.iter().map(|y| (x.clone(), y.clone())).collect::<Vec<(D, D)>>()).collect()
+            },
+            _ => panic!("2 dimensional grid only for Grid of type Dim2"),
         }
     }
 }
