@@ -1,5 +1,6 @@
 use std::{marker::PhantomData, mem::swap};
 
+use anyhow::bail;
 use hilbert_space::faer::complex::Complex64;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
@@ -86,8 +87,6 @@ where
         let results: Vec<anyhow::Result<BoundStateData>> = 
             self.bound.calculate(&mut modified_bound, problem).into_iter().collect();
 
-        println!("{:?}", results);
-
         let t_max = modified.calc_input.t_max;
         let t_min = modified.calc_input.t_min;
 
@@ -95,6 +94,9 @@ where
             let res = res?;
             let mut p_mod = modified.calc_input.bound_input.dependant_err.clone();
             let p_err = modify_to_f64(&p_mod);
+
+            let min_bound = res.parameter - 10.0 * p_err;
+            let max_bound = res.parameter + 10.0 * p_err;
 
             let mut p1 = res.parameter;
             let mut p2 = p1 - p_err;
@@ -161,6 +163,10 @@ where
                 }
 
                 if converged {
+                    if !(min_bound..=max_bound).contains(&p_res) {
+                        bail!("Resonance outside of the searched region")
+                    }
+
                     return Ok(ResonancesData {
                         parameter_res: p_res,
                         a_bg,
