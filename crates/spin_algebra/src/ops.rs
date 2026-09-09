@@ -194,10 +194,10 @@ pub fn red_dot_product_factor(s: Braket<SpinPairMag<impl SpinMagLike, impl SpinM
 /// <γ'(s1 s2') S'M'_S||(T^k1(s1) ⊗ T^k2(s2))^k||γ(s1 s2) S M_S> = sqrt((2S + 1)(2S' + 1)(2k + 1)) ⎩S'  S  k⎭ \sum_γ"<γ's1'||T^k1(s1)||γ"s1><γ"s2'||T^k2(s2)||γ s2>
 /// ```
 pub fn red_tensor_product_factor(
-    s: Braket<SpinPairMag<impl SpinMagLike, impl SpinMagLike>>, 
+    s: Braket<SpinPairMag<impl SpinMagLike, impl SpinMagLike>>,
     k1: impl SpinMagLike,
     k2: impl SpinMagLike,
-    k: impl SpinMagLike
+    k: impl SpinMagLike,
 ) -> f64 {
     let k1 = k1.s();
     let k2 = k2.s();
@@ -210,11 +210,7 @@ pub fn red_tensor_product_factor(
     let s_ket = s.ket.s();
 
     let factor = red_id_mel(k) * red_id_mel(s_bra) * red_id_mel(s_ket);
-    let wigner = wigner_9j(
-        [s_bra_1, s_ket_1, k1],
-        [s_bra_2, s_ket_2, k2],
-        [s_bra, s_ket, k]
-    );
+    let wigner = wigner_9j([s_bra_1, s_ket_1, k1], [s_bra_2, s_ket_2, k2], [s_bra, s_ket, k]);
 
     factor * wigner
 }

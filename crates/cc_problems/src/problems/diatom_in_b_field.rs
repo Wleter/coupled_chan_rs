@@ -7,12 +7,16 @@ use hilbert_space::{
         SpaceElement,
     },
 };
-use serde::Deserialize;
+use serde::{
+    Deserialize,
+    Serialize,
+};
 use serde_json::Number;
 use spin_algebra::{
     SpinLike,
     SpinMagLike,
     get_spin_pair_magnitudes,
+    half_integer::HalfI32,
 };
 use unit_systems::quantities::{
     Scalar,
@@ -25,52 +29,64 @@ use unit_systems::quantities::{
 };
 
 use crate::{
-    OrbitalBasisElements,
-    UNITS_CONVERTER,
-    atom_basis::WithProjection,
-    atom_operators::AtomParams,
-    calculations::{
-        DynCalc, Modified, adiabats::{
+    OrbitalBasisElements, UNITS_CONVERTER, atom_operators::AtomParams, calculations::{
+        DynCalc,
+        Modified,
+        adiabats::{
             AdiabatsCalc,
             AdiabatsInput,
-        }, bound_states::{
+        },
+        bound_states::{
             BoundStateCalc,
             BoundStateCalcInput,
-        }, dependence::{
+        },
+        dependence::{
             DependenceCalc,
             ModifyParams,
             scalar_from_value,
-        }, levels::EnergyLevelsCalc, resonances::{ResonancesCalc, ResonancesInput}, scattering::{
+        },
+        levels::EnergyLevelsCalc,
+        resonances::{
+            ResonancesCalc,
+            ResonancesInput,
+        },
+        scattering::{
             ScatteringCalc,
             ScatteringCalcInput,
-        }
-    },
-    diatom_basis::{
+        },
+    }, diatom_basis::{
         CoupledSIDiatomBasis,
         DiatomRecipe,
-    },
-    interactions::{
-        PecPolarizationSpec,
-        PecPolarizations,
-        PecScalings,
-        Scaling,
-        SpinConfiguration,
-    },
-    operator_mel::spin_projection_term_coupled,
-    param_ids,
-    parameters::Parameters,
-    problems::Problem,
-    system::{
+    }, diatom_operators::SpinRotationSpec, interactions::{
+        Interactions, PecPolarizationSpec, PecPolarizations, PecScalings, Scaling, SpinConfiguration
+    }, operator_mel::spin_projection_term_coupled, param_ids, parameters::Parameters, problems::Problem, system::{
         DynOperatorSpec,
         DynPotentialSpec,
         HamiltonianSpec,
         ParamModifications,
         System,
         new_param_modifications,
-    },
+    }
 };
 
-pub type DiatomInBFieldBasis = WithProjection<DiatomRecipe>;
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DiatomInBFieldBasis {
+    #[serde(flatten)]
+    pub recipe: DiatomRecipe,
+    #[serde(default)]
+    pub projection: Option<HalfI32>,
+    #[serde(default)]
+    pub l_parity: OrbitalParity,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub enum OrbitalParity {
+    #[default]
+    All,
+    Even,
+    Odd,
+}
 
 #[derive(Debug, Clone, Deserialize, cc_derive::Parameters)]
 pub struct DiatomInBFieldParams {
@@ -88,6 +104,9 @@ pub struct DiatomInBFieldParams {
     pub pecs: PecPolarizations,
     #[serde(default)]
     pub scalings: PecScalings,
+
+    #[serde(default)]
+    pub spin_orbit: Option<Interactions>
 }
 
 pub fn diatom_levels_b_field_scan() -> Box<dyn DynCalc<DiatomInBFieldProblem>> {
@@ -185,8 +204,13 @@ impl Problem for DiatomInBFieldProblem {
                 true
             }
         };
+        let l_filter = |x: SpaceElement| match basis_recipe.l_parity {
+            OrbitalParity::All => true,
+            OrbitalParity::Even => diatom.filter(|(_, _, l)| l.l_value().is_multiple_of(2))(x),
+            OrbitalParity::Odd => diatom.filter(|(_, _, l)| !l.l_value().is_multiple_of(2))(x),
+        };
 
-        let elements = basis.get_filtered_basis(|x| homonuclear_filter(x) && projection_filter(x));
+        let elements = basis.get_filtered_basis(|x| homonuclear_filter(x) && projection_filter(x) && l_filter(x));
         let elements = OrbitalBasisElements::from_orbital(elements, &diatom.l);
 
         let mut hamiltonian_spec = HamiltonianSpec::new(elements);
@@ -223,6 +247,15 @@ impl Problem for DiatomInBFieldProblem {
                 }),
             )
         }));
+        hamiltonian_spec.add_potentials([
+            (
+                "spin_rot_coupling",
+                DynPotentialSpec::new(SpinRotationSpec {
+                    so_curve: param_ids.spin_orbit,
+                    masking: diatom.second_order_so(),
+                }),
+            ),
+        ]);
 
         hamiltonian_spec
     }

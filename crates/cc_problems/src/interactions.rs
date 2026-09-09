@@ -11,8 +11,7 @@ use coupled_chan::{
     DynInteraction,
     coupling::masked::Masked,
     dispersion::{
-        PowerLaw,
-        lennard_jones,
+        ExpLaw, PowerLaw, lennard_jones
     },
     interpolated::{
         InterpolatedPotential,
@@ -66,6 +65,25 @@ impl<const N: i8> C_N<N> {
         let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
 
         PowerLaw::new(converter.scalar_value(&self.0), -N as i32)
+    }
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[allow(non_camel_case_types)]
+pub struct Exp {
+    d: Scalar<Energy>,
+    exponent: Scalar<Inv<Length>>,
+    r_offset: Scalar<Length>
+}
+
+impl Exp {
+    pub fn interaction(&self) -> ExpLaw {
+        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+        let d = converter.scalar_value(&self.d);
+        let exponent = converter.scalar_value(&self.exponent);
+        let offset = converter.scalar_value(&self.r_offset);
+
+        ExpLaw::new(d, exponent, offset)
     }
 }
 
@@ -204,6 +222,7 @@ pub enum Interactions {
     MorseLongRange(MorseLongRange),
     Spline(Spline),
     RkhsInterpolation(RKHSInterpolation),
+    Exp(Exp),
     Transition {
         near: Box<Interactions>,
         far: Box<Interactions>,
@@ -211,6 +230,7 @@ pub enum Interactions {
         r_end_switch: Scalar<Length>,
         switching: SwitchingRegion,
     },
+    Composite(Vec<Interactions>),
 }
 
 impl Interactions {
@@ -218,6 +238,7 @@ impl Interactions {
         match self {
             Interactions::LennardJones(lenard_jones) => DynInteraction::new(lenard_jones.interaction()),
             Interactions::Analytic(analytic) => DynInteraction::new(analytic.interaction()),
+            Interactions::Exp(exp) => DynInteraction::new(exp.interaction()),
             Interactions::MorseLongRange(morse_long_range) => DynInteraction::new(morse_long_range.interaction()),
             Interactions::Spline(spline) => DynInteraction::new(spline.interaction()),
             Interactions::RkhsInterpolation(_rkhs_interpolation) => todo!(),
@@ -240,6 +261,9 @@ impl Interactions {
                     )),
                 }
             }
+            Interactions::Composite(items) => DynInteraction::new(Composite::new(
+                items.into_iter().map(|x| x.interactions()).collect())
+            ),
         }
     }
 }

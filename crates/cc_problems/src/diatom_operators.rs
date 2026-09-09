@@ -1,3 +1,5 @@
+use cc_qol_utils::Pair;
+use coupled_chan::{DynInteraction, coupling::masked::Masked, dispersion::PowerLaw};
 use hilbert_space::{
     operator_mel,
     space::BasisElementsRef,
@@ -6,31 +8,78 @@ use spin_algebra::{
     Spin,
     SpinLike,
     SpinMagLike,
+    hu32,
     ops::{
         red_dot_product_factor,
         red_first_subsystem_mel_factor,
+        red_reduced_harmonics_mel,
         red_second_subsystem_mel_factor,
         red_spin_mel,
+        red_tensor_product_factor,
         wigner_eckart_dot_product_factor,
         wigner_eckart_factor,
     },
 };
+use unit_systems::CODATA_2022;
 
 use crate::{
-    Operator,
-    atom_operators::{
+    Operator, atom_operators::{
         AHifiId,
         BFieldId,
         GFactorId,
         HifiSpec,
         ZeemanSpec,
-    },
-    diatom_basis::{
+    }, diatom_basis::{
         CoupledDiatomBasis,
         CoupledFTotDiatomBasis,
         CoupledSIDiatomBasis,
-    },
+    }, interactions::Interactions, param_ids, parameters::{ParameterRegistry, TypedParamId}, system::PotentialSpec
 };
+
+pub struct SpinRotationSpec<Mask>
+where
+    Mask: Fn(BasisElementsRef) -> Operator,
+{
+    pub so_curve: TypedParamId<Option<Interactions>>,
+    pub masking: Mask,
+}
+
+impl<Mask> PotentialSpec for SpinRotationSpec<Mask>
+where
+    Mask: Fn(BasisElementsRef) -> Operator + Send + Sync,
+{
+    fn build_params(&self) -> crate::system::ParamIds {
+        param_ids![self.so_curve.vanish()]
+    }
+
+    fn r_coupling(&self, elements: BasisElementsRef, params: &ParameterRegistry) -> Masked<coupled_chan::DynInteraction> {
+        let fine_constant = CODATA_2022.fine_constant;
+        let dipole_term = PowerLaw::new(-fine_constant.powi(2), -3);
+
+        if let Some(so) = params.get(self.so_curve) {
+            let spin_orbit_term = so.interactions();
+            Masked {
+                interaction: DynInteraction::new(Pair::new(dipole_term, spin_orbit_term)),
+                masking: (self.masking)(elements).0,
+            }
+        } else {
+            Masked {
+                interaction: DynInteraction::new(dipole_term),
+                masking: (self.masking)(elements).0,
+            }
+        }
+
+    }
+
+    fn scaling_params(&self) -> crate::system::ParamIds {
+        param_ids![]
+    }
+
+    fn scaling(&self, _params: &ParameterRegistry) -> f64 {
+        1.0
+    }
+}
+
 
 impl CoupledSIDiatomBasis {
     pub fn hifi_a(&self, a_hifi: AHifiId) -> HifiSpec<impl Fn(BasisElementsRef) -> Operator + use<>> {
@@ -192,6 +241,34 @@ impl CoupledSIDiatomBasis {
                     }
                 })
             },
+        }
+    }
+
+    pub fn second_order_so(&self) -> impl Fn(BasisElementsRef) -> Operator + use<> {
+        let l_id = self.l.l;
+        let s_id = self.s_tot;
+
+        move |b: BasisElementsRef| {
+            operator_mel!(b, [s_id, l_id], |[s, l]| {
+                let q = l.bra.m - l.ket.m;
+
+                if q == s.ket.m() - s.bra.m()
+                    && q.double_value().unsigned_abs() <= hu32!(2).double_value()
+                    && s.bra.pair.0 == s.ket.pair.0
+                    && s.bra.pair.1 == s.ket.pair.1
+                {
+                    let phase = (-1f64).powi(q.double_value() / 2);
+                    let rot = wigner_eckart_factor(l, Spin::new(hu32!(2), q)) * red_reduced_harmonics_mel(l, hu32!(2));
+                    let spin = wigner_eckart_factor(s, Spin::new(hu32!(2), -q))
+                        * red_tensor_product_factor(s.map(|s| s.as_spin_pair_mag()), hu32!(1), hu32!(1), hu32!(2))
+                        * red_spin_mel(s.bra.pair.0)
+                        * red_spin_mel(s.bra.pair.1);
+
+                    6f64.sqrt() * phase * rot * spin
+                } else {
+                    0.0
+                }
+            })
         }
     }
 }
