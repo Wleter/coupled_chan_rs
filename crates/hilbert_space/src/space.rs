@@ -365,10 +365,10 @@ impl Display for BasisElements {
 impl Debug for BasisElements {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for indices in &self.elements_indices {
+            writeln!(f)?;
             for (index, b) in indices.0.iter().zip(self.basis.0.iter()) {
                 write!(f, "|{:?} > ", b.basis[*index])?
             }
-            writeln!(f)?
         }
 
         Ok(())
