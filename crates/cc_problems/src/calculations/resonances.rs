@@ -1,12 +1,35 @@
-use std::{marker::PhantomData, mem::swap};
+use std::{
+    marker::PhantomData,
+    mem::swap,
+};
 
 use anyhow::bail;
 use hilbert_space::faer::complex::Complex64;
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde::{
+    Deserialize,
+    Serialize,
+    de::DeserializeOwned,
+};
 
 use crate::{
     calculations::{
-        Modified, SingleCalc, bound_states::{BoundStateCalc, BoundStateCalcInput, BoundStateData, modify_from_f64, modify_to_f64}, dependence::{DependenceCalc, ModifyParams}, scattering::{ScatteringCalc, ScatteringCalcInput}
+        Modified,
+        SingleCalc,
+        bound_states::{
+            BoundStateCalc,
+            BoundStateCalcInput,
+            BoundStateData,
+            modify_from_f64,
+            modify_to_f64,
+        },
+        dependence::{
+            DependenceCalc,
+            ModifyParams,
+        },
+        scattering::{
+            ScatteringCalc,
+            ScatteringCalcInput,
+        },
     },
     problems::Problem,
 };
@@ -34,7 +57,7 @@ pub struct ResonancesData {
     width: f64,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    decay_width: Option<f64>
+    decay_width: Option<f64>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -68,8 +91,7 @@ fn default_max_iter() -> usize {
     20
 }
 
-
-impl<P, D> SingleCalc for ResonancesCalc<P, D> 
+impl<P, D> SingleCalc for ResonancesCalc<P, D>
 where
     P: Problem,
     D: ModifyParams<P = P, C = BoundStateCalcInput<D>> + Clone,
@@ -84,7 +106,7 @@ where
         problem: &P,
     ) -> impl IntoIterator<Item = anyhow::Result<Self::Data>> {
         let mut modified_bound = Self::modified_bound(modified);
-        let results: Vec<anyhow::Result<BoundStateData>> = 
+        let results: Vec<anyhow::Result<BoundStateData>> =
             self.bound.calculate(&mut modified_bound, problem).into_iter().collect();
 
         let t_max = modified.calc_input.t_max;
@@ -106,26 +128,40 @@ where
             let mut modified_bound = Self::modified_bound(modified);
             p_mod.modify(&mut modified_bound);
             let mut modified_scattering = Self::modified_scattering(modified);
-            let mut s1 = self.scattering.calculate(&mut modified_scattering, problem).into_iter().next().unwrap()?.s_length;
+            let mut s1 = self
+                .scattering
+                .calculate(&mut modified_scattering, problem)
+                .into_iter()
+                .next()
+                .unwrap()?
+                .s_length;
 
             modify_from_f64(&mut p_mod, p2);
             let mut modified_bound = Self::modified_bound(modified);
             p_mod.modify(&mut modified_bound);
             let mut modified_scattering = Self::modified_scattering(modified);
-            let mut s2 = self.scattering.calculate(&mut modified_scattering, problem).into_iter().next().unwrap()?.s_length;
+            let mut s2 = self
+                .scattering
+                .calculate(&mut modified_scattering, problem)
+                .into_iter()
+                .next()
+                .unwrap()?
+                .s_length;
 
             modify_from_f64(&mut p_mod, p3);
             let mut modified_bound = Self::modified_bound(modified);
             p_mod.modify(&mut modified_bound);
             let mut modified_scattering = Self::modified_scattering(modified);
-            let mut s3 = self.scattering.calculate(&mut modified_scattering, problem).into_iter().next().unwrap()?.s_length;
+            let mut s3 = self
+                .scattering
+                .calculate(&mut modified_scattering, problem)
+                .into_iter()
+                .next()
+                .unwrap()?
+                .s_length;
 
             for _ in 0..modified.calc_input.max_iter {
-                let (a_bg, p_res, width) = get_resonance([
-                    (p1, s1),
-                    (p2, s2),
-                    (p3, s3)
-                ]);
+                let (a_bg, p_res, width) = get_resonance([(p1, s1), (p2, s2), (p3, s3)]);
 
                 let mut d1 = (p_res - p1) / width;
                 let mut d2 = (p_res - p2) / width;
@@ -186,30 +222,43 @@ where
                 let mut modified_bound = Self::modified_bound(modified);
                 p_mod.modify(&mut modified_bound);
                 let mut modified_scattering = Self::modified_scattering(modified);
-                s2 = self.scattering.calculate(&mut modified_scattering, problem).into_iter().next().unwrap()?.s_length;
+                s2 = self
+                    .scattering
+                    .calculate(&mut modified_scattering, problem)
+                    .into_iter()
+                    .next()
+                    .unwrap()?
+                    .s_length;
             }
 
-            Err(anyhow::anyhow!("Could not obtain resonance characterization in {} iterations", modified.calc_input.max_iter))
+            Err(anyhow::anyhow!(
+                "Could not obtain resonance characterization in {} iterations",
+                modified.calc_input.max_iter
+            ))
         })
     }
 }
 
 impl<P: Problem, D: ModifyParams<P = P, C = BoundStateCalcInput<D>>> ResonancesCalc<P, D> {
-    fn modified_bound<'b, 'a>(modified: &'b mut Modified<'a, P, ResonancesInput<D>>) -> Modified<'b, P, BoundStateCalcInput<D>> {
-        Modified { 
-            system: modified.system, 
-            basis: modified.basis, 
-            params: modified.params, 
-            calc_input: &mut modified.calc_input.bound_input 
+    fn modified_bound<'b, 'a>(
+        modified: &'b mut Modified<'a, P, ResonancesInput<D>>,
+    ) -> Modified<'b, P, BoundStateCalcInput<D>> {
+        Modified {
+            system: modified.system,
+            basis: modified.basis,
+            params: modified.params,
+            calc_input: &mut modified.calc_input.bound_input,
         }
     }
 
-    fn modified_scattering<'b, 'a>(modified: &'b mut Modified<'a, P, ResonancesInput<D>>) -> Modified<'b, P, ScatteringCalcInput> {
-        Modified { 
-            system: modified.system, 
-            basis: modified.basis, 
-            params: modified.params, 
-            calc_input: &mut modified.calc_input.scattering_input
+    fn modified_scattering<'b, 'a>(
+        modified: &'b mut Modified<'a, P, ResonancesInput<D>>,
+    ) -> Modified<'b, P, ScatteringCalcInput> {
+        Modified {
+            system: modified.system,
+            basis: modified.basis,
+            params: modified.params,
+            calc_input: &mut modified.calc_input.scattering_input,
         }
     }
 }
