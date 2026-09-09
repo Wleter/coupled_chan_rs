@@ -99,5 +99,5 @@ pub const CODATA_2022: FundamentalConstantsSI = FundamentalConstantsSI {
     electron_mass: 9.109_383_713_9e-31,
     electric_vacuum_permittivity: 8.854_187_818_8e-12,
     boltzmann_constant: 1.380_649e-23,
-    fine_constant: 0.0072973525643,
+    fine_constant: 0.007_297_352_564_3,
 };
