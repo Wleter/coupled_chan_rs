@@ -12,3 +12,9 @@ pyrightconfig.json
 dist/
 .envrc
 .direnv
+
+/pyproject.toml
+/test.jsonc
+/test.toml
+/uv.lock
+inputs
