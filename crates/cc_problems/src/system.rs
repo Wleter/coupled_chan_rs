@@ -299,10 +299,16 @@ impl DynPotentialSpec {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct HashVec<Key, Val> {
     pub map: HashMap<Key, usize>,
     pub vec: Vec<Val>,
+}
+
+impl<Key: std::fmt::Debug, Val: std::fmt::Debug> std::fmt::Debug for HashVec<Key, Val> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_map().entries(self.map.iter().map(|(a, i)| (a, &self.vec[*i]))).finish()
+    }
 }
 
 impl<Key, Val> Default for HashVec<Key, Val> {
