@@ -678,10 +678,12 @@ fn bound_wave(
         LogDerivSolver::ManolopoulosLogDeriv => {
             let step = input.step.get_step();
             let mut solver_in = ManolopoulosLogDerivative::new(w_matrix, step, boundary_in);
+            solver_in.init_wave_storage();
             let sol_in = solver_in.propagate_to(r_match);
 
             let step = input.step.get_step();
             let mut solver_out = ManolopoulosLogDerivative::new(w_matrix, step, boundary_out);
+            solver_out.init_wave_storage();
             let sol_out = solver_out.propagate_to(r_match);
 
             let matching_matrix = &sol_out.sol.0 - &sol_in.sol.0;
