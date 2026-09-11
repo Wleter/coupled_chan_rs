@@ -69,7 +69,7 @@ pub fn brent_root_method(
     let (mut c, mut yc, mut d) = (a, ya, a);
     let mut bisection_last = true;
 
-    for _ in 0..max_iter {
+    for i in 0..max_iter {
         if (a - b).abs() < err {
             return Ok(c);
         }
@@ -97,7 +97,7 @@ pub fn brent_root_method(
             bisection_last = false;
         }
 
-        if (s - b).abs() < err {
+        if (s - b).abs() < err && i != 0 {
             return Ok(s);
         }
 
