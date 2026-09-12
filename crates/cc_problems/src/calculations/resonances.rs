@@ -72,6 +72,7 @@ pub struct ResonancesInput<D: ModifyParams> {
     pub t_max: f64,
 
     #[serde(default = "default_eps")]
+    /// resolution of eps * bound_input.p_err
     eps: f64,
 
     #[serde(default = "default_max_iter")]
@@ -85,7 +86,7 @@ fn default_t_max() -> f64 {
     1.0
 }
 fn default_eps() -> f64 {
-    1e-3
+    1e-4
 }
 fn default_max_iter() -> usize {
     20
@@ -191,7 +192,7 @@ where
                     converged = false
                 } else if t_min > d2.abs() || 2.0 * t_min < d2.abs() || d2 * d3 > 0.0 {
                     converged = false
-                } else if d1.abs() > modified.calc_input.eps {
+                } else if (d1 * width).abs() > modified.calc_input.eps * p_err {
                     swap(&mut d1, &mut d2);
                     swap(&mut s1, &mut s2);
                     swap(&mut p1, &mut p2);
@@ -201,6 +202,9 @@ where
                 if converged {
                     if !(min_bound..=max_bound).contains(&p_res) {
                         bail!("Resonance outside of the searched region")
+                    }
+                    if modified.calc_input.eps * p_err > width || !width.is_finite() {
+                        bail!("Resonance width is too small")
                     }
 
                     return Ok(ResonancesData {
