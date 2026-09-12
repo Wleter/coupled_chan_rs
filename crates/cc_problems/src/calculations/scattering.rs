@@ -241,13 +241,13 @@ impl Boundary {
 
                 let derivative = match direction {
                     Direction::Inwards => {
-                        let diag = Col::from_iter(eigen.S().column_vector().iter().map(|x| -x.abs().sqrt()));
+                        let diag = Col::from_iter(eigen.S().column_vector().iter().map(|x| -x.max(0.0).sqrt()));
                         let diag = diag.as_diagonal();
 
                         eigen.U() * diag * eigen.U().transpose()
                     }
                     Direction::Outwards => {
-                        let diag = Col::from_iter(eigen.S().column_vector().iter().map(|x| x.abs().sqrt()));
+                        let diag = Col::from_iter(eigen.S().column_vector().iter().map(|x| x.max(0.0).sqrt()));
                         let diag = diag.as_diagonal();
 
                         eigen.U() * diag * eigen.U().transpose()
