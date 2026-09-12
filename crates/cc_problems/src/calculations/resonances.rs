@@ -203,8 +203,8 @@ where
                     if !(min_bound..=max_bound).contains(&p_res) {
                         bail!("Resonance outside of the searched region")
                     }
-                    if modified.calc_input.eps * p_err > width || !width.is_finite() {
-                        bail!("Resonance width is too small")
+                    if modified.calc_input.eps * p_err > width.abs() || !width.is_finite() {
+                        bail!("Resonance width is too small {width:?}")
                     }
 
                     return Ok(ResonancesData {
@@ -234,10 +234,20 @@ where
                     .unwrap()?
                     .s_length;
             }
+            let (a_bg, p_res, width) = get_resonance([(p1, s1), (p2, s2), (p3, s3)]);
+            if !(min_bound..=max_bound).contains(&p_res) {
+                bail!("Resonance outside of the searched region")
+            }
+            if modified.calc_input.eps * p_err > width.abs() || !width.is_finite() {
+                bail!("Resonance width is too small: {width:?}")
+            }
 
             Err(anyhow::anyhow!(
-                "Could not obtain resonance characterization in {} iterations",
-                modified.calc_input.max_iter
+                "Could not obtain resonance characterization in {} iterations, best guess: {:?} {:?} {:?}",
+                modified.calc_input.max_iter,
+                a_bg,
+                p_res,
+                width
             ))
         })
     }
