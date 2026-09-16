@@ -5,3 +5,7 @@ local_path = "analysis"
 [[paths]]
 remote_path = "coupled_chan/data"
 local_path = "data"
+
+[[paths]]
+remote_path = "coupled_chan/inputs"
+local_path = "inputs"
