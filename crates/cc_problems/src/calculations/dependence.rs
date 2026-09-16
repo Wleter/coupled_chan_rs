@@ -159,18 +159,22 @@ where
                         d1.modify(&mut modified);
                         d2.modify(&mut modified);
     
+                        let mut result = Ok(());
                         for data in self.single_calc.calculate(&mut modified, problem) {
-                            let data = data?;
-                            saver.send(DependenceData {
-                                parameter: (d1.as_number(), d2.as_number()),
-                                data,
-                            });
+                            if let Ok(data) = data {
+                                saver.send(DependenceData {
+                                    parameter: (d1.as_number(), d2.as_number()),
+                                    data,
+                                });
+                            } else if let Err(err) = data {
+                                eprintln!("{}", err);
+                                result = Err(err);
+                            }
                         }
-    
-                        Ok(())
+                        
+                        result
                     })?;
             } else {
-
                 let saver = DataSaver::new(save_filepath, JsonFormat, save_option)?;
                 let data = grid.collect();
     
@@ -190,16 +194,21 @@ where
                             calc_input: &mut input.calc_parameters.calc,
                         };
                         d.modify(&mut modified);
-    
+
+                        let mut result = Ok(());
                         for data in self.single_calc.calculate(&mut modified, problem) {
-                            let data = data?;
-                            saver.send(DependenceData {
-                                parameter: d.as_number(),
-                                data,
-                            });
+                            if let Ok(data) = data {
+                                saver.send(DependenceData {
+                                    parameter: d.as_number(),
+                                    data,
+                                });
+                            } else if let Err(err) = data {
+                                eprintln!("{}", err);
+                                result = Err(err);
+                            }
                         }
-    
-                        Ok(())
+                        
+                        result
                     })?;
             }
         } else {
@@ -215,10 +224,17 @@ where
             };
             let calc = self.single_calc.calculate(&mut modified, problem);
 
+            let mut result = Ok(());
             for data in calc {
-                let data = data?;
-                saver.send(data);
+                if let Ok(data) = data {
+                    saver.send(data);
+                } else if let Err(err) = data {
+                    eprintln!("{}", err);
+                    result = Err(err);
+                }
             }
+            
+            result?;
         }
 
         Ok(())
