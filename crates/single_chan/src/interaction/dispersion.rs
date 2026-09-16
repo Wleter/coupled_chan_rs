@@ -71,13 +71,19 @@ impl Interaction for ExpLaw {
 }
 
 pub struct AnalyticInteraction {
-    pub power_law: PowerLaw,
-    pub exponent_law: ExpLaw,
+    pub power_law: Composite<PowerLaw>,
+    pub exponent_law: Composite<ExpLaw>,
 }
 
 impl Interaction for AnalyticInteraction {
     fn value(&self, r: f64) -> f64 {
-        self.power_law.value(r) * self.exponent_law.value(r)
+        if self.power_law.components.is_empty() {
+            self.exponent_law.value(r)
+        } else if self.exponent_law.components.is_empty() {
+            self.power_law.value(r)
+        } else {
+            self.power_law.value(r) * self.exponent_law.value(r)
+        }
     }
 
     fn asymptote_dep(&self) -> super::AsymptoteDep {

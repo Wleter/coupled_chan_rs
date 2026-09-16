@@ -11,7 +11,7 @@ use coupled_chan::{
     DynInteraction,
     coupling::masked::Masked,
     dispersion::{
-        ExpLaw, PowerLaw, lennard_jones
+        AnalyticInteraction, ExpLaw, PowerLaw, lennard_jones
     },
     interpolated::{
         InterpolatedPotential,
@@ -33,8 +33,6 @@ use spin_algebra::{
 };
 use unit_systems::quantities::{
     Inv,
-    Power,
-    Prod,
     Scalar,
     phys_quantities::{
         Energy,
@@ -58,13 +56,20 @@ use crate::{
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
-pub struct C_N<const N: i8>(pub Scalar<Prod<Energy, Power<Length, N>>>);
+pub struct C_N {
+    pub d: Scalar<Energy>,
+    pub n: i8,
+    pub r_e: Scalar<Length>
+}
 
-impl<const N: i8> C_N<N> {
+impl C_N {
     pub fn interaction(&self) -> PowerLaw {
         let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+        let d = converter.scalar_value(&self.d);
+        let r_e = converter.scalar_value(&self.r_e);
+        let n = self.n as i32;
 
-        PowerLaw::new(converter.scalar_value(&self.0), -N as i32)
+        PowerLaw::new(d * r_e.powi(n), -n)
     }
 }
 
@@ -90,42 +95,17 @@ impl Exp {
 #[derive(Clone, Default, Debug, Serialize, Deserialize, Parameters)]
 #[serde(default)]
 pub struct Analytic {
-    pub c3: C_N<3>,
-    pub c4: C_N<4>,
-    pub c5: C_N<3>,
-    pub c6: C_N<6>,
-    pub c7: C_N<7>,
-    pub c8: C_N<8>,
-    pub c9: C_N<9>,
-    pub c10: C_N<10>,
-    pub c11: C_N<11>,
-    pub c12: C_N<12>,
+    pub power_law: Vec<C_N>,
+    pub exp_law: Vec<Exp>
 }
 
 impl Analytic {
-    pub fn interaction(&self) -> Composite<PowerLaw> {
-        let laws = vec![
-            self.c3.interaction(),
-            self.c4.interaction(),
-            self.c5.interaction(),
-            self.c6.interaction(),
-            self.c7.interaction(),
-            self.c8.interaction(),
-            self.c9.interaction(),
-            self.c10.interaction(),
-            self.c11.interaction(),
-            self.c12.interaction(),
-        ];
-        let filtered = laws.into_iter().filter(|x| x.d0 != 0.0).collect();
-
-        Composite::new(filtered)
+    pub fn interaction(&self) -> AnalyticInteraction {
+        AnalyticInteraction { 
+            power_law: Composite::new(self.power_law.iter().map(|x| x.interaction()).collect()), 
+            exponent_law: Composite::new(self.exp_law.iter().map(|x| x.interaction()).collect()), 
+        }
     }
-}
-
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
-#[serde(default)]
-pub struct Wall {
-    pub c12: C_N<12>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -146,7 +126,7 @@ impl LennardJones {
 pub struct MorseLongRange {
     d0: Scalar<Energy>,
     r_e: Scalar<Length>,
-    tail: Analytic,
+    tail: Vec<C_N>,
 
     p: Option<i32>,
     q: Option<i32>,
@@ -163,7 +143,7 @@ impl MorseLongRange {
         morse_long_range::MorseLongRangeBuilder {
             d0: converter.scalar_value(&self.d0),
             r_e: converter.scalar_value(&self.r_e),
-            tail: self.tail.interaction().components,
+            tail: self.tail.iter().map(|x| x.interaction()).collect(),
             p: self.p,
             q: self.q,
             r_ref: self.r_ref.as_ref().map(|r_ref| converter.scalar_value(r_ref)),
