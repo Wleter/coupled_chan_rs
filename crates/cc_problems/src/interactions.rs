@@ -124,16 +124,16 @@ impl LennardJones {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MorseLongRange {
-    d0: Scalar<Energy>,
-    r_e: Scalar<Length>,
-    tail: Vec<C_N>,
+    pub d0: Scalar<Energy>,
+    pub r_e: Scalar<Length>,
+    pub tail: Vec<C_N>,
 
-    p: Option<i32>,
-    q: Option<i32>,
+    pub p: Option<i32>,
+    pub q: Option<i32>,
 
-    r_ref: Option<Scalar<Length>>,
-    rho: Option<Scalar<Inv<Length>>>,
-    betas: Vec<f64>,
+    pub r_ref: Option<Scalar<Length>>,
+    pub rho: Option<Scalar<Inv<Length>>>,
+    pub betas: Vec<f64>,
 }
 
 impl MorseLongRange {
