@@ -1,6 +1,6 @@
 use anyhow::{
     Context,
-    Result,
+    Result, bail,
 };
 use cc_problems::problems::{
     AvailableProblems,
@@ -41,25 +41,52 @@ pub struct Args {
 
 impl Args {
     pub fn run_problems(self, problems: AvailableProblems) -> Result<()> {
-        let mut input = parse_input(&self.input);
-        if let Some(defaults) = input.get("defaults") {
-            let relative_path: PathBuf =
-                serde_json::from_value(defaults.clone()).expect("could not convert defaults to relative_path");
-
-            let path = if let Some(parent) = self.input.parent() {
-                let mut path = parent.to_owned();
-                path.push(relative_path);
-                path
-            } else {
-                relative_path
-            };
-
-            let defaults = parse_input(&path);
-            input = merge(defaults, input)
-        }
+        let input = parse_input_defaults(&self.input)?;
 
         problems.run(into_problem_input(input, self.worker, self.workers)?)
     }
+}
+
+fn parse_input_defaults(path: impl AsRef<Path>) -> Result<Value> {
+    let mut input = parse_input(path.as_ref());
+    match &mut input {
+        Value::Object(map) => {
+            if let Some(defaults) = map.remove("defaults") {
+                let defaults = match defaults {
+                    Value::String(s) => vec![s],
+                    Value::Array(values) => {
+                        values
+                            .into_iter()
+                            .map(|x| serde_json::from_value(x).expect("defaults array should contain only strings"))
+                            .collect()
+                    },
+                    _ => bail!("defaults should be array of path strings or single path string")
+                };
+
+                let mut defaults_path = defaults.into_iter()
+                    .map(|relative_path| {
+                        if let Some(parent) = path.as_ref().parent() {
+                            let mut path = parent.to_owned();
+                            path.push(relative_path);
+                            path
+                        } else {
+                            relative_path.into()
+                        }
+                    });
+                if let Some(default_path) = defaults_path.next() {
+                    let mut defaults = parse_input(&default_path);
+                    for path in defaults_path {
+                        let overrides = parse_input(&path);
+                        merge_inplace(&mut defaults, overrides);
+                    }
+                    input = merge(defaults, input);
+                }
+            }
+        },
+        _ => bail!("Input should be an object")
+    }
+
+    Ok(input)
 }
 
 pub fn parse_input(path: impl AsRef<Path>) -> Value {
@@ -121,8 +148,6 @@ fn merge_inplace(default: &mut Value, overrides: Value) {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ProgramInput {
-    #[allow(unused)]
-    defaults: PathBuf,
     problem_name: Box<str>,
     basis_recipe: Value,
     parameters: Value,
