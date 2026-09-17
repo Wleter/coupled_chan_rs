@@ -140,7 +140,8 @@ impl SMatrix {
             .iter()
             .enumerate()
             .filter(|(_, x)| **x)
-            .find(|(i, _)| *i == asymptote.system_params().entrance)
+            .enumerate()
+            .find(|(_, (i, _))| *i == asymptote.system_params().entrance)
             .expect("Closed entrance channel")
             .0;
 
@@ -246,7 +247,8 @@ impl SMatrix {
             .iter()
             .enumerate()
             .filter(|(_, x)| **x)
-            .find(|(i, _)| *i == asymptote.system_params().entrance)
+            .enumerate()
+            .find(|(_, (i, _))| *i == asymptote.system_params().entrance)
             .expect("Closed entrance channel")
             .0;
 
