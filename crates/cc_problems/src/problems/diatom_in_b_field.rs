@@ -762,7 +762,7 @@ impl ModifyParams for ModsBoundSearch {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ModsResonanceScan {
-    PecScaling { configuration: SpinConfiguration, scaling: f64 },
+    PecScaling { configuration: SpinConfiguration, scaling: f64, extend: ScalingExtend },
     PecScalingFull(f64),
 }
 
@@ -774,20 +774,62 @@ impl ModifyParams for ModsResonanceScan {
         let ids = DiatomInBFieldParams::ids();
 
         match self {
-            ModsResonanceScan::PecScaling { configuration, scaling } => {
+            ModsResonanceScan::PecScaling { configuration, scaling, extend } => {
                 let scaling = *scaling;
                 let configuration = *configuration;
-                let modify = ParamModifications::new(move |r| {
-                    let scalings = r.get_mut(ids.scalings);
-                    if let Some(s) = scalings.0.get(&configuration)
-                        && s.0 == scaling
-                    {
-                        param_ids![]
-                    } else {
-                        scalings.0.insert(configuration, Scaling(scaling));
-                        param_ids![ids.scalings.vanish()]
-                    }
-                });
+                let extend = *extend;
+
+                let modify = match extend {
+                    ScalingExtend::Full => ParamModifications::new(move |r| {
+                        let scalings = r.get_mut(ids.scalings);
+                        if let Some(s) = scalings.0.get(&configuration)
+                            && s.0 == scaling
+                        {
+                            param_ids![]
+                        } else {
+                            scalings.0.insert(configuration, Scaling(scaling));
+                            param_ids![ids.scalings.vanish()]
+                        }
+                    }).into_dyn(),
+                    ScalingExtend::ShortRange => {
+                        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+                        let d0 = match &modified.params.pecs.0[&configuration] {
+                                Interactions::MorseLongRange(morse_long_range) => converter.scalar_value(&morse_long_range.d0),
+                                _ => panic!("Short range potential scaling available only for MLR and potential types")
+                        };
+
+
+                        ParamModifications::new(move |r| {
+                            match r.get_mut(ids.pecs).0.get_mut(&configuration).unwrap() {
+                                Interactions::MorseLongRange(morse_long_range) => {
+                                    morse_long_range.d0 = scalar_from_value(&converter, d0 * scaling)
+                                },
+                                _ => panic!("Short range potential scaling available only for MLR and potential types")
+                            };
+
+                            param_ids![ids.pecs.vanish()]
+                        }).into_dyn()
+                    },
+                    ScalingExtend::LongRange => {
+                        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+                        let lr = match &modified.params.pecs.0[&configuration] {
+                            Interactions::MorseLongRange(morse_long_range) => converter.scalar_value(&morse_long_range.tail[0].d),
+                            _ => panic!("Short range potential scaling available only for MLR and potential types")
+                        };
+
+
+                        ParamModifications::new(move |r| {
+                            match r.get_mut(ids.pecs).0.get_mut(&configuration).unwrap() {
+                                Interactions::MorseLongRange(morse_long_range) => {
+                                    morse_long_range.tail[0].d = scalar_from_value(&converter, lr * scaling)
+                                },
+                                _ => panic!("Short range potential scaling available only for MLR and potential types")
+                            };
+
+                            param_ids![ids.pecs.vanish()]
+                        }).into_dyn()
+                    },
+                };
 
                 modified.system.modify_params(modify)
             }
@@ -826,6 +868,7 @@ impl ModifyParams for ModsResonanceScan {
             Self::PecScaling {
                 configuration: _,
                 scaling,
+                extend: _,
             } => Number::from_f64(*scaling).unwrap(),
             Self::PecScalingFull(scaling) => Number::from_f64(*scaling).unwrap(),
         }
@@ -836,6 +879,7 @@ impl ModifyParams for ModsResonanceScan {
             Self::PecScaling {
                 configuration: _,
                 scaling,
+                extend: _,
             } => *scaling = number.as_f64().unwrap(),
             Self::PecScalingFull(scaling) => *scaling = number.as_f64().unwrap(),
         }
