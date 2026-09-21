@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{collections::HashMap, marker::PhantomData};
 
 use coupled_chan::{
     coupling::{
@@ -18,15 +18,11 @@ use unit_systems::quantities::{
 };
 
 use crate::{
-    UNITS_CONVERTER,
-    calculations::{
+    UNITS_CONVERTER, calculations::{
         Modified,
         SingleCalc,
-        dependence::DependenceCalc,
-        levels::EnergyLevelsData,
-    },
-    parameters::TypedParamId,
-    problems::Problem,
+        levels::EnergyLevelsData, modifications::{ModifyRegistry, ScalarCalcMod},
+    }, modify_recipe, parameters::TypedParamId, problems::Problem
 };
 
 pub struct AdiabatsCalc<P> {
@@ -47,6 +43,12 @@ impl<P> AdiabatsCalc<P> {
 #[serde(default)]
 pub struct AdiabatsInput {
     pub distance: Scalar<Length>,
+}
+
+pub fn adiabats_calc_mods<P: Problem + 'static>() -> ModifyRegistry<P, AdiabatsInput> {
+    ModifyRegistry(HashMap::from([
+        ("distance".into(), modify_recipe!(|d| ScalarCalcMod::new(d, |r: &mut AdiabatsInput| &mut r.distance))),
+    ]))
 }
 
 impl<P: Problem> SingleCalc for AdiabatsCalc<P> {
@@ -82,5 +84,3 @@ impl<P: Problem> SingleCalc for AdiabatsCalc<P> {
         [Ok(EnergyLevelsData(values))]
     }
 }
-
-pub type AdiabatsScan<P, D> = DependenceCalc<AdiabatsCalc<P>, D>;

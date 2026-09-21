@@ -4,6 +4,7 @@ pub mod dependence;
 pub mod levels;
 pub mod resonances;
 pub mod scattering;
+pub mod modifications;
 
 use anyhow::Result;
 use serde::{

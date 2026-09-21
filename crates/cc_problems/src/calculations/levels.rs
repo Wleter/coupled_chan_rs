@@ -6,7 +6,6 @@ use crate::{
     calculations::{
         Modified,
         SingleCalc,
-        dependence::DependenceCalc,
     },
     problems::Problem,
 };
@@ -37,5 +36,3 @@ impl<P: Problem> SingleCalc for EnergyLevelsCalc<P> {
         ))]
     }
 }
-
-pub type EnergyLevelsScan<P, D> = DependenceCalc<EnergyLevelsCalc<P>, D>;

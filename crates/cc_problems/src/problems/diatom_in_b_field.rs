@@ -11,7 +11,6 @@ use serde::{
     Deserialize,
     Serialize,
 };
-use serde_json::Number;
 use spin_algebra::{
     SpinLike,
     SpinMagLike,
@@ -21,51 +20,33 @@ use spin_algebra::{
 use unit_systems::quantities::{
     Scalar,
     phys_quantities::{
-        Energy,
-        Length,
         MagneticField,
         Mass,
     },
 };
 
 use crate::{
-    OrbitalBasisElements, UNITS_CONVERTER, atom_operators::AtomParams, calculations::{
-        DynCalc,
-        Modified,
-        adiabats::{
+    OrbitalBasisElements, atom_operators::AtomParams, calculations::{
+        DynCalc, adiabats::{
             AdiabatsCalc,
-            AdiabatsInput,
-        },
-        bound_states::{
-            BoundStateCalc,
-            BoundStateCalcInput,
-        },
-        dependence::{
-            DependenceCalc,
-            ModifyParams,
-            scalar_from_value,
-        },
-        levels::EnergyLevelsCalc,
-        resonances::{
-            ResonancesCalc,
-            ResonancesInput,
-        },
-        scattering::{
+            adiabats_calc_mods,
+        }, bound_states::{
+            BoundStateCalc, bound_states_calc_mods, bound_states_calc_search_mods
+        }, dependence::DependenceCalc, levels::EnergyLevelsCalc, modifications::{ModifyRegistry, OrbitalRecipeMod, ScalarParamMod}, resonances::
+            ResonancesCalc
+        , scattering::{
             ScatteringCalc,
-            ScatteringCalcInput,
-        },
+            scattering_calc_mods,
+        }
     }, diatom_basis::{
         CoupledSIDiatomBasis,
         DiatomRecipe,
     }, diatom_operators::SpinRotationSpec, interactions::{
-        Interactions, PecPolarizationSpec, PecPolarizations, PecScalings, Scaling, SpinConfiguration
-    }, operator_mel::spin_projection_term_coupled, param_ids, parameters::Parameters, problems::Problem, system::{
+        Interactions, PecPolarizationSpec, PecPolarizations, PecScalings, 
+    }, modify_recipe, operator_mel::spin_projection_term_coupled, parameters::Parameters, problems::Problem, system::{
         DynOperatorSpec,
         DynPotentialSpec,
         HamiltonianSpec,
-        ParamModifications,
-        System,
-        new_param_modifications,
     }
 };
 
@@ -78,6 +59,16 @@ pub struct DiatomInBFieldBasis {
     pub projection: Option<HalfI32>,
     #[serde(default)]
     pub l_parity: OrbitalParity,
+}
+
+pub fn diatom_in_b_field_basis_mods<P, C>() -> ModifyRegistry<P, C> 
+where 
+    P: Problem<BasisRecipe = DiatomInBFieldBasis> + 'static,
+    C: Send + Sync + 'static
+{
+    ModifyRegistry(HashMap::from([
+        ("l".into(), modify_recipe!(|l| OrbitalRecipeMod::new(l, |r: &mut P::BasisRecipe| &mut r.recipe.l))),
+    ]))
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
@@ -109,41 +100,82 @@ pub struct DiatomInBFieldParams {
     pub spin_orbit: Option<Interactions>
 }
 
+pub fn diatom_in_b_field_params_mods<P, C>() -> ModifyRegistry<P, C> 
+where 
+    P: Problem<Params = DiatomInBFieldParams> + 'static,
+    C: Send + Sync + 'static
+{
+    let ids = DiatomInBFieldParams::ids();
+    ModifyRegistry(HashMap::from([
+        ("magnetic_field".into(), modify_recipe!(|b| ScalarParamMod::new(b, ids.b_field))),
+        ("red_mass".into(), modify_recipe!(|x| ScalarParamMod::new(x, ids.red_mass))),
+    ]))
+}
+
+pub fn diatom_in_b_field_params_search_mods<P, C>() -> ModifyRegistry<P, C> 
+where 
+    P: Problem<Params = DiatomInBFieldParams> + 'static,
+    C: Send + Sync + 'static
+{
+    let ids = DiatomInBFieldParams::ids();
+    ModifyRegistry(HashMap::from([
+        ("magnetic_field".into(), modify_recipe!(|b| ScalarParamMod::new(b, ids.b_field))),
+        ("red_mass".into(), modify_recipe!(|x| ScalarParamMod::new(x, ids.red_mass))),
+    ]))
+}
+
 pub fn diatom_levels_b_field_scan() -> Box<dyn DynCalc<DiatomInBFieldProblem>> {
     let levels_calc = EnergyLevelsCalc::default();
 
-    Box::new(DependenceCalc::<_, ModsEnergyLevels>::new(levels_calc))
+    let ids = DiatomInBFieldParams::ids();
+    let registry = ModifyRegistry(HashMap::from([
+        ("magnetic_field".into(), modify_recipe!(|b| ScalarParamMod::new(b, ids.b_field))),
+    ]));
+    Box::new(DependenceCalc::new(levels_calc, registry))
 }
 
 pub fn diatom_adiabats_b_field_scan() -> Box<dyn DynCalc<DiatomInBFieldProblem>> {
     let ids = DiatomInBFieldParams::ids();
     let adiabats_calc = AdiabatsCalc::new(ids.red_mass);
 
-    Box::new(DependenceCalc::<_, ModsAdiabatsScan>::new(adiabats_calc))
+    let registry = adiabats_calc_mods();
+    Box::new(DependenceCalc::new(adiabats_calc, registry))
 }
 
 pub fn diatom_scattering_b_field_scan() -> Box<dyn DynCalc<DiatomInBFieldProblem>> {
     let ids = DiatomInBFieldParams::ids();
     let scattering_calc = ScatteringCalc::new(ids.red_mass);
 
-    Box::new(DependenceCalc::<_, ModsScattering>::new(scattering_calc))
+    let registry = diatom_in_b_field_basis_mods()
+        .extend(diatom_in_b_field_params_mods())
+        .extend(scattering_calc_mods());
+    Box::new(DependenceCalc::new(scattering_calc, registry))
 }
 
 pub fn diatom_bound_states_b_field_scan() -> Box<dyn DynCalc<DiatomInBFieldProblem>> {
     let ids = DiatomInBFieldParams::ids();
-    let bound_state_calc: BoundStateCalc<_, ModsBoundSearch> = BoundStateCalc::new(ids.red_mass);
+    let registry = diatom_in_b_field_params_search_mods()
+        .extend(bound_states_calc_search_mods());
+    let bound_state_calc = BoundStateCalc::new(ids.red_mass, registry);
 
-    Box::new(DependenceCalc::<_, ModsBoundScan>::new(bound_state_calc))
+    let registry = diatom_in_b_field_basis_mods()
+        .extend(diatom_in_b_field_params_mods())
+        .extend(bound_states_calc_mods());
+    Box::new(DependenceCalc::new(bound_state_calc, registry))
 }
 
 pub fn diatom_resonances_scan() -> Box<dyn DynCalc<DiatomInBFieldProblem>> {
     let ids = DiatomInBFieldParams::ids();
     let scattering_calc = ScatteringCalc::new(ids.red_mass);
-    let bound_state_calc: BoundStateCalc<_, ModsBoundSearch> = BoundStateCalc::new(ids.red_mass);
+    let registry = diatom_in_b_field_params_search_mods()
+        .extend(bound_states_calc_search_mods());
+    let bound_state_calc = BoundStateCalc::new(ids.red_mass, registry);
 
     let resonances_calc = ResonancesCalc::new(scattering_calc, bound_state_calc);
 
-    Box::new(DependenceCalc::<_, ModsResonanceScan>::new(resonances_calc))
+    let registry = diatom_in_b_field_basis_mods()
+        .extend(diatom_in_b_field_params_mods());
+    Box::new(DependenceCalc::new(resonances_calc, registry))
 }
 
 #[derive(Default)]
@@ -262,626 +294,5 @@ impl Problem for DiatomInBFieldProblem {
 
     fn calculations(&self) -> &HashMap<Box<str>, Box<dyn DynCalc<Self>>> {
         &self.calculations
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "snake_case")]
-enum ModsEnergyLevels {
-    MagneticField(Scalar<MagneticField>),
-}
-
-impl ModifyParams for ModsEnergyLevels {
-    type P = DiatomInBFieldProblem;
-    type C = ();
-
-    fn modify(&self, modified: &mut Modified<Self::P, Self::C>) {
-        let ids = DiatomInBFieldParams::ids();
-        match self {
-            ModsEnergyLevels::MagneticField(scalar) => modified
-                .system
-                .modify_params(new_param_modifications(ids.b_field, scalar.clone())),
-        }
-    }
-
-    fn as_number(&self) -> serde_json::Number {
-        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
-
-        match self {
-            ModsEnergyLevels::MagneticField(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
-        }
-    }
-
-    fn mut_number(&mut self, number: serde_json::Number) {
-        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
-
-        match self {
-            ModsEnergyLevels::MagneticField(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "snake_case")]
-enum ModsAdiabatsScan {
-    Distance(Scalar<Length>),
-}
-
-impl ModifyParams for ModsAdiabatsScan {
-    type P = DiatomInBFieldProblem;
-    type C = AdiabatsInput;
-
-    fn modify(&self, modified: &mut Modified<Self::P, Self::C>) {
-        match self {
-            ModsAdiabatsScan::Distance(scalar) => modified.calc_input.distance = scalar.clone(),
-        }
-    }
-
-    fn as_number(&self) -> serde_json::Number {
-        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
-
-        match self {
-            ModsAdiabatsScan::Distance(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
-        }
-    }
-
-    fn mut_number(&mut self, number: serde_json::Number) {
-        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
-
-        match self {
-            ModsAdiabatsScan::Distance(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ModsScattering {
-    MagneticField(Scalar<MagneticField>),
-    Mass(Scalar<Mass>),
-    L(u32),
-    Energy(Scalar<Energy>),
-    PecScaling { 
-        configuration: SpinConfiguration, 
-        scaling: f64,
-        #[serde(default)]
-        extend: ScalingExtend
-    },
-    PecScalingFull(f64),
-    RStart(Scalar<Length>),
-    RStop(Scalar<Length>),
-}
-
-#[derive(Debug, Clone, Copy, Deserialize, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum ScalingExtend {
-    #[default]
-    Full,
-    ShortRange,
-    LongRange
-}
-
-impl ModifyParams for ModsScattering {
-    type P = DiatomInBFieldProblem;
-    type C = ScatteringCalcInput;
-
-    fn modify(&self, modified: &mut Modified<Self::P, Self::C>) {
-        let ids = DiatomInBFieldParams::ids();
-
-        match self {
-            ModsScattering::MagneticField(scalar) => modified
-                .system
-                .modify_params(new_param_modifications(ids.b_field, scalar.clone())),
-            ModsScattering::Mass(scalar) => modified
-                .system
-                .modify_params(new_param_modifications(ids.red_mass, scalar.clone())),
-            ModsScattering::Energy(scalar) => modified.calc_input.energy = scalar.clone(),
-            ModsScattering::L(l_new) => {
-                match &mut modified.basis.recipe.l {
-                    crate::OrbitalRecipe::Single(l) => *l = *l_new,
-                    crate::OrbitalRecipe::LMax(l) => *l = *l_new,
-                    crate::OrbitalRecipe::LMaxProjections(l) => *l = *l_new,
-                }
-
-                let spec = Self::P::build(modified.basis, modified.params);
-                *modified.system = System::new(spec, modified.params.registry())
-            }
-            ModsScattering::PecScaling { configuration, scaling, extend } => {
-                let scaling = *scaling;
-                let configuration = *configuration;
-                let extend = *extend;
-
-                let modify = match extend {
-                    ScalingExtend::Full => ParamModifications::new(move |r| {
-                        let scalings = r.get_mut(ids.scalings);
-                        if let Some(s) = scalings.0.get(&configuration)
-                            && s.0 == scaling
-                        {
-                            param_ids![]
-                        } else {
-                            scalings.0.insert(configuration, Scaling(scaling));
-                            param_ids![ids.scalings.vanish()]
-                        }
-                    }).into_dyn(),
-                    ScalingExtend::ShortRange => {
-                        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
-                        let d0 = match &modified.params.pecs.0[&configuration] {
-                                Interactions::MorseLongRange(morse_long_range) => converter.scalar_value(&morse_long_range.d0),
-                                _ => panic!("Short range potential scaling available only for MLR and potential types")
-                        };
-
-
-                        ParamModifications::new(move |r| {
-                            match r.get_mut(ids.pecs).0.get_mut(&configuration).unwrap() {
-                                Interactions::MorseLongRange(morse_long_range) => {
-                                    morse_long_range.d0 = scalar_from_value(&converter, d0 * scaling)
-                                },
-                                _ => panic!("Short range potential scaling available only for MLR and potential types")
-                            };
-
-                            param_ids![ids.pecs.vanish()]
-                        }).into_dyn()
-                    },
-                    ScalingExtend::LongRange => {
-                        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
-                        let lr = match &modified.params.pecs.0[&configuration] {
-                            Interactions::MorseLongRange(morse_long_range) => converter.scalar_value(&morse_long_range.tail[0].d),
-                            _ => panic!("Short range potential scaling available only for MLR and potential types")
-                        };
-
-
-                        ParamModifications::new(move |r| {
-                            match r.get_mut(ids.pecs).0.get_mut(&configuration).unwrap() {
-                                Interactions::MorseLongRange(morse_long_range) => {
-                                    morse_long_range.tail[0].d = scalar_from_value(&converter, lr * scaling)
-                                },
-                                _ => panic!("Short range potential scaling available only for MLR and potential types")
-                            };
-
-                            param_ids![ids.pecs.vanish()]
-                        }).into_dyn()
-                    },
-                };
-
-                modified.system.modify_params(modify)
-            }
-            ModsScattering::PecScalingFull(scaling) => {
-                let scaling = *scaling;
-                let modify = ParamModifications::new(move |r| {
-                    let configurations: Vec<SpinConfiguration> = r.get(ids.pecs).0.keys().copied().collect();
-
-                    let mut changed = false;
-                    let scalings = r.get_mut(ids.scalings);
-                    for configuration in configurations {
-                        let overridden = scalings.0.insert(configuration, Scaling(scaling));
-
-                        if let Some(overridden) = overridden
-                            && overridden.0 == scaling
-                        {
-                        } else {
-                            changed = true
-                        }
-                    }
-
-                    if changed {
-                        param_ids![ids.scalings.vanish()]
-                    } else {
-                        param_ids![]
-                    }
-                });
-
-                modified.system.modify_params(modify)
-            }
-            ModsScattering::RStart(scalar) => modified.calc_input.r_start = scalar.clone(),
-            ModsScattering::RStop(scalar) => modified.calc_input.r_stop = scalar.clone(),
-        }
-    }
-
-    fn as_number(&self) -> serde_json::Number {
-        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
-
-        match self {
-            ModsScattering::MagneticField(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
-            ModsScattering::Mass(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
-            ModsScattering::L(l) => Number::from_u128(*l as u128).unwrap(),
-            ModsScattering::Energy(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
-            ModsScattering::PecScaling {
-                configuration: _,
-                scaling,
-                extend: _,
-            } => Number::from_f64(*scaling).unwrap(),
-            ModsScattering::PecScalingFull(scaling) => Number::from_f64(*scaling).unwrap(),
-            ModsScattering::RStart(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
-            ModsScattering::RStop(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
-        }
-    }
-
-    fn mut_number(&mut self, number: serde_json::Number) {
-        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
-
-        match self {
-            ModsScattering::MagneticField(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
-            ModsScattering::Mass(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
-            ModsScattering::L(l) => *l = number.as_u64().unwrap() as u32,
-            ModsScattering::Energy(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
-            ModsScattering::PecScaling {
-                configuration: _,
-                scaling,
-                extend: _,
-            } => *scaling = number.as_f64().unwrap(),
-            ModsScattering::PecScalingFull(scaling) => *scaling = number.as_f64().unwrap(),
-            ModsScattering::RStart(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
-            ModsScattering::RStop(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ModsBoundScan {
-    MagneticField(Scalar<MagneticField>),
-    Mass(Scalar<Mass>),
-    L(u32),
-    Energy(Scalar<Energy>),
-    PecScaling { configuration: SpinConfiguration, scaling: f64, extend: ScalingExtend },
-    PecScalingFull(f64),
-    RStart(Scalar<Length>),
-    RStop(Scalar<Length>),
-}
-
-impl ModifyParams for ModsBoundScan {
-    type P = DiatomInBFieldProblem;
-    type C = BoundStateCalcInput<ModsBoundSearch>;
-
-    fn modify(&self, modified: &mut Modified<Self::P, Self::C>) {
-        let ids = DiatomInBFieldParams::ids();
-
-        match self {
-            ModsBoundScan::MagneticField(scalar) => modified
-                .system
-                .modify_params(new_param_modifications(ids.b_field, scalar.clone())),
-            ModsBoundScan::Mass(scalar) => modified
-                .system
-                .modify_params(new_param_modifications(ids.red_mass, scalar.clone())),
-            ModsBoundScan::Energy(scalar) => modified.calc_input.energy = scalar.clone(),
-            ModsBoundScan::L(l_new) => {
-                match &mut modified.basis.recipe.l {
-                    crate::OrbitalRecipe::Single(l) => *l = *l_new,
-                    crate::OrbitalRecipe::LMax(l) => *l = *l_new,
-                    crate::OrbitalRecipe::LMaxProjections(l) => *l = *l_new,
-                }
-
-                let spec = Self::P::build(modified.basis, modified.params);
-                *modified.system = System::new(spec, modified.params.registry())
-            }
-            Self::PecScaling { configuration, scaling, extend } => {
-                let scaling = *scaling;
-                let configuration = *configuration;
-                let extend = *extend;
-
-                let modify = match extend {
-                    ScalingExtend::Full => ParamModifications::new(move |r| {
-                        let scalings = r.get_mut(ids.scalings);
-                        if let Some(s) = scalings.0.get(&configuration)
-                            && s.0 == scaling
-                        {
-                            param_ids![]
-                        } else {
-                            scalings.0.insert(configuration, Scaling(scaling));
-                            param_ids![ids.scalings.vanish()]
-                        }
-                    }).into_dyn(),
-                    ScalingExtend::ShortRange => {
-                        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
-                        let d0 = match &modified.params.pecs.0[&configuration] {
-                                Interactions::MorseLongRange(morse_long_range) => converter.scalar_value(&morse_long_range.d0),
-                                _ => panic!("Short range potential scaling available only for MLR and potential types")
-                        };
-
-                        ParamModifications::new(move |r| {
-                            match r.get_mut(ids.pecs).0.get_mut(&configuration).unwrap() {
-                                Interactions::MorseLongRange(morse_long_range) => {
-                                    morse_long_range.d0 = scalar_from_value(&converter, d0 * scaling)
-                                },
-                                _ => panic!("Short range potential scaling available only for MLR and potential types")
-                            };
-
-                            param_ids![ids.pecs.vanish()]
-                        }).into_dyn()
-                    },
-                    ScalingExtend::LongRange => {
-                        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
-                        let lr = match &modified.params.pecs.0[&configuration] {
-                            Interactions::MorseLongRange(morse_long_range) => converter.scalar_value(&morse_long_range.tail[0].d),
-                            _ => panic!("Short range potential scaling available only for MLR and potential types")
-                        };
-
-                        ParamModifications::new(move |r| {
-                            match r.get_mut(ids.pecs).0.get_mut(&configuration).unwrap() {
-                                Interactions::MorseLongRange(morse_long_range) => {
-                                    morse_long_range.tail[0].d = scalar_from_value(&converter, lr * scaling)
-                                },
-                                _ => panic!("Short range potential scaling available only for MLR and potential types")
-                            };
-
-                            param_ids![ids.pecs.vanish()]
-                        }).into_dyn()
-                    },
-                };
-
-                modified.system.modify_params(modify)
-            }
-            ModsBoundScan::PecScalingFull(scaling) => {
-                let scaling = *scaling;
-                let modify = ParamModifications::new(move |r| {
-                    let configurations: Vec<SpinConfiguration> = r.get(ids.pecs).0.keys().copied().collect();
-
-                    let mut changed = false;
-                    let scalings = r.get_mut(ids.scalings);
-                    for configuration in configurations {
-                        let overridden = scalings.0.insert(configuration, Scaling(scaling));
-
-                        if let Some(overridden) = overridden
-                            && overridden.0 == scaling
-                        {
-                        } else {
-                            changed = true
-                        }
-                    }
-
-                    if changed {
-                        param_ids![ids.scalings.vanish()]
-                    } else {
-                        param_ids![]
-                    }
-                });
-
-                modified.system.modify_params(modify)
-            }
-            ModsBoundScan::RStart(scalar) => modified.calc_input.r_min = scalar.clone(),
-            ModsBoundScan::RStop(scalar) => modified.calc_input.r_max = scalar.clone(),
-        }
-    }
-
-    fn as_number(&self) -> serde_json::Number {
-        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
-
-        match self {
-            ModsBoundScan::MagneticField(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
-            ModsBoundScan::Mass(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
-            ModsBoundScan::L(l) => Number::from_u128(*l as u128).unwrap(),
-            ModsBoundScan::Energy(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
-            ModsBoundScan::PecScaling {
-                configuration: _,
-                scaling,
-                extend: _
-            } => Number::from_f64(*scaling).unwrap(),
-            ModsBoundScan::PecScalingFull(scaling) => Number::from_f64(*scaling).unwrap(),
-            ModsBoundScan::RStart(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
-            ModsBoundScan::RStop(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
-        }
-    }
-
-    fn mut_number(&mut self, number: serde_json::Number) {
-        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
-
-        match self {
-            ModsBoundScan::MagneticField(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
-            ModsBoundScan::Mass(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
-            ModsBoundScan::L(l) => *l = number.as_u64().unwrap() as u32,
-            ModsBoundScan::Energy(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
-            ModsBoundScan::PecScaling {
-                configuration: _,
-                scaling,
-                extend: _
-            } => *scaling = number.as_f64().unwrap(),
-            ModsBoundScan::PecScalingFull(scaling) => *scaling = number.as_f64().unwrap(),
-            ModsBoundScan::RStart(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
-            ModsBoundScan::RStop(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ModsBoundSearch {
-    MagneticField(Scalar<MagneticField>),
-    Mass(Scalar<Mass>),
-    Energy(Scalar<Energy>),
-    PecScalingFull(f64),
-}
-
-impl ModifyParams for ModsBoundSearch {
-    type P = DiatomInBFieldProblem;
-    type C = BoundStateCalcInput<Self>;
-
-    fn modify(&self, modified: &mut Modified<Self::P, Self::C>) {
-        let ids = DiatomInBFieldParams::ids();
-
-        match self {
-            ModsBoundSearch::MagneticField(scalar) => modified
-                .system
-                .modify_params(new_param_modifications(ids.b_field, scalar.clone())),
-            ModsBoundSearch::Mass(scalar) => modified
-                .system
-                .modify_params(new_param_modifications(ids.red_mass, scalar.clone())),
-            ModsBoundSearch::Energy(scalar) => modified.calc_input.energy = scalar.clone(),
-            ModsBoundSearch::PecScalingFull(scaling) => {
-                let scaling = *scaling;
-                let modify = ParamModifications::new(move |r| {
-                    let configurations: Vec<SpinConfiguration> = r.get(ids.pecs).0.keys().copied().collect();
-
-                    let mut changed = false;
-                    let scalings = r.get_mut(ids.scalings);
-                    for configuration in configurations {
-                        let overridden = scalings.0.insert(configuration, Scaling(scaling));
-
-                        if let Some(overridden) = overridden
-                            && overridden.0 == scaling
-                        {
-                        } else {
-                            changed = true
-                        }
-                    }
-
-                    if changed {
-                        param_ids![ids.scalings.vanish()]
-                    } else {
-                        param_ids![]
-                    }
-                });
-
-                modified.system.modify_params(modify)
-            }
-        }
-    }
-
-    fn as_number(&self) -> serde_json::Number {
-        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
-
-        match self {
-            ModsBoundSearch::MagneticField(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
-            ModsBoundSearch::Mass(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
-            ModsBoundSearch::Energy(scalar) => Number::from_f64(converter.scalar_value(scalar)).unwrap(),
-            ModsBoundSearch::PecScalingFull(scaling) => Number::from_f64(*scaling).unwrap(),
-        }
-    }
-
-    fn mut_number(&mut self, number: serde_json::Number) {
-        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
-
-        match self {
-            ModsBoundSearch::MagneticField(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
-            ModsBoundSearch::Mass(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
-            ModsBoundSearch::Energy(scalar) => *scalar = scalar_from_value(&converter, number.as_f64().unwrap()),
-            ModsBoundSearch::PecScalingFull(scaling) => *scaling = number.as_f64().unwrap(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ModsResonanceScan {
-    PecScaling { configuration: SpinConfiguration, scaling: f64, extend: ScalingExtend },
-    PecScalingFull(f64),
-}
-
-impl ModifyParams for ModsResonanceScan {
-    type P = DiatomInBFieldProblem;
-    type C = ResonancesInput<ModsBoundSearch>;
-
-    fn modify(&self, modified: &mut Modified<Self::P, Self::C>) {
-        let ids = DiatomInBFieldParams::ids();
-
-        match self {
-            ModsResonanceScan::PecScaling { configuration, scaling, extend } => {
-                let scaling = *scaling;
-                let configuration = *configuration;
-                let extend = *extend;
-
-                let modify = match extend {
-                    ScalingExtend::Full => ParamModifications::new(move |r| {
-                        let scalings = r.get_mut(ids.scalings);
-                        if let Some(s) = scalings.0.get(&configuration)
-                            && s.0 == scaling
-                        {
-                            param_ids![]
-                        } else {
-                            scalings.0.insert(configuration, Scaling(scaling));
-                            param_ids![ids.scalings.vanish()]
-                        }
-                    }).into_dyn(),
-                    ScalingExtend::ShortRange => {
-                        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
-                        let d0 = match &modified.params.pecs.0[&configuration] {
-                                Interactions::MorseLongRange(morse_long_range) => converter.scalar_value(&morse_long_range.d0),
-                                _ => panic!("Short range potential scaling available only for MLR and potential types")
-                        };
-
-
-                        ParamModifications::new(move |r| {
-                            match r.get_mut(ids.pecs).0.get_mut(&configuration).unwrap() {
-                                Interactions::MorseLongRange(morse_long_range) => {
-                                    morse_long_range.d0 = scalar_from_value(&converter, d0 * scaling)
-                                },
-                                _ => panic!("Short range potential scaling available only for MLR and potential types")
-                            };
-
-                            param_ids![ids.pecs.vanish()]
-                        }).into_dyn()
-                    },
-                    ScalingExtend::LongRange => {
-                        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
-                        let lr = match &modified.params.pecs.0[&configuration] {
-                            Interactions::MorseLongRange(morse_long_range) => converter.scalar_value(&morse_long_range.tail[0].d),
-                            _ => panic!("Short range potential scaling available only for MLR and potential types")
-                        };
-
-
-                        ParamModifications::new(move |r| {
-                            match r.get_mut(ids.pecs).0.get_mut(&configuration).unwrap() {
-                                Interactions::MorseLongRange(morse_long_range) => {
-                                    morse_long_range.tail[0].d = scalar_from_value(&converter, lr * scaling)
-                                },
-                                _ => panic!("Short range potential scaling available only for MLR and potential types")
-                            };
-
-                            param_ids![ids.pecs.vanish()]
-                        }).into_dyn()
-                    },
-                };
-
-                modified.system.modify_params(modify)
-            }
-            ModsResonanceScan::PecScalingFull(scaling) => {
-                let scaling = *scaling;
-                let modify = ParamModifications::new(move |r| {
-                    let configurations: Vec<SpinConfiguration> = r.get(ids.pecs).0.keys().copied().collect();
-
-                    let mut changed = false;
-                    let scalings = r.get_mut(ids.scalings);
-                    for configuration in configurations {
-                        let overridden = scalings.0.insert(configuration, Scaling(scaling));
-
-                        if let Some(overridden) = overridden
-                            && overridden.0 == scaling
-                        {
-                        } else {
-                            changed = true
-                        }
-                    }
-
-                    if changed {
-                        param_ids![ids.scalings.vanish()]
-                    } else {
-                        param_ids![]
-                    }
-                });
-
-                modified.system.modify_params(modify)
-            }
-        }
-    }
-
-    fn as_number(&self) -> serde_json::Number {
-        match self {
-            Self::PecScaling {
-                configuration: _,
-                scaling,
-                extend: _,
-            } => Number::from_f64(*scaling).unwrap(),
-            Self::PecScalingFull(scaling) => Number::from_f64(*scaling).unwrap(),
-        }
-    }
-
-    fn mut_number(&mut self, number: serde_json::Number) {
-        match self {
-            Self::PecScaling {
-                configuration: _,
-                scaling,
-                extend: _,
-            } => *scaling = number.as_f64().unwrap(),
-            Self::PecScalingFull(scaling) => *scaling = number.as_f64().unwrap(),
-        }
     }
 }

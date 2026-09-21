@@ -1,4 +1,5 @@
-use std::marker::PhantomData;
+
+use std::collections::HashMap;
 
 use cc_math_utils::brent_root_method;
 use coupled_chan::{
@@ -23,7 +24,6 @@ use hilbert_space::faer;
 use serde::{
     Deserialize,
     Serialize,
-    de::DeserializeOwned,
 };
 use serde_json::Number;
 use unit_systems::quantities::{
@@ -36,35 +36,39 @@ use unit_systems::quantities::{
 };
 
 use crate::{
-    UNITS_CONVERTER,
-    calculations::{
-        Modified,
-        SingleCalc,
-        dependence::ModifyParams,
-        scattering::{
+    UNITS_CONVERTER, calculations::{
+        Modified, SingleCalc, dependence::NamedValue, modifications::{ModifyParam, ModifyRegistry, ScalarCalcMod}, scattering::{
             Boundary,
             CoupledChanSolver,
-            Step,
-        },
-    },
-    parameters::TypedParamId,
-    problems::Problem,
-    system::{
+            Step, StepScalingMod,
+        }
+    }, modify_recipe, parameters::TypedParamId, problems::Problem, system::{
         Coupling,
         System,
-    },
+    }
 };
 
 #[derive(Clone, Debug, Deserialize)]
-#[serde(bound = "D: DeserializeOwned")]
-pub struct BoundStateCalcInput<D: ModifyParams> {
+pub struct RegionParams {
+    pub min: NamedValue,
+    pub max: NamedValue,
+    pub err: NamedValue,
+}
+
+impl RegionParams {
+    pub fn is_compatible(&self) -> bool {
+        self.min.name == self.max.name && self.max.name == self.err.name
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct BoundStateCalcInput {
     #[serde(default)]
     pub entrance: usize,
     #[serde(default)]
     pub energy: Scalar<Energy>,
 
-    pub dependant: (D, D),
-    pub dependant_err: D,
+    pub dependant: RegionParams,
 
     #[serde(default)]
     pub boundaries: (Boundary, Boundary),
@@ -86,6 +90,22 @@ pub struct BoundStateCalcInput<D: ModifyParams> {
 
     #[serde(default)]
     search_method: BoundSearchMethod,
+}
+
+pub fn bound_states_calc_mods<P: Problem + 'static>() -> ModifyRegistry<P, BoundStateCalcInput> {
+    ModifyRegistry(HashMap::from([
+        ("energy".into(), modify_recipe!(|e| ScalarCalcMod::new(e, |r: &mut BoundStateCalcInput| &mut r.energy))),
+        ("r_min".into(), modify_recipe!(|x| ScalarCalcMod::new(x, |r: &mut BoundStateCalcInput| &mut r.r_min))),
+        ("r_match".into(), modify_recipe!(|x| ScalarCalcMod::new(x, |r: &mut BoundStateCalcInput| &mut r.r_match))),
+        ("r_max".into(), modify_recipe!(|x| ScalarCalcMod::new(x, |r: &mut BoundStateCalcInput| &mut r.r_max))),
+        ("step_scaling".into(), modify_recipe!(|x| StepScalingMod::new(x, |r: &mut BoundStateCalcInput| &mut r.step))),
+    ]))
+}
+
+pub fn bound_states_calc_search_mods<P: Problem + 'static>() -> ModifyRegistry<P, BoundStateCalcInput> {
+    ModifyRegistry(HashMap::from([
+        ("energy".into(), modify_recipe!(|e| ScalarCalcMod::new(e, |r: &mut BoundStateCalcInput| &mut r.energy))),
+    ]))
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
@@ -192,32 +212,31 @@ impl WaveFunction {
 #[derive(Clone, Debug, Serialize)]
 pub struct BoundStatesData(pub Vec<BoundStateData>);
 
-pub struct BoundStateCalc<P: Problem, D: ModifyParams<P = P, C = BoundStateCalcInput<D>>> {
+pub struct BoundStateCalc<P: Problem> {
     pub mass: TypedParamId<Scalar<Mass>>,
-    phantom: PhantomData<D>,
+    pub registry: ModifyRegistry<P, BoundStateCalcInput>,
 }
 
-impl<P: Problem, D: ModifyParams<P = P, C = BoundStateCalcInput<D>>> BoundStateCalc<P, D> {
-    pub fn new(mass: TypedParamId<Scalar<Mass>>) -> Self {
+impl<P: Problem> BoundStateCalc<P> {
+    pub fn new(mass: TypedParamId<Scalar<Mass>>, registry: ModifyRegistry<P, BoundStateCalcInput>) -> Self {
         Self {
             mass,
-            phantom: PhantomData,
+            registry
         }
     }
 }
 
-impl<P, D> SingleCalc for BoundStateCalc<P, D>
+impl<P> SingleCalc for BoundStateCalc<P>
 where
     P: Problem,
-    D: ModifyParams<P = P, C = BoundStateCalcInput<D>> + Clone,
 {
     type P = P;
-    type CalcInput = BoundStateCalcInput<D>;
+    type CalcInput = BoundStateCalcInput;
     type Data = BoundStateData;
 
     fn calculate(
         &self,
-        modified: &mut Modified<P, BoundStateCalcInput<D>>,
+        modified: &mut Modified<P, BoundStateCalcInput>,
         _problem: &P,
     ) -> impl IntoIterator<Item = anyhow::Result<Self::Data>> {
         let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
@@ -226,9 +245,12 @@ where
         let r_stop = converter.scalar_value(&modified.calc_input.r_max);
         assert!(r_start < r_match && r_match < r_stop, "expected r_start < r_match < r_stop");
 
-        let (p_start, p_end) = modified.calc_input.dependant.clone();
-        let p_start_f64 = modify_to_f64(&p_start);
-        let p_end_f64 = modify_to_f64(&p_end);
+        assert!(modified.calc_input.dependant.is_compatible(), "incompatible dependant fields in calc input");
+        let modifier = &self.registry.0[&modified.calc_input.dependant.min.name];
+        let p_start = (modifier.recipe)(modified.calc_input.dependant.min.value.clone());
+        let p_end = (modifier.recipe)(modified.calc_input.dependant.max.value.clone());
+        let p_start_f64 = modify_to_f64(&*p_start);
+        let p_end_f64 = modify_to_f64(&*p_end);
 
         p_start.modify(modified);
         let w_matrix = self.get_w_matrix(modified.system, modified.calc_input);
@@ -270,7 +292,7 @@ where
             NodeMonotony::Decreasing => (lower_node..upper_node).rev().collect(),
         };
 
-        let mut p_mod = p_start.clone();
+        let mut p_mod = p_start;
         nodes.into_iter().map(move |target_node| {
             let p = match modified.calc_input.search_method {
                 BoundSearchMethod::Brent(max_iter) => self.brent_search(
@@ -291,7 +313,7 @@ where
                 let mut wave_function = None;
 
                 if modified.calc_input.get_occupations || modified.calc_input.get_wave_function {
-                    modify_from_f64(&mut p_mod, p);
+                    modify_from_f64(&mut *p_mod, p);
                     p_mod.modify(modified);
                     let w_matrix = self.get_w_matrix(modified.system, modified.calc_input);
 
@@ -317,12 +339,11 @@ where
     }
 }
 
-impl<P, D> BoundStateCalc<P, D>
+impl<P> BoundStateCalc<P>
 where
     P: Problem,
-    D: ModifyParams<P = P, C = BoundStateCalcInput<D>> + Clone,
 {
-    fn get_w_matrix(&self, system: &mut System, input: &BoundStateCalcInput<D>) -> CollisionWMatrix<Coupling> {
+    fn get_w_matrix(&self, system: &mut System, input: &BoundStateCalcInput) -> CollisionWMatrix<Coupling> {
         let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
 
         let blocks = system.angular_blocks();
@@ -338,7 +359,7 @@ where
 
     fn brent_search(
         &self,
-        modified: &mut Modified<P, BoundStateCalcInput<D>>,
+        modified: &mut Modified<P, BoundStateCalcInput>,
         lower_bounds: &mut [Option<BoundMismatch>],
         upper_bounds: &mut [Option<BoundMismatch>],
         min_nodes: u64,
@@ -347,7 +368,9 @@ where
     ) -> anyhow::Result<f64> {
         let n = lower_bounds.len();
         let node_index = (target_nodes - min_nodes) as usize;
-        let p_err = modify_to_f64(&modified.calc_input.dependant_err);
+        let modifier = &self.registry.0[&modified.calc_input.dependant.err.name];
+        let mut p_mod = (modifier.recipe)(modified.calc_input.dependant.err.value.clone());
+        let p_err = modify_to_f64(&*p_mod);
 
         let mut lower_bound = lower_bounds
             .iter()
@@ -391,7 +414,6 @@ where
 
         let monotony = upper_bound.parameter > lower_bound.parameter;
 
-        let mut p_mod = modified.calc_input.dependant_err.clone();
         while upper_bound.nodes != target_nodes + 1
             || lower_bound.nodes != target_nodes
             || lower_eigenvalue.is_none()
@@ -403,7 +425,7 @@ where
                 return Ok(p_mid);
             }
 
-            modify_from_f64(&mut p_mod, p_mid);
+            modify_from_f64(&mut *p_mod, p_mid);
             p_mod.modify(modified);
             let w_matrix = self.get_w_matrix(modified.system, modified.calc_input);
             let mid_mismatch = bound_mismatch(&w_matrix, modified.calc_input, p_mid);
@@ -468,7 +490,7 @@ where
             [lower_bound.parameter, lower_eigenvalue.unwrap()],
             [upper_bound.parameter, upper_eigenvalue.unwrap()],
             |x| {
-                modify_from_f64(&mut p_mod, x);
+                modify_from_f64(&mut *p_mod, x);
                 p_mod.modify(modified);
                 let w_matrix = self.get_w_matrix(modified.system, modified.calc_input);
                 let mismatch = bound_mismatch(&w_matrix, modified.calc_input, x);
@@ -483,7 +505,7 @@ where
 
     fn bisection_search(
         &self,
-        modified: &mut Modified<P, BoundStateCalcInput<D>>,
+        modified: &mut Modified<P, BoundStateCalcInput>,
         lower_bounds: &mut [Option<BoundMismatch>],
         upper_bounds: &mut [Option<BoundMismatch>],
         min_nodes: u64,
@@ -491,7 +513,9 @@ where
     ) -> f64 {
         let n = lower_bounds.len();
         let node_index = (target_nodes - min_nodes) as usize;
-        let p_err = modify_to_f64(&modified.calc_input.dependant_err);
+        let modifier = &self.registry.0[&modified.calc_input.dependant.err.name];
+        let mut p_mod = (modifier.recipe)(modified.calc_input.dependant.err.value.clone());
+        let p_err = modify_to_f64(&*p_mod);
 
         let mut lower_bound = lower_bounds
             .iter()
@@ -511,12 +535,11 @@ where
             .unwrap()
             .clone();
 
-        let mut p_mod = modified.calc_input.dependant_err.clone();
         let monotony = upper_bound.parameter > lower_bound.parameter;
         while (upper_bound.parameter - lower_bound.parameter).abs() > p_err {
             let field_mid = (upper_bound.parameter + lower_bound.parameter) / 2.;
 
-            modify_from_f64(&mut p_mod, field_mid);
+            modify_from_f64(&mut *p_mod, field_mid);
             p_mod.modify(modified);
             let w_matrix = self.get_w_matrix(modified.system, modified.calc_input);
             let mid_mismatch = bound_mismatch(&w_matrix, modified.calc_input, field_mid);
@@ -569,7 +592,7 @@ pub struct BoundMismatch {
 
 pub fn bound_mismatch(
     w_matrix: &CollisionWMatrix<impl RCoupling>,
-    input: &BoundStateCalcInput<impl ModifyParams>,
+    input: &BoundStateCalcInput,
     parameter: f64,
 ) -> BoundMismatch {
     let boundary_out = input.boundaries.0.get_boundary(&input.r_min, Direction::Outwards, w_matrix);
@@ -626,7 +649,7 @@ pub fn bound_mismatch(
 
 fn bound_wave(
     w_matrix: &CollisionWMatrix<impl RCoupling>,
-    input: &BoundStateCalcInput<impl ModifyParams>,
+    input: &BoundStateCalcInput,
     target_nodes: u64,
 ) -> WaveFunction {
     let boundary_out = input.boundaries.0.get_boundary(&input.r_min, Direction::Outwards, w_matrix);
@@ -716,10 +739,10 @@ fn bound_wave(
     }
 }
 
-pub fn modify_from_f64<D: ModifyParams>(modify: &mut D, value: f64) {
+pub fn modify_from_f64<P: Problem, C>(modify: &mut dyn ModifyParam<P = P, C = C>, value: f64) {
     modify.mut_number(Number::from_f64(value).unwrap())
 }
 
-pub fn modify_to_f64<D: ModifyParams>(value: &D) -> f64 {
+pub fn modify_to_f64<P: Problem, C>(value: &dyn ModifyParam<P = P, C = C>) -> f64 {
     value.as_number().as_f64().unwrap()
 }

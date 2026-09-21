@@ -1,13 +1,8 @@
 use std::{
-    marker::PhantomData,
-    path::PathBuf,
+    path::PathBuf
 };
 
 use anyhow::Result;
-use cc_math_utils::{
-    linspace,
-    logspace,
-};
 use cc_qol_utils::saving::{
     DataSaver,
     FileAccess,
@@ -15,75 +10,193 @@ use cc_qol_utils::saving::{
 };
 use rayon::prelude::*;
 use serde::{
-    Deserialize,
-    Serialize,
-    de::DeserializeOwned,
+    Deserialize, 
+    Deserializer, 
+    Serialize
 };
 use serde_json::{
     Number,
     Value,
 };
-use unit_systems::quantities::{
-    PhysQuantity,
-    Scalar,
-    UnitsConverter,
-};
+use smallvec::SmallVec;
 
 use crate::{
     calculations::{
         Calc,
         Modified,
-        SingleCalc,
+        SingleCalc, modifications::{ModificationAction::{self, BasisChange}, ModifyParam, ModifyRegistry},
     },
     parameters::Parameters,
     problems::{
         Problem,
         TypedProblemInput,
     },
-    system::System,
+    system::{ParamModifications, System},
 };
 
-pub trait ModifyParams: Send + Sync + DeserializeOwned {
-    type P: Problem;
-    type C;
 
-    fn modify(&self, modified: &mut Modified<Self::P, Self::C>);
-    fn as_number(&self) -> Number;
-    fn mut_number(&mut self, number: Number);
+#[derive(Clone, Debug)]
+pub struct NamedValue {
+    pub name: Box<str>,
+    pub value: Value,
 }
 
-/// converts value in target unit system to some scalar with unit.
-/// hacky way to get back physical quantities todo!
-pub fn scalar_from_value<Q: PhysQuantity>(converter: &UnitsConverter, value: f64) -> Scalar<Q> {
-    if value == 0.0 {
-        return Scalar::new(0.0, Q::default(), "");
+impl<'de> Deserialize<'de> for NamedValue {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let map = serde_json::Value::deserialize(deserializer)?;
+
+        let obj = map
+            .as_object()
+            .ok_or_else(|| serde::de::Error::custom("expected an object"))?;
+
+        if obj.len() != 1 {
+            return Err(serde::de::Error::custom("expected exactly one field"));
+        }
+
+        let (name, value) = obj.iter().next().unwrap();
+
+        Ok(NamedValue {
+            name: name.as_str().into(),
+            value: value.to_owned(),
+        })
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(tag = "type")]
+#[serde(rename_all = "snake_case")]
+pub enum GridParams {
+    Cartesian { components: Vec<GridParams> },
+    Line { components: Vec<GridParams> },
+    Linear { start: NamedValue, end: NamedValue, n: usize },
+    Log { start: NamedValue, end: NamedValue, n: usize },
+    Points { name: Box<str>, values: Vec<Value> },
+    Sum { components: Vec<GridParams> },
+}
+
+impl GridParams {
+    pub fn len(&self) -> usize {
+        match self {
+            GridParams::Cartesian { components } => {
+                assert!(!components.is_empty(), "Empty cartesian grid param components");
+                components.iter().map(|x| x.len()).product()
+            }
+            GridParams::Line { components } => {
+                assert!(!components.is_empty(), "Empty line grid param components");
+                let mut lens = components.iter().map(|x| x.len());
+
+                let n = lens.next().unwrap();
+                for l in lens {
+                    assert_eq!(n, l, "Line grid params components have unequal grid points")
+                }
+
+                n
+            },
+            GridParams::Linear { start: _, end: _, n } => *n,
+            GridParams::Log { start: _, end: _, n } => *n,
+            GridParams::Points { name: _, values } => values.len(),
+            GridParams::Sum { components } => components.iter().map(|x| x.len()).sum(),
+        }
     }
 
-    // first unit encountered
-    let unit = &converter.registry.get::<Q>()[0];
-    let value_in_unit = value / Q::to_unit_system_logic(unit.name, &converter.registry, &converter.target_unit_system);
+    pub fn get<P: Problem, C>(
+        &self, 
+        index: usize, 
+        registry: &ModifyRegistry<P, C>
+    ) -> (SmallVec<[Number; 3]>, SmallVec<[Box<dyn ModifyParam<P = P, C = C>>; 3]>) {
+        assert!(index < self.len(), "Index of GridParams larger than its size");
+        let mut numbers: SmallVec<[Number; 3]> = SmallVec::new();
+        let mut modifiers: SmallVec<[Box<dyn ModifyParam<P = P, C = C>>; 3]> = SmallVec::new();
 
-    Scalar::new(value_in_unit, Q::default(), unit.name)
+        match self {
+            GridParams::Cartesian { components } => {
+                let mut reduced_index = index;
+                for (i, c) in components.iter().enumerate() {
+                    let c_len = c.len();
+                    let index = reduced_index % c_len;
+                    reduced_index /= c_len;
+
+                    let (n, m) = components[i].get(index, registry);
+
+                    numbers.extend(n);
+                    modifiers.extend(m);
+                }
+            },
+            GridParams::Line { components } => {
+                let mut numbers: SmallVec<[Number; 3]> = SmallVec::new();
+                for c in components {
+                    let (n, m) = c.get(index, registry);
+                    numbers.extend(n);
+                    modifiers.extend(m);
+                }
+            },
+            GridParams::Linear { start, end, n } => {
+                assert_eq!(start.name, end.name, "start and end modified param for linspace should be the same");
+                let modifier = &registry.0[&start.name];
+
+                let modifier_s = (modifier.recipe)(start.value.clone());
+                let start = modifier_s.as_number();
+                let end = (modifier.recipe)(end.value.clone()).as_number();
+                
+                numbers = smallvec::smallvec![num_linspace(start, end, *n, index)];
+                modifiers = smallvec::smallvec![modifier_s];
+            },
+            GridParams::Log { start, end, n } => {
+                assert_eq!(start.name, end.name, "start and end modified param for linspace should be the same");
+                let modifier = &registry.0[&start.name];
+
+                let modifier_s = (modifier.recipe)(start.value.clone());
+                let start = modifier_s.as_number();
+                let end = (modifier.recipe)(end.value.clone()).as_number();
+
+                numbers = smallvec::smallvec![num_logspace(start, end, *n, index)];
+                modifiers = smallvec::smallvec![modifier_s];
+            },
+            GridParams::Points { name, values } => {
+                let modifier = &registry.0[name];
+                let modifier_s = (modifier.recipe)(values[index].clone());
+                numbers = smallvec::smallvec![modifier_s.as_number()];
+                modifiers = smallvec::smallvec![modifier_s];
+            },
+            GridParams::Sum { components } => {
+                let mut size_start = 0;
+                
+                for (i, s) in components.iter().map(|x| x.len()).enumerate() {
+                    if size_start + s <= index {
+                        size_start += s;
+                        continue
+                    }
+
+                    (numbers, modifiers) = components[i].get(index - size_start, registry);
+                    break
+                }
+            }
+        }
+
+        (numbers, modifiers)
+    }
 }
 
-pub struct DependenceCalc<C: SingleCalc, D: ModifyParams<P = C::P, C = C::CalcInput>> {
+pub struct DependenceCalc<C: SingleCalc> {
     single_calc: C,
-    phantom: PhantomData<D>,
+    registry: ModifyRegistry<C::P, C::CalcInput>
 }
 
-impl<C: SingleCalc, D: ModifyParams<P = C::P, C = C::CalcInput>> DependenceCalc<C, D> {
-    pub fn new(single_calc: C) -> Self {
+impl<C: SingleCalc> DependenceCalc<C> {
+    pub fn new(single_calc: C, registry: ModifyRegistry<C::P, C::CalcInput>) -> Self {
         Self {
             single_calc,
-            phantom: PhantomData,
+            registry
         }
     }
 }
 
 #[derive(Clone, Debug, Deserialize)]
-#[serde(bound = "D: DeserializeOwned, C: DeserializeOwned")]
 #[serde(deny_unknown_fields)]
-pub struct DependenceCalcInput<C, D> {
+pub struct DependenceCalcInput<C> {
     pub save_filepath: PathBuf,
     #[serde(default = "default_file_access")]
     pub save_option: FileAccess,
@@ -91,7 +204,7 @@ pub struct DependenceCalcInput<C, D> {
     #[serde(flatten)]
     pub calc: C,
     #[serde(default)]
-    pub grid: Option<Grid<D>>,
+    pub grid: Option<GridParams>,
 
     #[serde(default)]
     pub parallelism: Parallelism,
@@ -107,13 +220,12 @@ fn default_file_access() -> FileAccess {
     FileAccess::Append
 }
 
-impl<C, D> Calc for DependenceCalc<C, D>
+impl<C> Calc for DependenceCalc<C>
 where
     C: SingleCalc,
-    D: ModifyParams<P = C::P, C = C::CalcInput> + Clone + std::fmt::Debug,
 {
     type P = C::P;
-    type CalcInput = DependenceCalcInput<C::CalcInput, D>;
+    type CalcInput = DependenceCalcInput<C::CalcInput>;
 
     fn name(&self) -> String {
         format!("Dependence calc for problem {}", Self::P::NAME)
@@ -135,82 +247,70 @@ where
         let parallel_no = input.calc_parameters.parallelism;
         println!("{:?}", system.basis());
 
-        // also disgusting for sake of calculations now todo!
         if let Some(grid) = &input.calc_parameters.grid {
-            if matches!(grid, Grid::Dim2 { first: _, second: _ }) {
-                let saver = DataSaver::new(save_filepath, JsonFormat, save_option)?;
-                let data = grid.dim2();
-    
-                let data = if input.workers > 1 {
-                    data.into_iter().skip(input.worker).step_by(input.workers).collect()
-                } else {
-                    data
-                };
+            let saver = DataSaver::new(save_filepath, JsonFormat, save_option)?;
+            let n = grid.len();
+            let indices: Vec<usize> = (0..n).skip(input.worker).step_by(input.workers).collect();
 
-                ParallelExecutor::new((system, input))
-                    .with_parallelism(parallel_no)
-                    .par_execute(data, |(s, input), (d1, d2)| {
-                        let mut modified = Modified {
-                            system: s,
-                            basis: &mut input.basis_recipe,
-                            params: &mut input.parameters,
-                            calc_input: &mut input.calc_parameters.calc,
-                        };
-                        d1.modify(&mut modified);
-                        d2.modify(&mut modified);
-    
-                        let mut result = Ok(());
-                        for data in self.single_calc.calculate(&mut modified, problem) {
-                            if let Ok(data) = data {
-                                saver.send(DependenceData {
-                                    parameter: (d1.as_number(), d2.as_number()),
-                                    data,
-                                });
-                            } else if let Err(err) = data {
-                                eprintln!("{}", err);
-                                result = Err(err);
-                            }
-                        }
-                        
-                        result
-                    })?;
-            } else {
-                let saver = DataSaver::new(save_filepath, JsonFormat, save_option)?;
-                let data = grid.collect();
-    
-                let data = if input.workers > 1 {
-                    data.into_iter().skip(input.worker).step_by(input.workers).collect()
-                } else {
-                    data
-                };
-    
-                ParallelExecutor::new((system, input))
-                    .with_parallelism(parallel_no)
-                    .par_execute(data, |(s, input), d| {
-                        let mut modified = Modified {
-                            system: s,
-                            basis: &mut input.basis_recipe,
-                            params: &mut input.parameters,
-                            calc_input: &mut input.calc_parameters.calc,
-                        };
-                        d.modify(&mut modified);
+            ParallelExecutor::new(system)
+                .with_parallelism(parallel_no)
+                .par_execute(indices, |s, i| {
+                    let mut input = input.clone();
+                    let (numbers, modifiers) = grid.get(i, &self.registry);
 
-                        let mut result = Ok(());
-                        for data in self.single_calc.calculate(&mut modified, problem) {
-                            if let Ok(data) = data {
-                                saver.send(DependenceData {
-                                    parameter: d.as_number(),
-                                    data,
-                                });
-                            } else if let Err(err) = data {
-                                eprintln!("{}", err);
-                                result = Err(err);
+                    let mut modified = Modified {
+                        system: s,
+                        basis: &mut input.basis_recipe,
+                        params: &mut input.parameters,
+                        calc_input: &mut input.calc_parameters.calc,
+                    };
+
+                    let prep = modifiers.as_ref()
+                        .iter()
+                        .fold(ModificationAction::None, |m: ModificationAction, x| {
+                            let m2 = x.prep_modify(&mut modified);
+
+                            match (m, m2) {
+                                (BasisChange, _) | (_, BasisChange) => ModificationAction::BasisChange,
+                                (ModificationAction::ParamModify(m), ModificationAction::ParamModify(m2)) => {
+                                    ModificationAction::ParamModify(ParamModifications::new(move |r| {
+                                        let mut mods = (m.modification)(r);
+                                        for &p in (m2.modification)(r).iter() {
+                                            mods.push(p)
+                                        }
+                                        mods
+                                    }).into_dyn())
+                                },
+                                (ModificationAction::ParamModify(m), _) 
+                                    | (_, ModificationAction::ParamModify(m)) => ModificationAction::ParamModify(m),
+                                _ => ModificationAction::CalcChange 
                             }
+                        });
+                    
+                    match prep {
+                        ModificationAction::BasisChange => {
+                            let spec = Self::P::build(modified.basis, modified.params);
+                            *modified.system = System::new(spec, modified.system.param_registry().to_owned())
+                        },
+                        ModificationAction::ParamModify(m) => modified.system.modify_params(m),
+                        _ => ()
+                    };
+
+                    let mut result = Ok(());
+                    for data in self.single_calc.calculate(&mut modified, problem) {
+                        if let Ok(data) = data {
+                            saver.send(DependenceData {
+                                parameter: numbers.clone(),
+                                data,
+                            });
+                        } else if let Err(err) = data {
+                            eprintln!("{}", err);
+                            result = Err(err);
                         }
-                        
-                        result
-                    })?;
-            }
+                    }
+                    
+                    result
+                })?;
         } else {
             let saver = DataSaver::new(save_filepath, JsonFormat, save_option)?;
 
@@ -241,132 +341,60 @@ where
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(tag = "type")]
-#[serde(rename_all = "snake_case")]
-pub enum Grid<D> {
-    Linear { start: D, end: D, n: usize },
-    Log { start: D, end: D, n: usize },
-    Vec { values: Vec<D> },
-    Composite { ranges: Vec<Grid<D>> },
-    // dirty disgusting thing to do, but for now for calculations done todo!
-    Dim2 { first: Box<Grid<D>>, second: Box<Grid<D>> },
-}
-
-impl<D: ModifyParams + Clone> Grid<D> {
-    pub fn collect(&self) -> Vec<D> {
-        match self {
-            Grid::Linear { start, end, n } => {
-                let mut d = start.clone();
-
-                let vec = num_linspace(start.as_number(), end.as_number(), *n);
-                vec.into_iter()
-                    .map(|x| {
-                        d.mut_number(x);
-                        d.clone()
-                    })
-                    .collect()
-            }
-            Grid::Log { start, end, n } => {
-                let mut d = start.clone();
-
-                let vec = num_logspace(start.as_number(), end.as_number(), *n);
-                vec.into_iter()
-                    .map(|x| {
-                        d.mut_number(x);
-                        d.clone()
-                    })
-                    .collect()
-            }
-            Grid::Vec { values } => values.clone(),
-            Grid::Composite { ranges } => ranges.iter().flat_map(|x| x.collect()).collect(),
-            Grid::Dim2 { first: _, second: _ } => panic!("2 dimensional grid cannot collect into single vec"),
-        }
+pub fn num_linspace(start: Number, end: Number, n: usize, i: usize) -> Number {
+    if n == 1 {
+        return start
     }
-
-    pub fn dim2(&self) -> Vec<(D, D)> {
-        match self {
-            Grid::Dim2 { first, second } => {
-                let f = first.collect();
-                let s = second.collect();
-                
-                f.into_iter().flat_map(|x| s.iter().map(|y| (x.clone(), y.clone())).collect::<Vec<(D, D)>>()).collect()
-            },
-            _ => panic!("2 dimensional grid only for Grid of type Dim2"),
-        }
-    }
-}
-
-pub fn num_linspace(start: Number, end: Number, n: usize) -> Vec<Number> {
+    
     if start.is_f64() && end.is_f64() {
         let start = start.as_f64().unwrap();
         let end = end.as_f64().unwrap();
 
-        linspace(start, end, n)
-            .into_iter()
-            .map(|x| Number::from_f64(x).unwrap())
-            .collect()
+        let step = (end - start) / (n as f64 - 1.0);
+
+        Number::from_f64(start + i as f64 * step).unwrap()
     } else if start.is_i64() && end.is_i64() {
-        if n == 1 {
-            return vec![start];
-        }
         let start = start.as_i64().unwrap();
         let end = end.as_i64().unwrap();
 
         let step = (end - start) / (n as i64 - 1);
         if step.abs() < 1 {
-            return (start..=end).map(|x| Number::from_i128(x as i128).unwrap()).collect();
+            return Number::from_i128(start as i128 + i as i128).unwrap();
         }
 
-        let mut result = Vec::with_capacity(n);
-        for i in 0..(n as i64) {
-            let value = start + i * step;
-            if value > end {
-                break;
-            }
-            result.push(value);
-        }
-
-        result.into_iter().map(|x| Number::from_i128(x as i128).unwrap()).collect()
+        Number::from_i128((start + i as i64 * step) as i128).unwrap()
     } else {
-        panic!("linspace grid of numbers of different type")
+        panic!("different start and end number types for linspace provided")
     }
 }
 
-pub fn num_logspace(start: Number, end: Number, n: usize) -> Vec<Number> {
+pub fn num_logspace(start: Number, end: Number, n: usize, i: usize) -> Number { 
+    if n == 1 {
+        return start
+    }
+    
     if start.is_f64() && end.is_f64() {
-        let start = start.as_f64().unwrap();
-        let end = end.as_f64().unwrap();
+        let start_num = start.as_f64().expect("Logspace can only be performed on positive numbers");
+        let end_num = end.as_f64().expect("Logspace can only be performed on positive numbers");
 
-        logspace(start.log10(), end.log10(), n)
-            .into_iter()
-            .map(|x| Number::from_f64(x).unwrap())
-            .collect()
-    } else if start.is_u64() && end.is_u64() {
-        if n == 1 {
-            return vec![start];
-        }
-        let start_num = start.as_u64().unwrap();
-        let end_num = end.as_u64().unwrap();
+        let start = start_num.log10();
+        let end = end_num.log10();
+
+        let step = (end - start) / (n as f64 - 1.0);
+
+        Number::from_f64((10f64).powf(start + (i as f64) * step)).unwrap()
+    } else if start.is_i64() && end.is_i64() {
+        let start_num = start.as_u64().expect("Logspace can only be performed on positive numbers");
+        let end_num = end.as_u64().expect("Logspace can only be performed on positive numbers");
 
         let start = start_num.ilog10();
         let end = end_num.ilog10();
 
-        let mut result = Vec::with_capacity(n);
         let step = (end - start) / (n as u32 - 1);
 
-        for i in 0..(n as u32) {
-            let value = 10u64.pow(start + i * step);
-            if value > end_num {
-                break;
-            }
-
-            result.push(value);
-        }
-
-        result.into_iter().map(|x| Number::from_i128(x as i128).unwrap()).collect()
+        Number::from_i128((10u64.pow(start + i as u32 * step)) as i128).unwrap()
     } else {
-        panic!("linspace grid of numbers of different type")
+        panic!("different start and end number types for logspace provided")
     }
 }
 

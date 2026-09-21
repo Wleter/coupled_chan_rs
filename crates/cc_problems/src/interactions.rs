@@ -301,6 +301,8 @@ where
     pub masking: Mask,
 }
 
+// change scalings to be short range long range etc, also probably change potential spec
+// to have coupling_mask and curve instead of scaling
 impl<Mask> PotentialSpec for PecPolarizationSpec<Mask>
 where
     Mask: Fn(BasisElementsRef) -> Operator + Send + Sync,

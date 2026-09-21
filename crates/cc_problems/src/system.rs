@@ -415,7 +415,7 @@ pub type DynParamModifications = ParamModifications<Box<dyn FnOnce(&mut Paramete
 
 #[derive(Clone, Debug)]
 pub struct ParamModifications<F: FnOnce(&mut ParameterRegistry) -> ParamIds> {
-    modification: F,
+    pub modification: F,
 }
 
 pub fn new_param_modifications<T: PartialEq + CloneAny>(
