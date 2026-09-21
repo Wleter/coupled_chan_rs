@@ -53,7 +53,7 @@ impl ExpLaw {
 
 impl Interaction for ExpLaw {
     fn value(&self, r: f64) -> f64 {
-        self.d * f64::exp(-(r - self.r_offset))
+        self.d * f64::exp(-self.exponent * (r - self.r_offset))
     }
 
     fn asymptote_dep(&self) -> super::AsymptoteDep {
