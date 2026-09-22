@@ -309,6 +309,18 @@ impl<Q: PhysQuantity> Scalar<Q> {
     pub fn scale(&mut self, scaling: f64) {
         self.0 *= scaling
     }
+
+    pub fn is_positive(&self) -> bool {
+        self.0 > 0.0
+    }
+
+    pub fn is_negative(&self) -> bool {
+        self.0 < 0.0
+    }
+
+    pub fn is_zero(&self) -> bool {
+        self.0 == 0.0
+    }
 }
 
 #[derive(Clone, Copy, Debug)]

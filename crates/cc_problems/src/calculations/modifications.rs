@@ -20,7 +20,6 @@ impl<P: Problem, C> ModifyRegistry<P, C> {
     }
 }
 
-
 pub struct ModifyParamRecipe<P: Problem, C> {
     pub recipe: Box<dyn Fn(Value) -> Box<dyn ModifyParam<P = P, C = C>> + Send + Sync>
 }

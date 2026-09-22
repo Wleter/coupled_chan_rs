@@ -42,7 +42,7 @@ use crate::{
         CoupledSIDiatomBasis,
         DiatomRecipe,
     }, diatom_operators::SpinRotationSpec, interactions::{
-        Interactions, PecPolarizationSpec, PecPolarizations, PecScalings, 
+        Interactions, PecPolarizationScalingMod, PecPolarizationScalings, PecPolarizationSpec, PecPolarizations 
     }, modify_recipe, operator_mel::spin_projection_term_coupled, parameters::Parameters, problems::Problem, system::{
         DynOperatorSpec,
         DynPotentialSpec,
@@ -94,7 +94,7 @@ pub struct DiatomInBFieldParams {
 
     pub pecs: PecPolarizations,
     #[serde(default)]
-    pub scalings: PecScalings,
+    pub scalings: PecPolarizationScalings,
 
     #[serde(default)]
     pub spin_orbit: Option<Interactions>
@@ -109,6 +109,7 @@ where
     ModifyRegistry(HashMap::from([
         ("magnetic_field".into(), modify_recipe!(|b| ScalarParamMod::new(b, ids.b_field))),
         ("red_mass".into(), modify_recipe!(|x| ScalarParamMod::new(x, ids.red_mass))),
+        ("pec_scaling".into(), modify_recipe!(|x| PecPolarizationScalingMod::new(x, ids.pecs, ids.scalings))),
     ]))
 }
 
@@ -121,6 +122,7 @@ where
     ModifyRegistry(HashMap::from([
         ("magnetic_field".into(), modify_recipe!(|b| ScalarParamMod::new(b, ids.b_field))),
         ("red_mass".into(), modify_recipe!(|x| ScalarParamMod::new(x, ids.red_mass))),
+        ("pec_scaling".into(), modify_recipe!(|x| PecPolarizationScalingMod::new(x, ids.pecs, ids.scalings))),
     ]))
 }
 

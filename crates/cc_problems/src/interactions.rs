@@ -1,17 +1,13 @@
 use std::{
-    collections::HashMap,
-    fmt::Display,
-    fs::File,
-    path::PathBuf,
+    collections::HashMap, fmt::Display, fs::File, marker::PhantomData, path::PathBuf
 };
 
 use cc_derive::Parameters;
 use cc_qol_utils::Composite;
 use coupled_chan::{
     DynInteraction,
-    coupling::masked::Masked,
     dispersion::{
-        AnalyticInteraction, ExpLaw, PowerLaw, lennard_jones
+        AnalyticInteraction, ExpLaw, PowerLaw, lenard_jones
     },
     interpolated::{
         InterpolatedPotential,
@@ -19,17 +15,16 @@ use coupled_chan::{
         sin_transition,
         spline_interpolation::SplineBuilder,
     },
-    morse_long_range,
+    morse_long_range, scaled::Scaled,
 };
 use hilbert_space::space::BasisElementsRef;
 use serde::{
     Deserialize,
     Serialize,
 };
-use serde_json::Value;
+use serde_json::{Number, Value};
 use spin_algebra::{
-    half_integer::HalfU32,
-    hu32,
+    half_integer::HalfU32, hu32
 };
 use unit_systems::quantities::{
     Inv,
@@ -41,17 +36,12 @@ use unit_systems::quantities::{
 };
 
 use crate::{
-    Operator,
-    UNITS_CONVERTER,
-    param_ids,
-    parameters::{
+    Operator, UNITS_CONVERTER, calculations::{Modified, modifications::{ModificationAction, ModifyParam}}, param_ids, parameters::{
         ParameterRegistry,
         TypedParamId,
-    },
-    system::{
-        ParamIds,
-        PotentialSpec,
-    },
+    }, problems::Problem, system::{
+        ParamIds, ParamModifications, PotentialSpec
+    }
 };
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -109,16 +99,16 @@ impl Analytic {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct LennardJones {
+pub struct LenardJones {
     pub d_e: Scalar<Energy>,
     pub r_e: Scalar<Length>,
 }
 
-impl LennardJones {
+impl LenardJones {
     pub fn interaction(&self) -> Composite<PowerLaw> {
         let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
 
-        lennard_jones(converter.scalar_value(&self.d_e), converter.scalar_value(&self.r_e))
+        lenard_jones(converter.scalar_value(&self.d_e), converter.scalar_value(&self.r_e))
     }
 }
 
@@ -197,12 +187,11 @@ pub enum SwitchingRegion {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Interactions {
-    LennardJones(LennardJones),
+    LenardJones(LenardJones),
     Analytic(Analytic),
     MorseLongRange(MorseLongRange),
     Spline(Spline),
     RkhsInterpolation(RKHSInterpolation),
-    Exp(Exp),
     Transition {
         near: Box<Interactions>,
         far: Box<Interactions>,
@@ -216,9 +205,8 @@ pub enum Interactions {
 impl Interactions {
     pub fn interactions(&self) -> DynInteraction {
         match self {
-            Interactions::LennardJones(lenard_jones) => DynInteraction::new(lenard_jones.interaction()),
+            Interactions::LenardJones(lenard_jones) => DynInteraction::new(lenard_jones.interaction()),
             Interactions::Analytic(analytic) => DynInteraction::new(analytic.interaction()),
-            Interactions::Exp(exp) => DynInteraction::new(exp.interaction()),
             Interactions::MorseLongRange(morse_long_range) => DynInteraction::new(morse_long_range.interaction()),
             Interactions::Spline(spline) => DynInteraction::new(spline.interaction()),
             Interactions::RkhsInterpolation(_rkhs_interpolation) => todo!(),
@@ -242,19 +230,118 @@ impl Interactions {
                 }
             }
             Interactions::Composite(items) => DynInteraction::new(Composite::new(
-                items.into_iter().map(|x| x.interactions()).collect())
+                items.iter().map(|x| x.interactions()).collect())
             ),
+        }
+    }
+
+    pub fn scaled_interactions(&self, scaling: PecScaling) -> DynInteraction {
+        match scaling.scaling_type {
+            PecScalingType::Full => DynInteraction::new(Scaled {
+                scaling: scaling.value,
+                interaction: self.interactions(),
+            }),
+            PecScalingType::ShortRange => match self {
+                Interactions::LenardJones(lenard_jones) => {
+                    let mut lenard_jones = lenard_jones.clone();
+                    lenard_jones.d_e.scale(scaling.value);
+                    // make C6 = 2.0 * d_e * r_e^6 the same as before
+                    lenard_jones.r_e.scale(1.0 / scaling.value.powf(1. / 6.));
+
+                    DynInteraction::new(lenard_jones.interaction())
+                },
+                Interactions::MorseLongRange(morse_long_range) => {
+                    let mut mlr = morse_long_range.clone();
+                    mlr.d0.scale(scaling.value);
+                    DynInteraction::new(mlr.interaction())
+                },
+                Interactions::Transition { near, far, r_start_switch, r_end_switch, switching } => {
+                    let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+                    let r_start = converter.scalar_value(r_start_switch);
+                    let r_end = converter.scalar_value(r_end_switch);
+
+                    match switching {
+                        SwitchingRegion::SinTransition => DynInteraction::new(Transitioned::new(
+                            near.scaled_interactions(PecScaling::new(scaling.value, PecScalingType::Full)),
+                            far.interactions(),
+                            sin_transition(r_start, r_end),
+                        )),
+                    }
+                },
+                Interactions::Composite(items) => DynInteraction::new(Composite::new(
+                    items.iter().map(|x| x.scaled_interactions(scaling)).collect())
+                ),
+                Interactions::Analytic(_) => panic!("Short range scaling not implemented for analytic interaction"),
+                Interactions::Spline(_) => panic!("Short range scaling not implemented for spline interpolated interaction"),
+                Interactions::RkhsInterpolation(_) => panic!("Short range scaling not implemented for RKHS interpolated interaction"),
+            },
+            PecScalingType::LongRange => match self {
+                Interactions::LenardJones(lenard_jones) => {
+                    let mut lenard_jones = lenard_jones.clone();
+                    // make C6 = 2.0 * d_e * r_e^6 scaled linearly
+                    lenard_jones.r_e.scale(scaling.value.powf(1. / 6.));
+
+                    DynInteraction::new(lenard_jones.interaction())
+                },
+                Interactions::MorseLongRange(morse_long_range) => {
+                    let mut mlr = morse_long_range.clone();
+                    for t in mlr.tail.iter_mut() {
+                        t.d.scale(scaling.value);
+                    }
+                    DynInteraction::new(mlr.interaction())
+                },
+                Interactions::Transition { near, far, r_start_switch, r_end_switch, switching } => {
+                    let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+                    let r_start = converter.scalar_value(r_start_switch);
+                    let r_end = converter.scalar_value(r_end_switch);
+
+                    match switching {
+                        SwitchingRegion::SinTransition => DynInteraction::new(Transitioned::new(
+                            near.interactions(),
+                            far.scaled_interactions(PecScaling::new(scaling.value, PecScalingType::Full)),
+                            sin_transition(r_start, r_end),
+                        )),
+                    }
+                },
+                Interactions::Composite(items) => DynInteraction::new(Composite::new(
+                    items.iter().map(|x| x.scaled_interactions(scaling)).collect())
+                ),
+                Interactions::Analytic(_) => panic!("Long range scaling not implemented for analytic interaction"),
+                Interactions::Spline(_) => panic!("Long range scaling not implemented for spline interpolated interaction"),
+                Interactions::RkhsInterpolation(_) => panic!("Long range scaling not implemented for RKHS interpolated interaction"),
+            },
         }
     }
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-#[serde(default)]
-pub struct Scaling(pub f64);
+#[derive(Clone, Copy, Default, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum PecScalingType {
+    #[default]
+    Full,
+    ShortRange,
+    LongRange,
+}
 
-impl Default for Scaling {
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct PecScaling {
+    value: f64,
+    scaling_type: PecScalingType
+}
+
+impl PecScaling {
+    pub fn new(value: f64, scaling_type: PecScalingType) -> Self {
+        Self { value, scaling_type }
+    }
+}
+
+impl Default for PecScaling {
     fn default() -> Self {
-        Self(1.0)
+        Self {
+            value: 1.0,
+            scaling_type: Default::default(),
+        }
     }
 }
 
@@ -262,27 +349,27 @@ impl Default for Scaling {
 pub struct PecPolarizations(pub HashMap<SpinConfiguration, Interactions>);
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
-pub struct PecScalings(pub HashMap<SpinConfiguration, Scaling>);
+pub struct PecPolarizationScalings(pub HashMap<SpinConfiguration, PecScaling>);
 
-impl PecScalings {
+impl PecPolarizationScalings {
     pub fn scale(&mut self, spin: SpinConfiguration, value: Value) -> bool {
-        let value: f64 = serde_json::from_value(value).expect("Expecting pec scaling to be of type f64");
+        let value: PecScaling = serde_json::from_value(value).expect("Expecting scaling type");
         if let Some(s) = self.0.get_mut(&spin)
-            && s.0 == value
+            && *s == value
         {
             false
         } else {
-            self.0.insert(spin, Scaling(value));
+            self.0.insert(spin, value);
             true
         }
     }
 
     pub fn scale_all(&mut self, value: Value) -> bool {
-        let value: f64 = serde_json::from_value(value).expect("Expecting pec scaling to be of type f64");
+        let value: PecScaling = serde_json::from_value(value).expect("Expecting scaling type");
         let mut changed = false;
         for s in self.0.values_mut() {
-            if s.0 != value {
-                s.0 = value;
+            if *s != value {
+                *s = value;
                 changed = true;
             }
         }
@@ -297,44 +384,41 @@ where
 {
     pub s_tot: HalfU32,
     pub pecs: TypedParamId<PecPolarizations>,
-    pub scalings: TypedParamId<PecScalings>,
+    pub scalings: TypedParamId<PecPolarizationScalings>,
     pub masking: Mask,
 }
 
-// change scalings to be short range long range etc, also probably change potential spec
-// to have coupling_mask and curve instead of scaling
 impl<Mask> PotentialSpec for PecPolarizationSpec<Mask>
 where
     Mask: Fn(BasisElementsRef) -> Operator + Send + Sync,
 {
     fn build_params(&self) -> ParamIds {
-        param_ids![self.pecs.vanish()]
+        param_ids![]
     }
 
-    fn r_coupling(&self, elements: BasisElementsRef, params: &ParameterRegistry) -> Masked<DynInteraction> {
-        Masked {
-            interaction: params
-                .get(self.pecs)
-                .0
-                .get(&SpinConfiguration::Spin(self.s_tot))
-                .unwrap_or_else(|| panic!("input does not have PEC for S_tot = {}", self.s_tot))
-                .interactions(),
-            masking: (self.masking)(elements).0,
-        }
+    fn coupling_masking(&self, elements: BasisElementsRef, _params: &ParameterRegistry) -> Operator {
+        (self.masking)(elements)
     }
 
-    fn scaling_params(&self) -> ParamIds {
-        param_ids![self.scalings.vanish()]
+    fn curve_params(&self) -> ParamIds {
+        param_ids![self.pecs.vanish(), self.scalings.vanish()]
     }
 
-    fn scaling(&self, params: &ParameterRegistry) -> f64 {
-        params
+    fn curve(&self, params: &ParameterRegistry) -> DynInteraction {
+        let interaction = params
+            .get(self.pecs)
+            .0
+            .get(&SpinConfiguration::Spin(self.s_tot))
+            .unwrap_or_else(|| panic!("input does not have PEC for S_tot = {}", self.s_tot));
+        
+        let scaling = params
             .get(self.scalings)
             .0
             .get(&SpinConfiguration::Spin(self.s_tot))
             .copied()
-            .unwrap_or_default()
-            .0
+            .unwrap_or_default();
+
+        interaction.scaled_interactions(scaling)
     }
 }
 
@@ -421,6 +505,74 @@ impl std::hash::Hash for SpinConfiguration {
         self.as_spin().hash(state);
     }
 }
+
+#[derive(Clone, Copy, Debug, Deserialize)]
+pub struct PecPolarizationScaling {
+    scaling: f64,
+    #[serde(default)]
+    scaling_type: PecScalingType,
+    #[serde(default)]
+    configuration: Option<SpinConfiguration>,
+}
+
+pub struct PecPolarizationScalingMod<P: Problem, C> {
+    scaling: PecPolarizationScaling,
+    id_pec: TypedParamId<PecPolarizations>,
+    id_scalings: TypedParamId<PecPolarizationScalings>,
+    phantom: PhantomData<(P, C)>
+}
+
+impl<P: Problem, C> PecPolarizationScalingMod<P, C> {
+    pub fn new(
+        scaling: PecPolarizationScaling, 
+        id_pec: TypedParamId<PecPolarizations>, 
+        id_scalings: TypedParamId<PecPolarizationScalings>
+    ) -> Self {
+        Self { scaling, id_pec, id_scalings, phantom: PhantomData }
+    }
+}
+
+impl<P: Problem, C: Send + Sync> ModifyParam for PecPolarizationScalingMod<P, C> {
+    type P = P;
+    type C = C;
+
+    fn prep_modify(&self, _modified: &mut Modified<Self::P, Self::C>) -> ModificationAction {
+        let id_pec = self.id_pec;
+        let id_scalings = self.id_scalings;
+        let scaling = self.scaling;
+
+        ModificationAction::ParamModify(ParamModifications::new(move |r| {
+            if let Some(c) = scaling.configuration {
+                r.get_mut(id_scalings).0.insert(c, PecScaling { 
+                    value: scaling.scaling, 
+                    scaling_type: scaling.scaling_type 
+                });
+                let s = r.get_mut(id_scalings).0.get_mut(&c).expect("Nonexistent");
+                s.scaling_type = scaling.scaling_type;
+                s.value = scaling.scaling;
+            } else {
+                for k in r.get(id_pec).0.keys().copied().collect::<Vec<SpinConfiguration>>() {
+                    r.get_mut(id_scalings).0.insert(k, PecScaling {
+                        value: scaling.scaling, 
+                        scaling_type: scaling.scaling_type 
+                    });
+                }
+
+            }
+
+            param_ids![id_scalings.vanish()]
+        }).into_dyn())
+    }
+
+    fn as_number(&self) -> serde_json::Number {
+        Number::from_f64(self.scaling.scaling).unwrap()
+    }
+
+    fn mut_number(&mut self, number: serde_json::Number) {
+        self.scaling.scaling = number.as_f64().unwrap()
+    }
+}
+
 
 #[cfg(test)]
 mod tests {

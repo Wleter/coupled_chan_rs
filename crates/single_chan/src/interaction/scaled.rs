@@ -29,6 +29,20 @@ impl<I: Interaction> Interaction for Scaled<I> {
     }
 
     fn asymptote_dep(&self) -> super::AsymptoteDep {
-        self.interaction.asymptote_dep()
+        if self.scaling == 0.0 {
+            super::AsymptoteDep::Const
+        } else if self.scaling > 0.0 {
+            self.interaction.asymptote_dep()
+        } else {
+            match self.interaction.asymptote_dep() {
+                super::AsymptoteDep::Const => super::AsymptoteDep::Const,
+                super::AsymptoteDep::ExpVanishing => super::AsymptoteDep::Growing,
+                super::AsymptoteDep::PowerLawVanishing(_) => super::AsymptoteDep::Growing,
+                super::AsymptoteDep::Growing => super::AsymptoteDep::Unknown,
+                super::AsymptoteDep::Other => super::AsymptoteDep::Unknown,
+                super::AsymptoteDep::Unknown => super::AsymptoteDep::Unknown,
+            }
+        }
+
     }
 }

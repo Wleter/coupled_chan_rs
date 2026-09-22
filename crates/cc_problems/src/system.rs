@@ -22,7 +22,6 @@ use coupled_chan::{
         AngularBlocks,
         masked::Masked,
     },
-    scaled::Scaled,
 };
 use hilbert_space::space::BasisElementsRef;
 use smallvec::SmallVec;
@@ -42,7 +41,7 @@ use anyhow::{
     anyhow,
 };
 
-pub type CouplingPotential = Masked<Scaled<DynInteraction>>;
+pub type CouplingPotential = Masked<DynInteraction>;
 pub type Coupling = Composite<CouplingPotential>;
 
 #[derive(Clone)]
@@ -63,19 +62,16 @@ impl System {
         let operator_specs = HashVec::from_hashmap(hamiltonian_spec.operators);
         let potential_specs = HashVec::from_hashmap(hamiltonian_spec.potentials);
 
-        let operators =
-            operator_specs.mapped(|x| (x.coupling(&registry), basis.get_angular_blocks(|_, b| x.matrix(b, &registry))));
+        let operators = operator_specs.mapped(|x| (
+            x.coupling(&registry), 
+            basis.get_angular_blocks(|_, b| x.matrix(b, &registry))
+        ));
 
         let potentials = potential_specs.mapped(|x| {
-            let masked = x.r_coupling(basis.full_basis.as_ref(), &registry);
+            let masking = x.coupling_masking(basis.full_basis.as_ref(), &registry);
+            let curve = x.curve(&registry);
 
-            Masked::new(
-                Scaled {
-                    scaling: x.scaling(&registry),
-                    interaction: masked.interaction,
-                },
-                masked.masking,
-            )
+            Masked::new(curve, masking.0)
         });
 
         Self {
@@ -127,7 +123,7 @@ impl System {
             .potentials
             .vec
             .iter()
-            .filter(|x| x.interaction.scaling != 0.0 || x.masking == zeros)
+            .filter(|x| x.masking != zeros)
             .cloned()
             .collect();
 
@@ -163,7 +159,7 @@ impl System {
 
     fn update_potentials(&mut self, modified: &[ParamId]) {
         let mut rebuild_queue = HashSet::new();
-        let mut scaling_queue = HashSet::new();
+        let mut curve_queue = HashSet::new();
 
         let specs = &self.potential_specs.vec;
         let potentials = &mut self.potentials.vec;
@@ -173,21 +169,20 @@ impl System {
                 if ops.build_params().iter().find(|x| *x == m).is_some() {
                     rebuild_queue.insert(i);
                 }
-                if ops.scaling_params().iter().find(|x| *x == m).is_some() {
-                    scaling_queue.insert(i);
+                if ops.curve_params().iter().find(|x| *x == m).is_some() {
+                    curve_queue.insert(i);
                 }
             }
         }
 
         for ops_id in rebuild_queue {
-            let rebuilt = specs[ops_id].r_coupling(self.basis.full_basis.as_ref(), &self.registry);
+            let rebuilt = specs[ops_id].coupling_masking(self.basis.full_basis.as_ref(), &self.registry);
 
-            potentials[ops_id].masking = rebuilt.masking;
-            potentials[ops_id].interaction.interaction = rebuilt.interaction;
+            potentials[ops_id].masking = rebuilt.0;
         }
 
-        for ops_id in scaling_queue {
-            potentials[ops_id].interaction.scaling = specs[ops_id].scaling(&self.registry);
+        for ops_id in curve_queue {
+            potentials[ops_id].interaction = specs[ops_id].curve(&self.registry);
         }
     }
 
@@ -212,13 +207,11 @@ impl HamiltonianSpec {
     }
 
     pub fn add_operators<S: AsRef<str>>(&mut self, operators: impl IntoIterator<Item = (S, DynOperatorSpec)>) {
-        self.operators
-            .extend(operators.into_iter().map(|x| (x.0.as_ref().to_string(), x.1)));
+        self.operators.extend(operators.into_iter().map(|x| (x.0.as_ref().to_string(), x.1)));
     }
 
     pub fn add_potentials<S: AsRef<str>>(&mut self, potentials: impl IntoIterator<Item = (S, DynPotentialSpec)>) {
-        self.potentials
-            .extend(potentials.into_iter().map(|x| (x.0.as_ref().to_string(), x.1)));
+        self.potentials.extend(potentials.into_iter().map(|x| (x.0.as_ref().to_string(), x.1)));
     }
 }
 
@@ -276,10 +269,10 @@ impl DynOperatorSpec {
 
 pub trait PotentialSpec: Send + Sync {
     fn build_params(&self) -> ParamIds;
-    fn r_coupling(&self, elements: BasisElementsRef, params: &ParameterRegistry) -> Masked<DynInteraction>;
+    fn coupling_masking(&self, elements: BasisElementsRef, params: &ParameterRegistry) -> Operator;
 
-    fn scaling_params(&self) -> ParamIds;
-    fn scaling(&self, params: &ParameterRegistry) -> f64;
+    fn curve_params(&self) -> ParamIds;
+    fn curve(&self, params: &ParameterRegistry) -> DynInteraction;
 }
 
 #[derive(Clone)]

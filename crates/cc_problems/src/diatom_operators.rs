@@ -1,5 +1,5 @@
 use cc_qol_utils::Pair;
-use coupled_chan::{DynInteraction, coupling::masked::Masked, dispersion::PowerLaw};
+use coupled_chan::{DynInteraction, dispersion::PowerLaw};
 use hilbert_space::{
     operator_mel,
     space::BasisElementsRef,
@@ -49,34 +49,27 @@ where
     Mask: Fn(BasisElementsRef) -> Operator + Send + Sync,
 {
     fn build_params(&self) -> crate::system::ParamIds {
+        param_ids![]
+    }
+
+    fn coupling_masking(&self, elements: BasisElementsRef, _params: &ParameterRegistry) -> Operator {
+        (self.masking)(elements)
+    }
+
+    fn curve_params(&self) -> crate::system::ParamIds {
         param_ids![self.so_curve.vanish()]
     }
 
-    fn r_coupling(&self, elements: BasisElementsRef, params: &ParameterRegistry) -> Masked<coupled_chan::DynInteraction> {
+    fn curve(&self, params: &ParameterRegistry) -> DynInteraction {
         let fine_constant = CODATA_2022.fine_constant;
         let dipole_term = PowerLaw::new(-fine_constant.powi(2), -3);
 
         if let Some(so) = params.get(self.so_curve) {
             let spin_orbit_term = so.interactions();
-            Masked {
-                interaction: DynInteraction::new(Pair::new(dipole_term, spin_orbit_term)),
-                masking: (self.masking)(elements).0,
-            }
+            DynInteraction::new(Pair::new(dipole_term, spin_orbit_term))
         } else {
-            Masked {
-                interaction: DynInteraction::new(dipole_term),
-                masking: (self.masking)(elements).0,
-            }
+            DynInteraction::new(dipole_term)
         }
-
-    }
-
-    fn scaling_params(&self) -> crate::system::ParamIds {
-        param_ids![]
-    }
-
-    fn scaling(&self, _params: &ParameterRegistry) -> f64 {
-        1.0
     }
 }
 
