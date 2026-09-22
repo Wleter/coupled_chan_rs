@@ -1,6 +1,4 @@
-use std::{
-    mem::swap,
-};
+use std::mem::swap;
 
 use anyhow::bail;
 use hilbert_space::faer::complex::Complex64;
@@ -35,10 +33,7 @@ pub struct ResonancesCalc<P: Problem> {
 
 impl<P: Problem> ResonancesCalc<P> {
     pub fn new(scattering: ScatteringCalc<P>, bound: BoundStateCalc<P>) -> Self {
-        Self {
-            scattering,
-            bound,
-        }
+        Self { scattering, bound }
     }
 }
 
@@ -245,9 +240,7 @@ where
 }
 
 impl<P: Problem> ResonancesCalc<P> {
-    fn modified_bound<'b, 'a>(
-        modified: &'b mut Modified<'a, P, ResonancesInput>,
-    ) -> Modified<'b, P, BoundStateCalcInput> {
+    fn modified_bound<'b, 'a>(modified: &'b mut Modified<'a, P, ResonancesInput>) -> Modified<'b, P, BoundStateCalcInput> {
         Modified {
             system: modified.system,
             basis: modified.basis,

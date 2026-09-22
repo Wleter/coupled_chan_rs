@@ -1,4 +1,7 @@
-use std::{collections::HashMap, marker::PhantomData};
+use std::{
+    collections::HashMap,
+    marker::PhantomData,
+};
 
 use coupled_chan::{
     cc_propagator::{
@@ -48,10 +51,20 @@ use unit_systems::quantities::{
 };
 
 use crate::{
-    UNITS_CONVERTER, calculations::{
+    UNITS_CONVERTER,
+    calculations::{
         Modified,
-        SingleCalc, modifications::{ModificationAction, ModifyParam, ModifyRegistry, ScalarCalcMod},
-    }, modify_recipe, parameters::TypedParamId, problems::Problem
+        SingleCalc,
+        modifications::{
+            ModificationAction,
+            ModifyParam,
+            ModifyRegistry,
+            ScalarCalcMod,
+        },
+    },
+    modify_recipe,
+    parameters::TypedParamId,
+    problems::Problem,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -70,10 +83,22 @@ pub struct ScatteringCalcInput {
 
 pub fn scattering_calc_mods<P: Problem + 'static>() -> ModifyRegistry<P, ScatteringCalcInput> {
     ModifyRegistry(HashMap::from([
-        ("energy".into(), modify_recipe!(|e| ScalarCalcMod::new(e, |r: &mut ScatteringCalcInput| &mut r.energy))),
-        ("r_min".into(), modify_recipe!(|x| ScalarCalcMod::new(x, |r: &mut ScatteringCalcInput| &mut r.r_min))),
-        ("r_max".into(), modify_recipe!(|x| ScalarCalcMod::new(x, |r: &mut ScatteringCalcInput| &mut r.r_max))),
-        ("step_scaling".into(), modify_recipe!(|x| StepScalingMod::new(x, |r: &mut ScatteringCalcInput| &mut r.step))),
+        (
+            "energy".into(),
+            modify_recipe!(|e| ScalarCalcMod::new(e, |r: &mut ScatteringCalcInput| &mut r.energy)),
+        ),
+        (
+            "r_min".into(),
+            modify_recipe!(|x| ScalarCalcMod::new(x, |r: &mut ScatteringCalcInput| &mut r.r_min)),
+        ),
+        (
+            "r_max".into(),
+            modify_recipe!(|x| ScalarCalcMod::new(x, |r: &mut ScatteringCalcInput| &mut r.r_max)),
+        ),
+        (
+            "step_scaling".into(),
+            modify_recipe!(|x| StepScalingMod::new(x, |r: &mut ScatteringCalcInput| &mut r.step)),
+        ),
     ]))
 }
 
@@ -217,15 +242,23 @@ impl Step {
     pub fn scale_step(&mut self, scaling: f64) {
         match self {
             Step::Fixed { dr } => dr.scale(scaling),
-            Step::LocalWavelength { dr_min, dr_max, wave_ratio } => {
+            Step::LocalWavelength {
+                dr_min,
+                dr_max,
+                wave_ratio,
+            } => {
                 dr_min.scale(scaling);
                 dr_max.scale(scaling);
                 *wave_ratio /= scaling
-            },
-            Step::Transitioned { transition_point: _, before, after } => {
+            }
+            Step::Transitioned {
+                transition_point: _,
+                before,
+                after,
+            } => {
                 before.scale_step(scaling);
-                after.scale_step(scaling); 
-            },
+                after.scale_step(scaling);
+            }
         }
     }
 }
@@ -233,15 +266,15 @@ impl Step {
 pub struct StepScalingMod<P, C, F: Fn(&mut C) -> &mut Step> {
     pub scaling: f64,
     pub conversion: F,
-    phantom: PhantomData<(P, C)>
+    phantom: PhantomData<(P, C)>,
 }
 
 impl<P, C, F: Fn(&mut C) -> &mut Step> StepScalingMod<P, C, F> {
     pub fn new(scaling: f64, conversion: F) -> Self {
-        Self { 
+        Self {
             scaling,
-            conversion, 
-            phantom: PhantomData 
+            conversion,
+            phantom: PhantomData,
         }
     }
 }

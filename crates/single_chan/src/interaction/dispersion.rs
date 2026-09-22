@@ -25,7 +25,7 @@ impl Interaction for PowerLaw {
 
     fn asymptote_dep(&self) -> super::AsymptoteDep {
         if self.d0 == 0.0 {
-            return AsymptoteDep::Const
+            return AsymptoteDep::Const;
         }
 
         match self.n {
@@ -58,14 +58,14 @@ impl Interaction for ExpLaw {
 
     fn asymptote_dep(&self) -> super::AsymptoteDep {
         if self.d == 0.0 {
-            return AsymptoteDep::Const
+            return AsymptoteDep::Const;
         }
 
         match self.exponent {
             x if x > 0.0 => AsymptoteDep::ExpVanishing,
             x if x == 0.0 => AsymptoteDep::Const,
             x if x < 0.0 => AsymptoteDep::Growing,
-            _ => AsymptoteDep::Unknown
+            _ => AsymptoteDep::Unknown,
         }
     }
 }

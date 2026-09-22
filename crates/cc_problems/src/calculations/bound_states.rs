@@ -1,4 +1,3 @@
-
 use std::collections::HashMap;
 
 use cc_math_utils::brent_root_method;
@@ -36,16 +35,30 @@ use unit_systems::quantities::{
 };
 
 use crate::{
-    UNITS_CONVERTER, calculations::{
-        Modified, SingleCalc, dependence::NamedValue, modifications::{ModifyParam, ModifyRegistry, ScalarCalcMod}, scattering::{
+    UNITS_CONVERTER,
+    calculations::{
+        Modified,
+        SingleCalc,
+        dependence::NamedValue,
+        modifications::{
+            ModifyParam,
+            ModifyRegistry,
+            ScalarCalcMod,
+        },
+        scattering::{
             Boundary,
             CoupledChanSolver,
-            Step, StepScalingMod,
-        }
-    }, modify_recipe, parameters::TypedParamId, problems::Problem, system::{
+            Step,
+            StepScalingMod,
+        },
+    },
+    modify_recipe,
+    parameters::TypedParamId,
+    problems::Problem,
+    system::{
         Coupling,
         System,
-    }
+    },
 };
 
 #[derive(Clone, Debug, Deserialize)]
@@ -94,18 +107,34 @@ pub struct BoundStateCalcInput {
 
 pub fn bound_states_calc_mods<P: Problem + 'static>() -> ModifyRegistry<P, BoundStateCalcInput> {
     ModifyRegistry(HashMap::from([
-        ("energy".into(), modify_recipe!(|e| ScalarCalcMod::new(e, |r: &mut BoundStateCalcInput| &mut r.energy))),
-        ("r_min".into(), modify_recipe!(|x| ScalarCalcMod::new(x, |r: &mut BoundStateCalcInput| &mut r.r_min))),
-        ("r_match".into(), modify_recipe!(|x| ScalarCalcMod::new(x, |r: &mut BoundStateCalcInput| &mut r.r_match))),
-        ("r_max".into(), modify_recipe!(|x| ScalarCalcMod::new(x, |r: &mut BoundStateCalcInput| &mut r.r_max))),
-        ("step_scaling".into(), modify_recipe!(|x| StepScalingMod::new(x, |r: &mut BoundStateCalcInput| &mut r.step))),
+        (
+            "energy".into(),
+            modify_recipe!(|e| ScalarCalcMod::new(e, |r: &mut BoundStateCalcInput| &mut r.energy)),
+        ),
+        (
+            "r_min".into(),
+            modify_recipe!(|x| ScalarCalcMod::new(x, |r: &mut BoundStateCalcInput| &mut r.r_min)),
+        ),
+        (
+            "r_match".into(),
+            modify_recipe!(|x| ScalarCalcMod::new(x, |r: &mut BoundStateCalcInput| &mut r.r_match)),
+        ),
+        (
+            "r_max".into(),
+            modify_recipe!(|x| ScalarCalcMod::new(x, |r: &mut BoundStateCalcInput| &mut r.r_max)),
+        ),
+        (
+            "step_scaling".into(),
+            modify_recipe!(|x| StepScalingMod::new(x, |r: &mut BoundStateCalcInput| &mut r.step)),
+        ),
     ]))
 }
 
 pub fn bound_states_calc_search_mods<P: Problem + 'static>() -> ModifyRegistry<P, BoundStateCalcInput> {
-    ModifyRegistry(HashMap::from([
-        ("energy".into(), modify_recipe!(|e| ScalarCalcMod::new(e, |r: &mut BoundStateCalcInput| &mut r.energy))),
-    ]))
+    ModifyRegistry(HashMap::from([(
+        "energy".into(),
+        modify_recipe!(|e| ScalarCalcMod::new(e, |r: &mut BoundStateCalcInput| &mut r.energy)),
+    )]))
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
@@ -219,10 +248,7 @@ pub struct BoundStateCalc<P: Problem> {
 
 impl<P: Problem> BoundStateCalc<P> {
     pub fn new(mass: TypedParamId<Scalar<Mass>>, registry: ModifyRegistry<P, BoundStateCalcInput>) -> Self {
-        Self {
-            mass,
-            registry
-        }
+        Self { mass, registry }
     }
 }
 
@@ -245,7 +271,10 @@ where
         let r_stop = converter.scalar_value(&modified.calc_input.r_max);
         assert!(r_start < r_match && r_match < r_stop, "expected r_start < r_match < r_stop");
 
-        assert!(modified.calc_input.dependant.is_compatible(), "incompatible dependant fields in calc input");
+        assert!(
+            modified.calc_input.dependant.is_compatible(),
+            "incompatible dependant fields in calc input"
+        );
         let modifier = &self.registry.0[&modified.calc_input.dependant.min.name];
         let p_start = (modifier.recipe)(modified.calc_input.dependant.min.value.clone());
         let p_end = (modifier.recipe)(modified.calc_input.dependant.max.value.clone());
@@ -647,11 +676,7 @@ pub fn bound_mismatch(
     }
 }
 
-fn bound_wave(
-    w_matrix: &CollisionWMatrix<impl RCoupling>,
-    input: &BoundStateCalcInput,
-    target_nodes: u64,
-) -> WaveFunction {
+fn bound_wave(w_matrix: &CollisionWMatrix<impl RCoupling>, input: &BoundStateCalcInput, target_nodes: u64) -> WaveFunction {
     let boundary_out = input.boundaries.0.get_boundary(&input.r_min, Direction::Outwards, w_matrix);
     let boundary_in = input.boundaries.0.get_boundary(&input.r_max, Direction::Inwards, w_matrix);
 

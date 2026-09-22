@@ -43,6 +43,5 @@ impl<I: Interaction> Interaction for Scaled<I> {
                 super::AsymptoteDep::Unknown => super::AsymptoteDep::Unknown,
             }
         }
-
     }
 }

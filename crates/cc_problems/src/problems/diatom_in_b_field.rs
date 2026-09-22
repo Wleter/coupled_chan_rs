@@ -26,28 +26,53 @@ use unit_systems::quantities::{
 };
 
 use crate::{
-    OrbitalBasisElements, atom_operators::AtomParams, calculations::{
-        DynCalc, adiabats::{
+    OrbitalBasisElements,
+    atom_operators::AtomParams,
+    calculations::{
+        DynCalc,
+        adiabats::{
             AdiabatsCalc,
             adiabats_calc_mods,
-        }, bound_states::{
-            BoundStateCalc, bound_states_calc_mods, bound_states_calc_search_mods
-        }, dependence::DependenceCalc, levels::EnergyLevelsCalc, modifications::{ModifyRegistry, OrbitalRecipeMod, ScalarParamMod}, resonances::
-            ResonancesCalc
-        , scattering::{
+        },
+        bound_states::{
+            BoundStateCalc,
+            bound_states_calc_mods,
+            bound_states_calc_search_mods,
+        },
+        dependence::DependenceCalc,
+        levels::EnergyLevelsCalc,
+        modifications::{
+            ModifyRegistry,
+            OrbitalRecipeMod,
+            ScalarParamMod,
+        },
+        resonances::ResonancesCalc,
+        scattering::{
             ScatteringCalc,
             scattering_calc_mods,
-        }
-    }, diatom_basis::{
+        },
+    },
+    diatom_basis::{
         CoupledSIDiatomBasis,
         DiatomRecipe,
-    }, diatom_operators::SpinRotationSpec, interactions::{
-        Interactions, PecPolarizationScalingMod, PecPolarizationScalings, PecPolarizationSpec, PecPolarizations 
-    }, modify_recipe, operator_mel::spin_projection_term_coupled, parameters::Parameters, problems::Problem, system::{
+    },
+    diatom_operators::SpinRotationSpec,
+    interactions::{
+        Interactions,
+        PecPolarizationScalingMod,
+        PecPolarizationScalings,
+        PecPolarizationSpec,
+        PecPolarizations,
+    },
+    modify_recipe,
+    operator_mel::spin_projection_term_coupled,
+    parameters::Parameters,
+    problems::Problem,
+    system::{
         DynOperatorSpec,
         DynPotentialSpec,
         HamiltonianSpec,
-    }
+    },
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -61,14 +86,15 @@ pub struct DiatomInBFieldBasis {
     pub l_parity: OrbitalParity,
 }
 
-pub fn diatom_in_b_field_basis_mods<P, C>() -> ModifyRegistry<P, C> 
-where 
+pub fn diatom_in_b_field_basis_mods<P, C>() -> ModifyRegistry<P, C>
+where
     P: Problem<BasisRecipe = DiatomInBFieldBasis> + 'static,
-    C: Send + Sync + 'static
+    C: Send + Sync + 'static,
 {
-    ModifyRegistry(HashMap::from([
-        ("l".into(), modify_recipe!(|l| OrbitalRecipeMod::new(l, |r: &mut P::BasisRecipe| &mut r.recipe.l))),
-    ]))
+    ModifyRegistry(HashMap::from([(
+        "l".into(),
+        modify_recipe!(|l| OrbitalRecipeMod::new(l, |r: &mut P::BasisRecipe| &mut r.recipe.l)),
+    )]))
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
@@ -97,32 +123,44 @@ pub struct DiatomInBFieldParams {
     pub scalings: PecPolarizationScalings,
 
     #[serde(default)]
-    pub spin_orbit: Option<Interactions>
+    pub spin_orbit: Option<Interactions>,
 }
 
-pub fn diatom_in_b_field_params_mods<P, C>() -> ModifyRegistry<P, C> 
-where 
+pub fn diatom_in_b_field_params_mods<P, C>() -> ModifyRegistry<P, C>
+where
     P: Problem<Params = DiatomInBFieldParams> + 'static,
-    C: Send + Sync + 'static
+    C: Send + Sync + 'static,
 {
     let ids = DiatomInBFieldParams::ids();
     ModifyRegistry(HashMap::from([
-        ("magnetic_field".into(), modify_recipe!(|b| ScalarParamMod::new(b, ids.b_field))),
+        (
+            "magnetic_field".into(),
+            modify_recipe!(|b| ScalarParamMod::new(b, ids.b_field)),
+        ),
         ("red_mass".into(), modify_recipe!(|x| ScalarParamMod::new(x, ids.red_mass))),
-        ("pec_scaling".into(), modify_recipe!(|x| PecPolarizationScalingMod::new(x, ids.pecs, ids.scalings))),
+        (
+            "pec_scaling".into(),
+            modify_recipe!(|x| PecPolarizationScalingMod::new(x, ids.pecs, ids.scalings)),
+        ),
     ]))
 }
 
-pub fn diatom_in_b_field_params_search_mods<P, C>() -> ModifyRegistry<P, C> 
-where 
+pub fn diatom_in_b_field_params_search_mods<P, C>() -> ModifyRegistry<P, C>
+where
     P: Problem<Params = DiatomInBFieldParams> + 'static,
-    C: Send + Sync + 'static
+    C: Send + Sync + 'static,
 {
     let ids = DiatomInBFieldParams::ids();
     ModifyRegistry(HashMap::from([
-        ("magnetic_field".into(), modify_recipe!(|b| ScalarParamMod::new(b, ids.b_field))),
+        (
+            "magnetic_field".into(),
+            modify_recipe!(|b| ScalarParamMod::new(b, ids.b_field)),
+        ),
         ("red_mass".into(), modify_recipe!(|x| ScalarParamMod::new(x, ids.red_mass))),
-        ("pec_scaling".into(), modify_recipe!(|x| PecPolarizationScalingMod::new(x, ids.pecs, ids.scalings))),
+        (
+            "pec_scaling".into(),
+            modify_recipe!(|x| PecPolarizationScalingMod::new(x, ids.pecs, ids.scalings)),
+        ),
     ]))
 }
 
@@ -130,9 +168,10 @@ pub fn diatom_levels_b_field_scan() -> Box<dyn DynCalc<DiatomInBFieldProblem>> {
     let levels_calc = EnergyLevelsCalc::default();
 
     let ids = DiatomInBFieldParams::ids();
-    let registry = ModifyRegistry(HashMap::from([
-        ("magnetic_field".into(), modify_recipe!(|b| ScalarParamMod::new(b, ids.b_field))),
-    ]));
+    let registry = ModifyRegistry(HashMap::from([(
+        "magnetic_field".into(),
+        modify_recipe!(|b| ScalarParamMod::new(b, ids.b_field)),
+    )]));
     Box::new(DependenceCalc::new(levels_calc, registry))
 }
 
@@ -156,8 +195,7 @@ pub fn diatom_scattering_b_field_scan() -> Box<dyn DynCalc<DiatomInBFieldProblem
 
 pub fn diatom_bound_states_b_field_scan() -> Box<dyn DynCalc<DiatomInBFieldProblem>> {
     let ids = DiatomInBFieldParams::ids();
-    let registry = diatom_in_b_field_params_search_mods()
-        .extend(bound_states_calc_search_mods());
+    let registry = diatom_in_b_field_params_search_mods().extend(bound_states_calc_search_mods());
     let bound_state_calc = BoundStateCalc::new(ids.red_mass, registry);
 
     let registry = diatom_in_b_field_basis_mods()
@@ -169,14 +207,12 @@ pub fn diatom_bound_states_b_field_scan() -> Box<dyn DynCalc<DiatomInBFieldProbl
 pub fn diatom_resonances_scan() -> Box<dyn DynCalc<DiatomInBFieldProblem>> {
     let ids = DiatomInBFieldParams::ids();
     let scattering_calc = ScatteringCalc::new(ids.red_mass);
-    let registry = diatom_in_b_field_params_search_mods()
-        .extend(bound_states_calc_search_mods());
+    let registry = diatom_in_b_field_params_search_mods().extend(bound_states_calc_search_mods());
     let bound_state_calc = BoundStateCalc::new(ids.red_mass, registry);
 
     let resonances_calc = ResonancesCalc::new(scattering_calc, bound_state_calc);
 
-    let registry = diatom_in_b_field_basis_mods()
-        .extend(diatom_in_b_field_params_mods());
+    let registry = diatom_in_b_field_basis_mods().extend(diatom_in_b_field_params_mods());
     Box::new(DependenceCalc::new(resonances_calc, registry))
 }
 
@@ -281,15 +317,13 @@ impl Problem for DiatomInBFieldProblem {
                 }),
             )
         }));
-        hamiltonian_spec.add_potentials([
-            (
-                "spin_rot_coupling",
-                DynPotentialSpec::new(SpinRotationSpec {
-                    so_curve: param_ids.spin_orbit,
-                    masking: diatom.second_order_so(),
-                }),
-            ),
-        ]);
+        hamiltonian_spec.add_potentials([(
+            "spin_rot_coupling",
+            DynPotentialSpec::new(SpinRotationSpec {
+                so_curve: param_ids.spin_orbit,
+                masking: diatom.second_order_so(),
+            }),
+        )]);
 
         hamiltonian_spec
     }

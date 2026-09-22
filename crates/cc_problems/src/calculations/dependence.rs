@@ -1,6 +1,4 @@
-use std::{
-    path::PathBuf
-};
+use std::path::PathBuf;
 
 use anyhow::Result;
 use cc_qol_utils::saving::{
@@ -10,9 +8,9 @@ use cc_qol_utils::saving::{
 };
 use rayon::prelude::*;
 use serde::{
-    Deserialize, 
-    Deserializer, 
-    Serialize
+    Deserialize,
+    Deserializer,
+    Serialize,
 };
 use serde_json::{
     Number,
@@ -24,7 +22,12 @@ use crate::{
     calculations::{
         Calc,
         Modified,
-        SingleCalc, modifications::{ModificationAction, ModifyParam, ModifyRegistry},
+        SingleCalc,
+        modifications::{
+            ModificationAction,
+            ModifyParam,
+            ModifyRegistry,
+        },
     },
     parameters::Parameters,
     problems::{
@@ -33,7 +36,6 @@ use crate::{
     },
     system::System,
 };
-
 
 #[derive(Clone, Debug)]
 pub struct NamedValue {
@@ -94,7 +96,7 @@ impl GridParams {
                 }
 
                 n
-            },
+            }
             GridParams::Linear { start: _, end: _, n } => *n,
             GridParams::Log { start: _, end: _, n } => *n,
             GridParams::Points { name: _, values } => values.len(),
@@ -103,9 +105,9 @@ impl GridParams {
     }
 
     pub fn get<P: Problem, C>(
-        &self, 
-        index: usize, 
-        registry: &ModifyRegistry<P, C>
+        &self,
+        index: usize,
+        registry: &ModifyRegistry<P, C>,
     ) -> (SmallVec<[Number; 3]>, SmallVec<[Box<dyn ModifyParam<P = P, C = C>>; 3]>) {
         assert!(index < self.len(), "Index of GridParams larger than its size");
         let mut numbers: SmallVec<[Number; 3]> = SmallVec::new();
@@ -124,7 +126,7 @@ impl GridParams {
                     numbers.extend(n);
                     modifiers.extend(m);
                 }
-            },
+            }
             GridParams::Line { components } => {
                 let mut numbers: SmallVec<[Number; 3]> = SmallVec::new();
                 for c in components {
@@ -132,9 +134,12 @@ impl GridParams {
                     numbers.extend(n);
                     modifiers.extend(m);
                 }
-            },
+            }
             GridParams::Linear { start, end, n } => {
-                assert_eq!(start.name, end.name, "start and end modified param for linspace should be the same");
+                assert_eq!(
+                    start.name, end.name,
+                    "start and end modified param for linspace should be the same"
+                );
                 let modifier = &registry.0[&start.name];
 
                 let mut modifier_s = (modifier.recipe)(start.value.clone());
@@ -145,9 +150,12 @@ impl GridParams {
                 numbers = smallvec::smallvec![value.clone()];
                 modifier_s.mut_number(value);
                 modifiers = smallvec::smallvec![modifier_s];
-            },
+            }
             GridParams::Log { start, end, n } => {
-                assert_eq!(start.name, end.name, "start and end modified param for linspace should be the same");
+                assert_eq!(
+                    start.name, end.name,
+                    "start and end modified param for linspace should be the same"
+                );
                 let modifier = &registry.0[&start.name];
 
                 let mut modifier_s = (modifier.recipe)(start.value.clone());
@@ -158,24 +166,24 @@ impl GridParams {
                 numbers = smallvec::smallvec![value.clone()];
                 modifier_s.mut_number(value);
                 modifiers = smallvec::smallvec![modifier_s];
-            },
+            }
             GridParams::Points { name, values } => {
                 let modifier = &registry.0[name];
                 let modifier_s = (modifier.recipe)(values[index].clone());
                 numbers = smallvec::smallvec![modifier_s.as_number()];
                 modifiers = smallvec::smallvec![modifier_s];
-            },
+            }
             GridParams::Sum { components } => {
                 let mut size_start = 0;
-                
+
                 for (i, s) in components.iter().map(|x| x.len()).enumerate() {
                     if size_start + s <= index {
                         size_start += s;
-                        continue
+                        continue;
                     }
 
                     (numbers, modifiers) = components[i].get(index - size_start, registry);
-                    break
+                    break;
                 }
             }
         }
@@ -186,15 +194,12 @@ impl GridParams {
 
 pub struct DependenceCalc<C: SingleCalc> {
     single_calc: C,
-    registry: ModifyRegistry<C::P, C::CalcInput>
+    registry: ModifyRegistry<C::P, C::CalcInput>,
 }
 
 impl<C: SingleCalc> DependenceCalc<C> {
     pub fn new(single_calc: C, registry: ModifyRegistry<C::P, C::CalcInput>) -> Self {
-        Self {
-            single_calc,
-            registry
-        }
+        Self { single_calc, registry }
     }
 }
 
@@ -269,17 +274,15 @@ where
                         calc_input: &mut input.calc_parameters.calc,
                     };
 
-                    let mut prep: Vec<ModificationAction> = modifiers.as_ref()
-                        .iter()
-                        .map(|x| x.prep_modify(&mut modified))
-                        .collect();
+                    let mut prep: Vec<ModificationAction> =
+                        modifiers.as_ref().iter().map(|x| x.prep_modify(&mut modified)).collect();
 
                     prep.sort_by(|a, b| match (a, b) {
                         (ModificationAction::BasisChange, _) => std::cmp::Ordering::Less,
                         (_, ModificationAction::BasisChange) => std::cmp::Ordering::Greater,
                         (ModificationAction::ParamModify(_), _) => std::cmp::Ordering::Less,
                         (_, ModificationAction::ParamModify(_)) => std::cmp::Ordering::Greater,
-                        _ => std::cmp::Ordering::Greater
+                        _ => std::cmp::Ordering::Greater,
                     });
 
                     let mut last_basis_change = false;
@@ -307,7 +310,7 @@ where
                             result = Err(err);
                         }
                     }
-                    
+
                     result
                 })?;
         } else {
@@ -332,7 +335,7 @@ where
                     result = Err(err);
                 }
             }
-            
+
             result?;
         }
 
@@ -342,9 +345,9 @@ where
 
 pub fn num_linspace(start: Number, end: Number, n: usize, i: usize) -> Number {
     if n == 1 {
-        return start
+        return start;
     }
-    
+
     if start.is_f64() && end.is_f64() {
         let start = start.as_f64().unwrap();
         let end = end.as_f64().unwrap();
@@ -367,11 +370,11 @@ pub fn num_linspace(start: Number, end: Number, n: usize, i: usize) -> Number {
     }
 }
 
-pub fn num_logspace(start: Number, end: Number, n: usize, i: usize) -> Number { 
+pub fn num_logspace(start: Number, end: Number, n: usize, i: usize) -> Number {
     if n == 1 {
-        return start
+        return start;
     }
-    
+
     if start.is_f64() && end.is_f64() {
         let start_num = start.as_f64().expect("Logspace can only be performed on positive numbers");
         let end_num = end.as_f64().expect("Logspace can only be performed on positive numbers");

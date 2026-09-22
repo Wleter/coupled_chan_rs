@@ -1,5 +1,9 @@
 use std::{
-    collections::HashMap, fmt::Display, fs::File, marker::PhantomData, path::PathBuf
+    collections::HashMap,
+    fmt::Display,
+    fs::File,
+    marker::PhantomData,
+    path::PathBuf,
 };
 
 use cc_derive::Parameters;
@@ -7,7 +11,10 @@ use cc_qol_utils::Composite;
 use coupled_chan::{
     DynInteraction,
     dispersion::{
-        AnalyticInteraction, ExpLaw, PowerLaw, lenard_jones
+        AnalyticInteraction,
+        ExpLaw,
+        PowerLaw,
+        lenard_jones,
     },
     interpolated::{
         InterpolatedPotential,
@@ -15,16 +22,21 @@ use coupled_chan::{
         sin_transition,
         spline_interpolation::SplineBuilder,
     },
-    morse_long_range, scaled::Scaled,
+    morse_long_range,
+    scaled::Scaled,
 };
 use hilbert_space::space::BasisElementsRef;
 use serde::{
     Deserialize,
     Serialize,
 };
-use serde_json::{Number, Value};
+use serde_json::{
+    Number,
+    Value,
+};
 use spin_algebra::{
-    half_integer::HalfU32, hu32
+    half_integer::HalfU32,
+    hu32,
 };
 use unit_systems::quantities::{
     Inv,
@@ -36,12 +48,26 @@ use unit_systems::quantities::{
 };
 
 use crate::{
-    Operator, UNITS_CONVERTER, calculations::{Modified, modifications::{ModificationAction, ModifyParam}}, param_ids, parameters::{
+    Operator,
+    UNITS_CONVERTER,
+    calculations::{
+        Modified,
+        modifications::{
+            ModificationAction,
+            ModifyParam,
+        },
+    },
+    param_ids,
+    parameters::{
         ParameterRegistry,
         TypedParamId,
-    }, problems::Problem, system::{
-        ParamIds, ParamModifications, PotentialSpec
-    }
+    },
+    problems::Problem,
+    system::{
+        ParamIds,
+        ParamModifications,
+        PotentialSpec,
+    },
 };
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -49,7 +75,7 @@ use crate::{
 pub struct C_N {
     pub d: Scalar<Energy>,
     pub n: i8,
-    pub r_e: Scalar<Length>
+    pub r_e: Scalar<Length>,
 }
 
 impl C_N {
@@ -68,7 +94,7 @@ impl C_N {
 pub struct Exp {
     d: Scalar<Energy>,
     exponent: Scalar<Inv<Length>>,
-    r_offset: Scalar<Length>
+    r_offset: Scalar<Length>,
 }
 
 impl Exp {
@@ -86,14 +112,14 @@ impl Exp {
 #[serde(default)]
 pub struct Analytic {
     pub power_law: Vec<C_N>,
-    pub exp_law: Vec<Exp>
+    pub exp_law: Vec<Exp>,
 }
 
 impl Analytic {
     pub fn interaction(&self) -> AnalyticInteraction {
-        AnalyticInteraction { 
-            power_law: Composite::new(self.power_law.iter().map(|x| x.interaction()).collect()), 
-            exponent_law: Composite::new(self.exp_law.iter().map(|x| x.interaction()).collect()), 
+        AnalyticInteraction {
+            power_law: Composite::new(self.power_law.iter().map(|x| x.interaction()).collect()),
+            exponent_law: Composite::new(self.exp_law.iter().map(|x| x.interaction()).collect()),
         }
     }
 }
@@ -229,9 +255,9 @@ impl Interactions {
                     )),
                 }
             }
-            Interactions::Composite(items) => DynInteraction::new(Composite::new(
-                items.iter().map(|x| x.interactions()).collect())
-            ),
+            Interactions::Composite(items) => {
+                DynInteraction::new(Composite::new(items.iter().map(|x| x.interactions()).collect()))
+            }
         }
     }
 
@@ -249,13 +275,19 @@ impl Interactions {
                     lenard_jones.r_e.scale(1.0 / scaling.value.powf(1. / 6.));
 
                     DynInteraction::new(lenard_jones.interaction())
-                },
+                }
                 Interactions::MorseLongRange(morse_long_range) => {
                     let mut mlr = morse_long_range.clone();
                     mlr.d0.scale(scaling.value);
                     DynInteraction::new(mlr.interaction())
-                },
-                Interactions::Transition { near, far, r_start_switch, r_end_switch, switching } => {
+                }
+                Interactions::Transition {
+                    near,
+                    far,
+                    r_start_switch,
+                    r_end_switch,
+                    switching,
+                } => {
                     let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
                     let r_start = converter.scalar_value(r_start_switch);
                     let r_end = converter.scalar_value(r_end_switch);
@@ -267,13 +299,15 @@ impl Interactions {
                             sin_transition(r_start, r_end),
                         )),
                     }
-                },
-                Interactions::Composite(items) => DynInteraction::new(Composite::new(
-                    items.iter().map(|x| x.scaled_interactions(scaling)).collect())
-                ),
+                }
+                Interactions::Composite(items) => {
+                    DynInteraction::new(Composite::new(items.iter().map(|x| x.scaled_interactions(scaling)).collect()))
+                }
                 Interactions::Analytic(_) => panic!("Short range scaling not implemented for analytic interaction"),
                 Interactions::Spline(_) => panic!("Short range scaling not implemented for spline interpolated interaction"),
-                Interactions::RkhsInterpolation(_) => panic!("Short range scaling not implemented for RKHS interpolated interaction"),
+                Interactions::RkhsInterpolation(_) => {
+                    panic!("Short range scaling not implemented for RKHS interpolated interaction")
+                }
             },
             PecScalingType::LongRange => match self {
                 Interactions::LenardJones(lenard_jones) => {
@@ -282,15 +316,21 @@ impl Interactions {
                     lenard_jones.r_e.scale(scaling.value.powf(1. / 6.));
 
                     DynInteraction::new(lenard_jones.interaction())
-                },
+                }
                 Interactions::MorseLongRange(morse_long_range) => {
                     let mut mlr = morse_long_range.clone();
                     for t in mlr.tail.iter_mut() {
                         t.d.scale(scaling.value);
                     }
                     DynInteraction::new(mlr.interaction())
-                },
-                Interactions::Transition { near, far, r_start_switch, r_end_switch, switching } => {
+                }
+                Interactions::Transition {
+                    near,
+                    far,
+                    r_start_switch,
+                    r_end_switch,
+                    switching,
+                } => {
                     let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
                     let r_start = converter.scalar_value(r_start_switch);
                     let r_end = converter.scalar_value(r_end_switch);
@@ -302,13 +342,15 @@ impl Interactions {
                             sin_transition(r_start, r_end),
                         )),
                     }
-                },
-                Interactions::Composite(items) => DynInteraction::new(Composite::new(
-                    items.iter().map(|x| x.scaled_interactions(scaling)).collect())
-                ),
+                }
+                Interactions::Composite(items) => {
+                    DynInteraction::new(Composite::new(items.iter().map(|x| x.scaled_interactions(scaling)).collect()))
+                }
                 Interactions::Analytic(_) => panic!("Long range scaling not implemented for analytic interaction"),
                 Interactions::Spline(_) => panic!("Long range scaling not implemented for spline interpolated interaction"),
-                Interactions::RkhsInterpolation(_) => panic!("Long range scaling not implemented for RKHS interpolated interaction"),
+                Interactions::RkhsInterpolation(_) => {
+                    panic!("Long range scaling not implemented for RKHS interpolated interaction")
+                }
             },
         }
     }
@@ -327,7 +369,7 @@ pub enum PecScalingType {
 #[serde(default)]
 pub struct PecScaling {
     value: f64,
-    scaling_type: PecScalingType
+    scaling_type: PecScalingType,
 }
 
 impl PecScaling {
@@ -410,7 +452,7 @@ where
             .0
             .get(&SpinConfiguration::Spin(self.s_tot))
             .unwrap_or_else(|| panic!("input does not have PEC for S_tot = {}", self.s_tot));
-        
+
         let scaling = params
             .get(self.scalings)
             .0
@@ -519,16 +561,21 @@ pub struct PecPolarizationScalingMod<P: Problem, C> {
     scaling: PecPolarizationScaling,
     id_pec: TypedParamId<PecPolarizations>,
     id_scalings: TypedParamId<PecPolarizationScalings>,
-    phantom: PhantomData<(P, C)>
+    phantom: PhantomData<(P, C)>,
 }
 
 impl<P: Problem, C> PecPolarizationScalingMod<P, C> {
     pub fn new(
-        scaling: PecPolarizationScaling, 
-        id_pec: TypedParamId<PecPolarizations>, 
-        id_scalings: TypedParamId<PecPolarizationScalings>
+        scaling: PecPolarizationScaling,
+        id_pec: TypedParamId<PecPolarizations>,
+        id_scalings: TypedParamId<PecPolarizationScalings>,
     ) -> Self {
-        Self { scaling, id_pec, id_scalings, phantom: PhantomData }
+        Self {
+            scaling,
+            id_pec,
+            id_scalings,
+            phantom: PhantomData,
+        }
     }
 }
 
@@ -541,27 +588,35 @@ impl<P: Problem, C: Send + Sync> ModifyParam for PecPolarizationScalingMod<P, C>
         let id_scalings = self.id_scalings;
         let scaling = self.scaling;
 
-        ModificationAction::ParamModify(ParamModifications::new(move |r| {
-            if let Some(c) = scaling.configuration {
-                r.get_mut(id_scalings).0.insert(c, PecScaling { 
-                    value: scaling.scaling, 
-                    scaling_type: scaling.scaling_type 
-                });
-                let s = r.get_mut(id_scalings).0.get_mut(&c).expect("Nonexistent");
-                s.scaling_type = scaling.scaling_type;
-                s.value = scaling.scaling;
-            } else {
-                for k in r.get(id_pec).0.keys().copied().collect::<Vec<SpinConfiguration>>() {
-                    r.get_mut(id_scalings).0.insert(k, PecScaling {
-                        value: scaling.scaling, 
-                        scaling_type: scaling.scaling_type 
-                    });
+        ModificationAction::ParamModify(
+            ParamModifications::new(move |r| {
+                if let Some(c) = scaling.configuration {
+                    r.get_mut(id_scalings).0.insert(
+                        c,
+                        PecScaling {
+                            value: scaling.scaling,
+                            scaling_type: scaling.scaling_type,
+                        },
+                    );
+                    let s = r.get_mut(id_scalings).0.get_mut(&c).expect("Nonexistent");
+                    s.scaling_type = scaling.scaling_type;
+                    s.value = scaling.scaling;
+                } else {
+                    for k in r.get(id_pec).0.keys().copied().collect::<Vec<SpinConfiguration>>() {
+                        r.get_mut(id_scalings).0.insert(
+                            k,
+                            PecScaling {
+                                value: scaling.scaling,
+                                scaling_type: scaling.scaling_type,
+                            },
+                        );
+                    }
                 }
 
-            }
-
-            param_ids![id_scalings.vanish()]
-        }).into_dyn())
+                param_ids![id_scalings.vanish()]
+            })
+            .into_dyn(),
+        )
     }
 
     fn as_number(&self) -> serde_json::Number {
@@ -572,7 +627,6 @@ impl<P: Problem, C: Send + Sync> ModifyParam for PecPolarizationScalingMod<P, C>
         self.scaling.scaling = number.as_f64().unwrap()
     }
 }
-
 
 #[cfg(test)]
 mod tests {

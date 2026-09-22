@@ -1,9 +1,29 @@
-use std::{collections::HashMap, marker::PhantomData};
+use std::{
+    collections::HashMap,
+    marker::PhantomData,
+};
 
-use serde_json::{Number, Value};
-use unit_systems::quantities::{PhysQuantity, Scalar};
+use serde_json::{
+    Number,
+    Value,
+};
+use unit_systems::quantities::{
+    PhysQuantity,
+    Scalar,
+};
 
-use crate::{OrbitalRecipe, UNITS_CONVERTER, calculations::Modified, parameters::TypedParamId, problems::Problem, system::{DynParamModifications, System, new_param_modifications}};
+use crate::{
+    OrbitalRecipe,
+    UNITS_CONVERTER,
+    calculations::Modified,
+    parameters::TypedParamId,
+    problems::Problem,
+    system::{
+        DynParamModifications,
+        System,
+        new_param_modifications,
+    },
+};
 
 pub struct ModifyRegistry<P: Problem, C>(pub HashMap<Box<str>, ModifyParamRecipe<P, C>>);
 
@@ -21,7 +41,7 @@ impl<P: Problem, C> ModifyRegistry<P, C> {
 }
 
 pub struct ModifyParamRecipe<P: Problem, C> {
-    pub recipe: Box<dyn Fn(Value) -> Box<dyn ModifyParam<P = P, C = C>> + Send + Sync>
+    pub recipe: Box<dyn Fn(Value) -> Box<dyn ModifyParam<P = P, C = C>> + Send + Sync>,
 }
 
 impl<P: Problem, C> ModifyParamRecipe<P, C> {
@@ -52,7 +72,7 @@ pub trait ModifyParam: Send + Sync {
             ModificationAction::BasisChange => {
                 let spec = Self::P::build(modified.basis, modified.params);
                 *modified.system = System::new(spec, modified.system.param_registry().to_owned());
-            },
+            }
             ModificationAction::ParamModify(modify) => modified.system.modify_params(modify),
             _ => {}
         }
@@ -71,7 +91,7 @@ pub enum ModificationAction {
 pub struct ScalarParamMod<Q: PhysQuantity, P: Problem, C> {
     value: Scalar<Q>,
     id: TypedParamId<Scalar<Q>>,
-    phantom: PhantomData<(P, C)>
+    phantom: PhantomData<(P, C)>,
 }
 
 impl<Q: PhysQuantity, P: Problem, C> ScalarParamMod<Q, P, C> {
@@ -81,7 +101,7 @@ impl<Q: PhysQuantity, P: Problem, C> ScalarParamMod<Q, P, C> {
             id,
             phantom: PhantomData,
         }
-    } 
+    }
 }
 
 impl<Q: PhysQuantity + Send + Sync, P: Problem, C: Send + Sync> ModifyParam for ScalarParamMod<Q, P, C> {
@@ -106,7 +126,7 @@ impl<Q: PhysQuantity + Send + Sync, P: Problem, C: Send + Sync> ModifyParam for 
 pub struct ScalarCalcMod<Q: PhysQuantity, P: Problem, C, F: Fn(&mut C) -> &mut Scalar<Q>> {
     value: Scalar<Q>,
     conversion: F,
-    phantom: PhantomData<(P, C)>
+    phantom: PhantomData<(P, C)>,
 }
 
 impl<Q: PhysQuantity, P: Problem, C, F: Fn(&mut C) -> &mut Scalar<Q>> ScalarCalcMod<Q, P, C, F> {
@@ -116,14 +136,15 @@ impl<Q: PhysQuantity, P: Problem, C, F: Fn(&mut C) -> &mut Scalar<Q>> ScalarCalc
             conversion,
             phantom: PhantomData,
         }
-    } 
+    }
 }
 
-impl<Q, P, C, F> ModifyParam for ScalarCalcMod<Q, P, C, F> 
-where 
-    Q: PhysQuantity + Send + Sync, 
-    P: Problem, C: Send + Sync, 
-    F: Fn(&mut C) -> &mut Scalar<Q> + Send + Sync
+impl<Q, P, C, F> ModifyParam for ScalarCalcMod<Q, P, C, F>
+where
+    Q: PhysQuantity + Send + Sync,
+    P: Problem,
+    C: Send + Sync,
+    F: Fn(&mut C) -> &mut Scalar<Q> + Send + Sync,
 {
     type P = P;
     type C = C;
@@ -148,20 +169,24 @@ where
 pub struct OrbitalRecipeMod<P: Problem, C, F: Fn(&mut P::BasisRecipe) -> &mut OrbitalRecipe> {
     value: OrbitalRecipe,
     conversion: F,
-    phantom: PhantomData<(P, C)>
+    phantom: PhantomData<(P, C)>,
 }
 
 impl<P: Problem, C, F: Fn(&mut P::BasisRecipe) -> &mut OrbitalRecipe> OrbitalRecipeMod<P, C, F> {
     pub fn new(value: OrbitalRecipe, conversion: F) -> Self {
-        Self { value, conversion, phantom: PhantomData }
+        Self {
+            value,
+            conversion,
+            phantom: PhantomData,
+        }
     }
 }
 
-impl<P, C, F> ModifyParam for OrbitalRecipeMod<P, C, F> 
-where 
-    P: Problem, 
-    C: Send + Sync, 
-    F: Fn(&mut P::BasisRecipe) -> &mut OrbitalRecipe + Send + Sync 
+impl<P, C, F> ModifyParam for OrbitalRecipeMod<P, C, F>
+where
+    P: Problem,
+    C: Send + Sync,
+    F: Fn(&mut P::BasisRecipe) -> &mut OrbitalRecipe + Send + Sync,
 {
     type P = P;
     type C = C;
@@ -192,7 +217,7 @@ pub fn scalar_from_f64<Q: PhysQuantity>(value: f64) -> Scalar<Q> {
     if value == 0.0 {
         Scalar::new(0.0, Q::default(), "");
     }
-    
+
     let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
     // first unit encountered
     let unit = &converter.registry.get::<Q>()[0];

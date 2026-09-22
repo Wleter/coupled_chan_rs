@@ -62,10 +62,8 @@ impl System {
         let operator_specs = HashVec::from_hashmap(hamiltonian_spec.operators);
         let potential_specs = HashVec::from_hashmap(hamiltonian_spec.potentials);
 
-        let operators = operator_specs.mapped(|x| (
-            x.coupling(&registry), 
-            basis.get_angular_blocks(|_, b| x.matrix(b, &registry))
-        ));
+        let operators =
+            operator_specs.mapped(|x| (x.coupling(&registry), basis.get_angular_blocks(|_, b| x.matrix(b, &registry))));
 
         let potentials = potential_specs.mapped(|x| {
             let masking = x.coupling_masking(basis.full_basis.as_ref(), &registry);
@@ -119,13 +117,7 @@ impl System {
         }
 
         let zeros = Operator::zeros(self.potentials.vec[0].masking.nrows()).0;
-        let filtered = self
-            .potentials
-            .vec
-            .iter()
-            .filter(|x| x.masking != zeros)
-            .cloned()
-            .collect();
+        let filtered = self.potentials.vec.iter().filter(|x| x.masking != zeros).cloned().collect();
 
         Composite::new(filtered)
     }
@@ -207,11 +199,13 @@ impl HamiltonianSpec {
     }
 
     pub fn add_operators<S: AsRef<str>>(&mut self, operators: impl IntoIterator<Item = (S, DynOperatorSpec)>) {
-        self.operators.extend(operators.into_iter().map(|x| (x.0.as_ref().to_string(), x.1)));
+        self.operators
+            .extend(operators.into_iter().map(|x| (x.0.as_ref().to_string(), x.1)));
     }
 
     pub fn add_potentials<S: AsRef<str>>(&mut self, potentials: impl IntoIterator<Item = (S, DynPotentialSpec)>) {
-        self.potentials.extend(potentials.into_iter().map(|x| (x.0.as_ref().to_string(), x.1)));
+        self.potentials
+            .extend(potentials.into_iter().map(|x| (x.0.as_ref().to_string(), x.1)));
     }
 }
 
@@ -300,7 +294,9 @@ pub struct HashVec<Key, Val> {
 
 impl<Key: std::fmt::Debug, Val: std::fmt::Debug> std::fmt::Debug for HashVec<Key, Val> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_map().entries(self.map.iter().map(|(a, i)| (a, &self.vec[*i]))).finish()
+        f.debug_map()
+            .entries(self.map.iter().map(|(a, i)| (a, &self.vec[*i])))
+            .finish()
     }
 }
 

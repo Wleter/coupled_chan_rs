@@ -1,5 +1,8 @@
 use cc_qol_utils::Pair;
-use coupled_chan::{DynInteraction, dispersion::PowerLaw};
+use coupled_chan::{
+    DynInteraction,
+    dispersion::PowerLaw,
+};
 use hilbert_space::{
     operator_mel,
     space::BasisElementsRef,
@@ -23,17 +26,26 @@ use spin_algebra::{
 use unit_systems::CODATA_2022;
 
 use crate::{
-    Operator, atom_operators::{
+    Operator,
+    atom_operators::{
         AHifiId,
         BFieldId,
         GFactorId,
         HifiSpec,
         ZeemanSpec,
-    }, diatom_basis::{
+    },
+    diatom_basis::{
         CoupledDiatomBasis,
         CoupledFTotDiatomBasis,
         CoupledSIDiatomBasis,
-    }, interactions::Interactions, param_ids, parameters::{ParameterRegistry, TypedParamId}, system::PotentialSpec
+    },
+    interactions::Interactions,
+    param_ids,
+    parameters::{
+        ParameterRegistry,
+        TypedParamId,
+    },
+    system::PotentialSpec,
 };
 
 pub struct SpinRotationSpec<Mask>
@@ -72,7 +84,6 @@ where
         }
     }
 }
-
 
 impl CoupledSIDiatomBasis {
     pub fn hifi_a(&self, a_hifi: AHifiId) -> HifiSpec<impl Fn(BasisElementsRef) -> Operator + use<>> {

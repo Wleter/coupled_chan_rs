@@ -1,6 +1,7 @@
 use anyhow::{
     Context,
-    Result, bail,
+    Result,
+    bail,
 };
 use cc_problems::problems::{
     AvailableProblems,
@@ -54,25 +55,22 @@ fn parse_input_defaults(path: impl AsRef<Path>) -> Result<Value> {
             if let Some(defaults) = map.remove("defaults") {
                 let defaults = match defaults {
                     Value::String(s) => vec![s],
-                    Value::Array(values) => {
-                        values
-                            .into_iter()
-                            .map(|x| serde_json::from_value(x).expect("defaults array should contain only strings"))
-                            .collect()
-                    },
-                    _ => bail!("defaults should be array of path strings or single path string")
+                    Value::Array(values) => values
+                        .into_iter()
+                        .map(|x| serde_json::from_value(x).expect("defaults array should contain only strings"))
+                        .collect(),
+                    _ => bail!("defaults should be array of path strings or single path string"),
                 };
 
-                let mut defaults_path = defaults.into_iter()
-                    .map(|relative_path| {
-                        if let Some(parent) = path.as_ref().parent() {
-                            let mut path = parent.to_owned();
-                            path.push(relative_path);
-                            path
-                        } else {
-                            relative_path.into()
-                        }
-                    });
+                let mut defaults_path = defaults.into_iter().map(|relative_path| {
+                    if let Some(parent) = path.as_ref().parent() {
+                        let mut path = parent.to_owned();
+                        path.push(relative_path);
+                        path
+                    } else {
+                        relative_path.into()
+                    }
+                });
                 if let Some(default_path) = defaults_path.next() {
                     let mut defaults = parse_input(&default_path);
                     for path in defaults_path {
@@ -82,8 +80,8 @@ fn parse_input_defaults(path: impl AsRef<Path>) -> Result<Value> {
                     input = merge(defaults, input);
                 }
             }
-        },
-        _ => bail!("Input should be an object")
+        }
+        _ => bail!("Input should be an object"),
     }
 
     Ok(input)

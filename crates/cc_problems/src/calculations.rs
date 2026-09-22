@@ -2,9 +2,9 @@ pub mod adiabats;
 pub mod bound_states;
 pub mod dependence;
 pub mod levels;
+pub mod modifications;
 pub mod resonances;
 pub mod scattering;
-pub mod modifications;
 
 use anyhow::Result;
 use serde::{
