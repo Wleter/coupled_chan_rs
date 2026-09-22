@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{collections::HashMap, marker::PhantomData};
 
 use coupled_chan::{
     cc_propagator::{
@@ -36,6 +36,7 @@ use serde::{
     Deserialize,
     Serialize,
 };
+use serde_json::Number;
 use unit_systems::quantities::{
     Power,
     Scalar,
@@ -47,14 +48,10 @@ use unit_systems::quantities::{
 };
 
 use crate::{
-    UNITS_CONVERTER,
-    calculations::{
+    UNITS_CONVERTER, calculations::{
         Modified,
-        SingleCalc,
-        dependence::DependenceCalc,
-    },
-    parameters::TypedParamId,
-    problems::Problem,
+        SingleCalc, modifications::{ModificationAction, ModifyParam, ModifyRegistry, ScalarCalcMod},
+    }, modify_recipe, parameters::TypedParamId, problems::Problem
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -65,54 +62,63 @@ pub struct ScatteringCalcInput {
 
     #[serde(default)]
     pub boundary: Boundary,
-    pub r_start: Scalar<Length>,
-    pub r_stop: Scalar<Length>,
+    pub r_min: Scalar<Length>,
+    pub r_max: Scalar<Length>,
     pub step: Step,
     pub solver: CoupledChanSolver,
+}
+
+pub fn scattering_calc_mods<P: Problem + 'static>() -> ModifyRegistry<P, ScatteringCalcInput> {
+    ModifyRegistry(HashMap::from([
+        ("energy".into(), modify_recipe!(|e| ScalarCalcMod::new(e, |r: &mut ScatteringCalcInput| &mut r.energy))),
+        ("r_min".into(), modify_recipe!(|x| ScalarCalcMod::new(x, |r: &mut ScatteringCalcInput| &mut r.r_min))),
+        ("r_max".into(), modify_recipe!(|x| ScalarCalcMod::new(x, |r: &mut ScatteringCalcInput| &mut r.r_max))),
+        ("step_scaling".into(), modify_recipe!(|x| StepScalingMod::new(x, |r: &mut ScatteringCalcInput| &mut r.step))),
+    ]))
 }
 
 impl ScatteringCalcInput {
     pub fn scattering(&self, w_matrix: &CollisionWMatrix<impl RCoupling>) -> SMatrixData {
         let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
-        let r_start = converter.scalar_value(&self.r_start);
-        let r_stop = converter.scalar_value(&self.r_stop);
+        let r_max = converter.scalar_value(&self.r_min);
+        let r_min = converter.scalar_value(&self.r_max);
 
-        assert!(r_start < r_stop, "Expected r_start < r_stop");
+        assert!(r_max < r_min, "Expected r_min < r_max");
 
         let mut mat = Matrix::zeros(w_matrix.size(), w_matrix.size());
-        w_matrix.value_inplace(r_start, &mut mat);
+        w_matrix.value_inplace(r_max, &mut mat);
         let values = mat
             .self_adjoint_eigenvalues(hilbert_space::faer::Side::Lower)
-            .expect("Could not diagonalize w_matrix at r_start");
+            .expect("Could not diagonalize w_matrix at r_min");
 
         for v in values {
             assert!(
                 v < 0.0,
-                "Locally open channels at the r_start = {:?} of scattering calculation",
-                self.r_start
+                "Locally open channels at the r_min = {:?} of scattering calculation",
+                self.r_min
             );
         }
 
         let step = self.step.get_step();
-        let boundary = self.boundary.get_boundary(&self.r_start, Direction::Outwards, w_matrix);
+        let boundary = self.boundary.get_boundary(&self.r_min, Direction::Outwards, w_matrix);
 
         // todo! simplify, log-derivatives should be together
         match &self.solver {
             CoupledChanSolver::RatioNumerov => {
                 let mut numerov = RatioNumerov::new(w_matrix, step, boundary);
-                let sol = numerov.propagate_to(r_stop);
+                let sol = numerov.propagate_to(r_min);
 
                 SMatrixData::new(&SMatrix::from_ratio(sol, w_matrix))
             }
             CoupledChanSolver::JohnsonLogDeriv => {
                 let mut log_deriv = JohnsonLogDerivative::new(w_matrix, step, boundary);
-                let sol = log_deriv.propagate_to(r_stop);
+                let sol = log_deriv.propagate_to(r_min);
 
                 SMatrixData::new(&SMatrix::from_log_deriv(sol, w_matrix))
             }
             CoupledChanSolver::ManolopoulosLogDeriv => {
                 let mut log_deriv = ManolopoulosLogDerivative::new(w_matrix, step, boundary);
-                let sol = log_deriv.propagate_to(r_stop);
+                let sol = log_deriv.propagate_to(r_min);
 
                 SMatrixData::new(&SMatrix::from_log_deriv(sol, w_matrix))
             }
@@ -206,6 +212,55 @@ impl Step {
                 })
             }
         }
+    }
+
+    pub fn scale_step(&mut self, scaling: f64) {
+        match self {
+            Step::Fixed { dr } => dr.scale(scaling),
+            Step::LocalWavelength { dr_min, dr_max, wave_ratio } => {
+                dr_min.scale(scaling);
+                dr_max.scale(scaling);
+                *wave_ratio /= scaling
+            },
+            Step::Transitioned { transition_point: _, before, after } => {
+                before.scale_step(scaling);
+                after.scale_step(scaling); 
+            },
+        }
+    }
+}
+
+pub struct StepScalingMod<P, C, F: Fn(&mut C) -> &mut Step> {
+    pub scaling: f64,
+    pub conversion: F,
+    phantom: PhantomData<(P, C)>
+}
+
+impl<P, C, F: Fn(&mut C) -> &mut Step> StepScalingMod<P, C, F> {
+    pub fn new(scaling: f64, conversion: F) -> Self {
+        Self { 
+            scaling,
+            conversion, 
+            phantom: PhantomData 
+        }
+    }
+}
+
+impl<P: Problem, C: Send + Sync, F: Fn(&mut C) -> &mut Step + Send + Sync> ModifyParam for StepScalingMod<P, C, F> {
+    type P = P;
+    type C = C;
+
+    fn prep_modify(&self, modified: &mut Modified<Self::P, Self::C>) -> ModificationAction {
+        (self.conversion)(modified.calc_input).scale_step(self.scaling);
+        ModificationAction::CalcChange
+    }
+
+    fn as_number(&self) -> serde_json::Number {
+        Number::from_f64(self.scaling).unwrap()
+    }
+
+    fn mut_number(&mut self, number: serde_json::Number) {
+        self.scaling = number.as_f64().unwrap()
     }
 }
 
@@ -314,5 +369,3 @@ impl<P: Problem> SingleCalc for ScatteringCalc<P> {
         [Ok(modified.calc_input.scattering(&w_matrix))]
     }
 }
-
-pub type ScatteringScan<P, D> = DependenceCalc<ScatteringCalc<P>, D>;

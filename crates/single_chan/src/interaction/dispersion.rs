@@ -95,10 +95,10 @@ impl Interaction for AnalyticInteraction {
     }
 }
 
-/// Creates Lennard-Jones potential of the form
+/// Creates Lenard-Jones potential of the form
 /// d6 ((r6/r)^12 - 2 (r6/r)^6), where
 /// `d6`, `r6` are well minimum value and it's distances.
-pub fn lennard_jones(d6: f64, r6: f64) -> Composite<PowerLaw> {
+pub fn lenard_jones(d6: f64, r6: f64) -> Composite<PowerLaw> {
     let c12 = d6 * r6.powi(12);
     let c6 = -2.0 * d6 * r6.powi(6);
 

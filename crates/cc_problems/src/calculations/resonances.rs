@@ -1,5 +1,4 @@
 use std::{
-    marker::PhantomData,
     mem::swap,
 };
 
@@ -8,7 +7,6 @@ use hilbert_space::faer::complex::Complex64;
 use serde::{
     Deserialize,
     Serialize,
-    de::DeserializeOwned,
 };
 
 use crate::{
@@ -22,10 +20,6 @@ use crate::{
             modify_from_f64,
             modify_to_f64,
         },
-        dependence::{
-            DependenceCalc,
-            ModifyParams,
-        },
         scattering::{
             ScatteringCalc,
             ScatteringCalcInput,
@@ -34,18 +28,16 @@ use crate::{
     problems::Problem,
 };
 
-pub struct ResonancesCalc<P: Problem, D: ModifyParams<P = P, C = BoundStateCalcInput<D>>> {
+pub struct ResonancesCalc<P: Problem> {
     scattering: ScatteringCalc<P>,
-    bound: BoundStateCalc<P, D>,
-    phantom: PhantomData<(P, D)>,
+    bound: BoundStateCalc<P>,
 }
 
-impl<P: Problem, D: ModifyParams<P = P, C = BoundStateCalcInput<D>>> ResonancesCalc<P, D> {
-    pub fn new(scattering: ScatteringCalc<P>, bound: BoundStateCalc<P, D>) -> Self {
+impl<P: Problem> ResonancesCalc<P> {
+    pub fn new(scattering: ScatteringCalc<P>, bound: BoundStateCalc<P>) -> Self {
         Self {
             scattering,
             bound,
-            phantom: PhantomData,
         }
     }
 }
@@ -61,10 +53,9 @@ pub struct ResonancesData {
 }
 
 #[derive(Clone, Deserialize)]
-#[serde(bound = "D: DeserializeOwned")]
-pub struct ResonancesInput<D: ModifyParams> {
+pub struct ResonancesInput {
     pub scattering_input: ScatteringCalcInput,
-    pub bound_input: BoundStateCalcInput<D>,
+    pub bound_input: BoundStateCalcInput,
 
     #[serde(default = "default_t_min")]
     pub t_min: f64,
@@ -92,13 +83,12 @@ fn default_max_iter() -> usize {
     20
 }
 
-impl<P, D> SingleCalc for ResonancesCalc<P, D>
+impl<P> SingleCalc for ResonancesCalc<P>
 where
     P: Problem,
-    D: ModifyParams<P = P, C = BoundStateCalcInput<D>> + Clone,
 {
     type P = P;
-    type CalcInput = ResonancesInput<D>;
+    type CalcInput = ResonancesInput;
     type Data = ResonancesData;
 
     fn calculate(
@@ -112,11 +102,12 @@ where
 
         let t_max = modified.calc_input.t_max;
         let t_min = modified.calc_input.t_min;
+        let registry = &self.bound.registry.0[&modified.calc_input.bound_input.dependant.err.name];
+        let mut p_mod = (registry.recipe)(modified.calc_input.bound_input.dependant.err.value.clone());
+        let p_err = modify_to_f64(&*p_mod);
 
         results.into_iter().map(move |res| {
             let res = res?;
-            let mut p_mod = modified.calc_input.bound_input.dependant_err.clone();
-            let p_err = modify_to_f64(&p_mod);
 
             let min_bound = res.parameter - 10.0 * p_err;
             let max_bound = res.parameter + 10.0 * p_err;
@@ -125,7 +116,7 @@ where
             let mut p2 = p1 - p_err;
             let mut p3 = p1 + p_err;
 
-            modify_from_f64(&mut p_mod, p1);
+            modify_from_f64(&mut *p_mod, p1);
             let mut modified_bound = Self::modified_bound(modified);
             p_mod.modify(&mut modified_bound);
             let mut modified_scattering = Self::modified_scattering(modified);
@@ -137,7 +128,7 @@ where
                 .unwrap()?
                 .s_length;
 
-            modify_from_f64(&mut p_mod, p2);
+            modify_from_f64(&mut *p_mod, p2);
             let mut modified_bound = Self::modified_bound(modified);
             p_mod.modify(&mut modified_bound);
             let mut modified_scattering = Self::modified_scattering(modified);
@@ -149,7 +140,7 @@ where
                 .unwrap()?
                 .s_length;
 
-            modify_from_f64(&mut p_mod, p3);
+            modify_from_f64(&mut *p_mod, p3);
             let mut modified_bound = Self::modified_bound(modified);
             p_mod.modify(&mut modified_bound);
             let mut modified_scattering = Self::modified_scattering(modified);
@@ -222,7 +213,7 @@ where
                 } else {
                     p2 = p_res
                 }
-                modify_from_f64(&mut p_mod, p2);
+                modify_from_f64(&mut *p_mod, p2);
                 let mut modified_bound = Self::modified_bound(modified);
                 p_mod.modify(&mut modified_bound);
                 let mut modified_scattering = Self::modified_scattering(modified);
@@ -253,10 +244,10 @@ where
     }
 }
 
-impl<P: Problem, D: ModifyParams<P = P, C = BoundStateCalcInput<D>>> ResonancesCalc<P, D> {
+impl<P: Problem> ResonancesCalc<P> {
     fn modified_bound<'b, 'a>(
-        modified: &'b mut Modified<'a, P, ResonancesInput<D>>,
-    ) -> Modified<'b, P, BoundStateCalcInput<D>> {
+        modified: &'b mut Modified<'a, P, ResonancesInput>,
+    ) -> Modified<'b, P, BoundStateCalcInput> {
         Modified {
             system: modified.system,
             basis: modified.basis,
@@ -266,7 +257,7 @@ impl<P: Problem, D: ModifyParams<P = P, C = BoundStateCalcInput<D>>> ResonancesC
     }
 
     fn modified_scattering<'b, 'a>(
-        modified: &'b mut Modified<'a, P, ResonancesInput<D>>,
+        modified: &'b mut Modified<'a, P, ResonancesInput>,
     ) -> Modified<'b, P, ScatteringCalcInput> {
         Modified {
             system: modified.system,
@@ -291,5 +282,3 @@ fn get_resonance(s: [(f64, Complex64); 3]) -> (f64, f64, f64) {
 
     (a_bg, p_res, width)
 }
-
-pub type AdiabatsScan<P, D> = DependenceCalc<ResonancesCalc<P, D>, D>;

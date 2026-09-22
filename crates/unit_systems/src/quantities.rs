@@ -277,9 +277,21 @@ impl<L: PhysQuantity, const N: i8, const M: i8, V: PhysQuantity> std::ops::Div<V
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Scalar<Q: PhysQuantity>(f64, Box<str>, #[cfg_attr(feature = "serde", serde(skip))] Q);
+
+impl<Q: PhysQuantity> Clone for Scalar<Q> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone(), self.1.clone(), Q::default())
+    }
+}
+
+impl<Q: PhysQuantity> PartialEq for Scalar<Q> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0 && self.1 == other.1
+    }
+}
 
 impl<Q: PhysQuantity> Scalar<Q> {
     pub fn new(value: f64, quantity: Q, unit: impl AsRef<str>) -> Self {
@@ -292,6 +304,22 @@ impl<Q: PhysQuantity> Scalar<Q> {
         }
 
         self.0 * Q::to_unit_system_logic(&self.1, registry, system)
+    }
+
+    pub fn scale(&mut self, scaling: f64) {
+        self.0 *= scaling
+    }
+
+    pub fn is_positive(&self) -> bool {
+        self.0 > 0.0
+    }
+
+    pub fn is_negative(&self) -> bool {
+        self.0 < 0.0
+    }
+
+    pub fn is_zero(&self) -> bool {
+        self.0 == 0.0
     }
 }
 
