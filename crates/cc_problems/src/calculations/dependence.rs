@@ -24,14 +24,14 @@ use crate::{
     calculations::{
         Calc,
         Modified,
-        SingleCalc, modifications::{ModificationAction::{self, BasisChange}, ModifyParam, ModifyRegistry},
+        SingleCalc, modifications::{ModificationAction, ModifyParam, ModifyRegistry},
     },
     parameters::Parameters,
     problems::{
         Problem,
         TypedProblemInput,
     },
-    system::{ParamModifications, System},
+    system::System,
 };
 
 
@@ -137,22 +137,26 @@ impl GridParams {
                 assert_eq!(start.name, end.name, "start and end modified param for linspace should be the same");
                 let modifier = &registry.0[&start.name];
 
-                let modifier_s = (modifier.recipe)(start.value.clone());
+                let mut modifier_s = (modifier.recipe)(start.value.clone());
                 let start = modifier_s.as_number();
                 let end = (modifier.recipe)(end.value.clone()).as_number();
-                
-                numbers = smallvec::smallvec![num_linspace(start, end, *n, index)];
+                let value = num_linspace(start, end, *n, index);
+
+                numbers = smallvec::smallvec![value.clone()];
+                modifier_s.mut_number(value);
                 modifiers = smallvec::smallvec![modifier_s];
             },
             GridParams::Log { start, end, n } => {
                 assert_eq!(start.name, end.name, "start and end modified param for linspace should be the same");
                 let modifier = &registry.0[&start.name];
 
-                let modifier_s = (modifier.recipe)(start.value.clone());
+                let mut modifier_s = (modifier.recipe)(start.value.clone());
                 let start = modifier_s.as_number();
                 let end = (modifier.recipe)(end.value.clone()).as_number();
+                let value = num_logspace(start, end, *n, index);
 
-                numbers = smallvec::smallvec![num_logspace(start, end, *n, index)];
+                numbers = smallvec::smallvec![value.clone()];
+                modifier_s.mut_number(value);
                 modifiers = smallvec::smallvec![modifier_s];
             },
             GridParams::Points { name, values } => {
@@ -265,36 +269,31 @@ where
                         calc_input: &mut input.calc_parameters.calc,
                     };
 
-                    let prep = modifiers.as_ref()
+                    let mut prep: Vec<ModificationAction> = modifiers.as_ref()
                         .iter()
-                        .fold(ModificationAction::None, |m: ModificationAction, x| {
-                            let m2 = x.prep_modify(&mut modified);
+                        .map(|x| x.prep_modify(&mut modified))
+                        .collect();
 
-                            match (m, m2) {
-                                (BasisChange, _) | (_, BasisChange) => ModificationAction::BasisChange,
-                                (ModificationAction::ParamModify(m), ModificationAction::ParamModify(m2)) => {
-                                    ModificationAction::ParamModify(ParamModifications::new(move |r| {
-                                        let mut mods = (m.modification)(r);
-                                        for &p in (m2.modification)(r).iter() {
-                                            mods.push(p)
-                                        }
-                                        mods
-                                    }).into_dyn())
-                                },
-                                (ModificationAction::ParamModify(m), _) 
-                                    | (_, ModificationAction::ParamModify(m)) => ModificationAction::ParamModify(m),
-                                _ => ModificationAction::CalcChange 
-                            }
-                        });
-                    
-                    match prep {
-                        ModificationAction::BasisChange => {
+                    prep.sort_by(|a, b| match (a, b) {
+                        (ModificationAction::BasisChange, _) => std::cmp::Ordering::Less,
+                        (_, ModificationAction::BasisChange) => std::cmp::Ordering::Greater,
+                        (ModificationAction::ParamModify(_), _) => std::cmp::Ordering::Less,
+                        (_, ModificationAction::ParamModify(_)) => std::cmp::Ordering::Greater,
+                        _ => std::cmp::Ordering::Greater
+                    });
+
+                    let mut last_basis_change = false;
+                    for p in prep {
+                        if matches!(p, ModificationAction::BasisChange) {
+                            last_basis_change = true
+                        } else if last_basis_change {
                             let spec = Self::P::build(modified.basis, modified.params);
                             *modified.system = System::new(spec, modified.system.param_registry().to_owned())
-                        },
-                        ModificationAction::ParamModify(m) => modified.system.modify_params(m),
-                        _ => ()
-                    };
+                        }
+                        if let ModificationAction::ParamModify(modify) = p {
+                            modified.system.modify_params(modify);
+                        }
+                    }
 
                     let mut result = Ok(());
                     for data in self.single_calc.calculate(&mut modified, problem) {

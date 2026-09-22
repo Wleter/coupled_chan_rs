@@ -60,7 +60,7 @@ impl<T> PartialEq for TypedParamId<T> {
         self.0 == other.0 && self.1 == other.1
     }
 }
-impl<T: std::fmt::Debug> std::fmt::Debug for TypedParamId<T> {
+impl<T> std::fmt::Debug for TypedParamId<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("TypedParamId").field(&self.0).finish()
     }

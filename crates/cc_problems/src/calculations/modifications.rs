@@ -66,7 +66,6 @@ pub enum ModificationAction {
     BasisChange,
     ParamModify(DynParamModifications),
     CalcChange,
-    None
 }
 
 pub struct ScalarParamMod<Q: PhysQuantity, P: Problem, C> {
