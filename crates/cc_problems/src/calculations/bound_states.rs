@@ -106,34 +106,34 @@ pub struct BoundStateCalcInput {
 }
 
 pub fn bound_states_calc_mods<P: Problem + 'static>() -> ModifyRegistry<P, BoundStateCalcInput> {
-    ModifyRegistry(HashMap::from([
+    ModifyRegistry::from([
         (
-            "energy".into(),
-            modify_recipe!(|e| ScalarCalcMod::new(e, |r: &mut BoundStateCalcInput| &mut r.energy)),
+            "energy",
+            modify_recipe!(|e| ScalarCalcMod::new(e, |r: &mut BoundStateCalcInput, v| r.energy = v)),
         ),
         (
-            "r_min".into(),
-            modify_recipe!(|x| ScalarCalcMod::new(x, |r: &mut BoundStateCalcInput| &mut r.r_min)),
+            "r_min",
+            modify_recipe!(|x| ScalarCalcMod::new(x, |r: &mut BoundStateCalcInput, v| r.r_min = v)),
         ),
         (
-            "r_match".into(),
-            modify_recipe!(|x| ScalarCalcMod::new(x, |r: &mut BoundStateCalcInput| &mut r.r_match)),
+            "r_match",
+            modify_recipe!(|x| ScalarCalcMod::new(x, |r: &mut BoundStateCalcInput, v| r.r_match = v)),
         ),
         (
-            "r_max".into(),
-            modify_recipe!(|x| ScalarCalcMod::new(x, |r: &mut BoundStateCalcInput| &mut r.r_max)),
+            "r_max",
+            modify_recipe!(|x| ScalarCalcMod::new(x, |r: &mut BoundStateCalcInput, v| r.r_max = v)),
         ),
         (
-            "step_scaling".into(),
+            "step_scaling",
             modify_recipe!(|x| StepScalingMod::new(x, |r: &mut BoundStateCalcInput| &mut r.step)),
         ),
-    ]))
+    ])
 }
 
 pub fn bound_states_calc_search_mods<P: Problem + 'static>() -> ModifyRegistry<P, BoundStateCalcInput> {
     ModifyRegistry(HashMap::from([(
         "energy".into(),
-        modify_recipe!(|e| ScalarCalcMod::new(e, |r: &mut BoundStateCalcInput| &mut r.energy)),
+        modify_recipe!(|e| ScalarCalcMod::new(e, |r: &mut BoundStateCalcInput, v| r.energy = v)),
     )]))
 }
 

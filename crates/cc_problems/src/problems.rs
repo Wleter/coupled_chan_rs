@@ -3,6 +3,7 @@ pub mod diatom_in_b_field;
 use std::collections::HashMap;
 
 use anyhow::Result;
+use hilbert_space::faer::MatRef;
 use serde::{
     Deserialize,
     de::DeserializeOwned,
@@ -114,4 +115,12 @@ pub trait Problem: Sync + Send {
 
     fn build(basis_recipe: &Self::BasisRecipe, params: &Self::Params) -> HamiltonianSpec;
     fn calculations(&self) -> &HashMap<Box<str>, Box<dyn DynCalc<Self>>>;
+}
+
+pub(crate) fn mat_as_nested_vec<T: Copy>(mat: MatRef<T>) -> Vec<Vec<T>> {
+    let mut vec = vec![vec![]; mat.nrows()];
+    for (i, row) in mat.row_iter().enumerate() {
+        vec[i] = row.iter().copied().collect();
+    }
+    vec
 }

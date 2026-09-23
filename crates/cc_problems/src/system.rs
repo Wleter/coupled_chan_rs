@@ -49,11 +49,11 @@ pub struct System {
     registry: ParameterRegistry,
 
     basis: OrbitalBasisElements,
-    pub operator_specs: HashVec<String, DynOperatorSpec>,
-    pub potential_specs: HashVec<String, DynPotentialSpec>,
+    pub operator_specs: HashVec<Box<str>, DynOperatorSpec>,
+    pub potential_specs: HashVec<Box<str>, DynPotentialSpec>,
 
-    pub operators: HashVec<String, (f64, AngularBlocks)>,
-    pub potentials: HashVec<String, CouplingPotential>,
+    pub operators: HashVec<Box<str>, (f64, AngularBlocks)>,
+    pub potentials: HashVec<Box<str>, CouplingPotential>,
 }
 
 impl System {
@@ -185,8 +185,8 @@ impl System {
 
 pub struct HamiltonianSpec {
     basis: OrbitalBasisElements,
-    operators: HashMap<String, DynOperatorSpec>,
-    potentials: HashMap<String, DynPotentialSpec>,
+    operators: HashMap<Box<str>, DynOperatorSpec>,
+    potentials: HashMap<Box<str>, DynPotentialSpec>,
 }
 
 impl HamiltonianSpec {
@@ -200,12 +200,12 @@ impl HamiltonianSpec {
 
     pub fn add_operators<S: AsRef<str>>(&mut self, operators: impl IntoIterator<Item = (S, DynOperatorSpec)>) {
         self.operators
-            .extend(operators.into_iter().map(|x| (x.0.as_ref().to_string(), x.1)));
+            .extend(operators.into_iter().map(|x| (x.0.as_ref().into(), x.1)));
     }
 
     pub fn add_potentials<S: AsRef<str>>(&mut self, potentials: impl IntoIterator<Item = (S, DynPotentialSpec)>) {
         self.potentials
-            .extend(potentials.into_iter().map(|x| (x.0.as_ref().to_string(), x.1)));
+            .extend(potentials.into_iter().map(|x| (x.0.as_ref().into(), x.1)));
     }
 }
 

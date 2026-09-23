@@ -34,6 +34,10 @@ impl<P: Problem, C> Default for ModifyRegistry<P, C> {
 }
 
 impl<P: Problem, C> ModifyRegistry<P, C> {
+    pub fn from<const N: usize>(registry: [(impl AsRef<str>, ModifyParamRecipe<P, C>); N]) -> Self {
+        ModifyRegistry(HashMap::from(registry.map(|x| (x.0.as_ref().into(), x.1))))
+    }
+
     pub fn extend(mut self, other: Self) -> Self {
         self.0.extend(other.0);
         self
@@ -123,13 +127,13 @@ impl<Q: PhysQuantity + Send + Sync, P: Problem, C: Send + Sync> ModifyParam for 
     }
 }
 
-pub struct ScalarCalcMod<Q: PhysQuantity, P: Problem, C, F: Fn(&mut C) -> &mut Scalar<Q>> {
+pub struct ScalarCalcMod<Q: PhysQuantity, P: Problem, C, F: Fn(&mut C, Scalar<Q>)> {
     value: Scalar<Q>,
     conversion: F,
     phantom: PhantomData<(P, C)>,
 }
 
-impl<Q: PhysQuantity, P: Problem, C, F: Fn(&mut C) -> &mut Scalar<Q>> ScalarCalcMod<Q, P, C, F> {
+impl<Q: PhysQuantity, P: Problem, C, F: Fn(&mut C, Scalar<Q>)> ScalarCalcMod<Q, P, C, F> {
     pub fn new(value: Scalar<Q>, conversion: F) -> Self {
         Self {
             value,
@@ -144,13 +148,13 @@ where
     Q: PhysQuantity + Send + Sync,
     P: Problem,
     C: Send + Sync,
-    F: Fn(&mut C) -> &mut Scalar<Q> + Send + Sync,
+    F: Fn(&mut C, Scalar<Q>) + Send + Sync,
 {
     type P = P;
     type C = C;
 
     fn prep_modify(&self, modified: &mut Modified<Self::P, Self::C>) -> ModificationAction {
-        *(self.conversion)(modified.calc_input) = self.value.clone();
+        (self.conversion)(modified.calc_input, self.value.clone());
 
         ModificationAction::CalcChange
     }

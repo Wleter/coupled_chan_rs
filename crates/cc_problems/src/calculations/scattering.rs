@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     marker::PhantomData,
 };
 
@@ -64,7 +63,7 @@ use crate::{
     },
     modify_recipe,
     parameters::TypedParamId,
-    problems::Problem,
+    problems::{Problem, mat_as_nested_vec},
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -82,24 +81,24 @@ pub struct ScatteringCalcInput {
 }
 
 pub fn scattering_calc_mods<P: Problem + 'static>() -> ModifyRegistry<P, ScatteringCalcInput> {
-    ModifyRegistry(HashMap::from([
+    ModifyRegistry::from([
         (
-            "energy".into(),
-            modify_recipe!(|e| ScalarCalcMod::new(e, |r: &mut ScatteringCalcInput| &mut r.energy)),
+            "energy",
+            modify_recipe!(|e| ScalarCalcMod::new(e, |r: &mut ScatteringCalcInput, v| r.energy = v)),
         ),
         (
-            "r_min".into(),
-            modify_recipe!(|x| ScalarCalcMod::new(x, |r: &mut ScatteringCalcInput| &mut r.r_min)),
+            "r_min",
+            modify_recipe!(|x| ScalarCalcMod::new(x, |r: &mut ScatteringCalcInput, v| r.r_min = v)),
         ),
         (
-            "r_max".into(),
-            modify_recipe!(|x| ScalarCalcMod::new(x, |r: &mut ScatteringCalcInput| &mut r.r_max)),
+            "r_max",
+            modify_recipe!(|x| ScalarCalcMod::new(x, |r: &mut ScatteringCalcInput, v| r.r_max = v)),
         ),
         (
-            "step_scaling".into(),
+            "step_scaling",
             modify_recipe!(|x| StepScalingMod::new(x, |r: &mut ScatteringCalcInput| &mut r.step)),
         ),
-    ]))
+    ])
 }
 
 impl ScatteringCalcInput {
@@ -162,10 +161,7 @@ pub struct SMatrixData {
 impl SMatrixData {
     pub fn new(s_matrix: &SMatrix) -> Self {
         let s_matrix_mat = s_matrix.s_matrix();
-        let mut vec = vec![vec![]; s_matrix_mat.nrows()];
-        for (i, row) in s_matrix_mat.row_iter().enumerate() {
-            vec[i] = row.iter().copied().collect();
-        }
+        let vec = mat_as_nested_vec(s_matrix_mat);
 
         Self {
             s_matrix_vec: vec,
