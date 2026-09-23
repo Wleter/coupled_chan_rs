@@ -29,21 +29,29 @@ use crate::{
     OrbitalBasisElements,
     atom_operators::AtomParams,
     calculations::{
-        DynCalc, adiabats::{
+        DynCalc,
+        adiabats::{
             AdiabatsCalc,
             adiabats_calc_mods,
-        }, bound_states::{
+        },
+        bound_states::{
             BoundStateCalc,
             bound_states_calc_mods,
             bound_states_calc_search_mods,
-        }, dependence::DependenceCalc, hamiltonian_terms::hamiltonian_terms_calc, levels::EnergyLevelsCalc, modifications::{
+        },
+        dependence::DependenceCalc,
+        hamiltonian_terms::hamiltonian_terms_calc,
+        levels::EnergyLevelsCalc,
+        modifications::{
             ModifyRegistry,
             OrbitalRecipeMod,
             ScalarParamMod,
-        }, resonances::ResonancesCalc, scattering::{
+        },
+        resonances::ResonancesCalc,
+        scattering::{
             ScatteringCalc,
             scattering_calc_mods,
-        }
+        },
     },
     diatom_basis::{
         CoupledSIDiatomBasis,
@@ -126,10 +134,7 @@ where
 {
     let ids = DiatomInBFieldParams::ids();
     ModifyRegistry::from([
-        (
-            "magnetic_field",
-            modify_recipe!(|b| ScalarParamMod::new(b, ids.b_field)),
-        ),
+        ("magnetic_field", modify_recipe!(|b| ScalarParamMod::new(b, ids.b_field))),
         ("red_mass", modify_recipe!(|x| ScalarParamMod::new(x, ids.red_mass))),
         (
             "pec_scaling",
@@ -147,7 +152,10 @@ where
     ModifyRegistry::from([
         ("magnetic_field", modify_recipe!(|b| ScalarParamMod::new(b, ids.b_field))),
         ("red_mass", modify_recipe!(|x| ScalarParamMod::new(x, ids.red_mass))),
-        ("pec_scaling", modify_recipe!(|x| PecPolarizationScalingMod::new(x, ids.pecs, ids.scalings))),
+        (
+            "pec_scaling",
+            modify_recipe!(|x| PecPolarizationScalingMod::new(x, ids.pecs, ids.scalings)),
+        ),
     ])
 }
 

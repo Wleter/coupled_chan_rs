@@ -4,21 +4,32 @@ use std::{
 };
 
 use coupled_chan::Interaction;
-use serde::{Deserialize, Serialize};
+use serde::{
+    Deserialize,
+    Serialize,
+};
 use unit_systems::quantities::{
     Scalar,
-    phys_quantities::{
-        Length,
-    },
+    phys_quantities::Length,
 };
 
 use crate::{
-    UNITS_CONVERTER, calculations::{
-        DynCalc, Modified, SingleCalc, dependence::DependenceCalc, modifications::{
+    UNITS_CONVERTER,
+    calculations::{
+        DynCalc,
+        Modified,
+        SingleCalc,
+        dependence::DependenceCalc,
+        modifications::{
             ModifyRegistry,
             ScalarCalcMod,
-        }
-    }, modify_recipe, problems::{Problem, mat_as_nested_vec}
+        },
+    },
+    modify_recipe,
+    problems::{
+        Problem,
+        mat_as_nested_vec,
+    },
 };
 
 pub struct HamiltonianTermsCalc<P> {
@@ -27,9 +38,7 @@ pub struct HamiltonianTermsCalc<P> {
 
 impl<P> HamiltonianTermsCalc<P> {
     pub fn new() -> Self {
-        Self {
-            phantom: PhantomData,
-        }
+        Self { phantom: PhantomData }
     }
 }
 
@@ -64,13 +73,13 @@ impl<P: Problem> SingleCalc for HamiltonianTermsCalc<P> {
                 let matrix = mat_as_nested_vec(potential.masking.as_ref());
                 let coupling = potential.interaction.value(converter.scalar_value(distance));
 
-                return [Ok(HashMap::from([(name.to_owned(), OperatorData { matrix, coupling })]))]
+                return [Ok(HashMap::from([(name.to_owned(), OperatorData { matrix, coupling })]))];
             } else {
                 let operator = &modified.system.operators[name.as_ref()];
                 let matrix = mat_as_nested_vec(operator.1.as_matrix().as_ref());
                 let coupling = operator.0;
 
-                return [Ok(HashMap::from([(name.to_owned(), OperatorData { matrix, coupling })]))]
+                return [Ok(HashMap::from([(name.to_owned(), OperatorData { matrix, coupling })]))];
             }
         }
 

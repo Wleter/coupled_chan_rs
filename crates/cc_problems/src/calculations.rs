@@ -1,11 +1,11 @@
 pub mod adiabats;
 pub mod bound_states;
 pub mod dependence;
+pub mod hamiltonian_terms;
 pub mod levels;
 pub mod modifications;
 pub mod resonances;
 pub mod scattering;
-pub mod hamiltonian_terms;
 
 use anyhow::Result;
 use serde::{

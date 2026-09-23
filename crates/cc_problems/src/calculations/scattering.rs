@@ -1,6 +1,4 @@
-use std::{
-    marker::PhantomData,
-};
+use std::marker::PhantomData;
 
 use coupled_chan::{
     cc_propagator::{
@@ -63,7 +61,10 @@ use crate::{
     },
     modify_recipe,
     parameters::TypedParamId,
-    problems::{Problem, mat_as_nested_vec},
+    problems::{
+        Problem,
+        mat_as_nested_vec,
+    },
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

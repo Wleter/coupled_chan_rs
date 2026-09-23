@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use cc_math_utils::brent_root_method;
 use coupled_chan::{
     cc_propagator::{
@@ -131,10 +129,10 @@ pub fn bound_states_calc_mods<P: Problem + 'static>() -> ModifyRegistry<P, Bound
 }
 
 pub fn bound_states_calc_search_mods<P: Problem + 'static>() -> ModifyRegistry<P, BoundStateCalcInput> {
-    ModifyRegistry(HashMap::from([(
-        "energy".into(),
+    ModifyRegistry::from([(
+        "energy",
         modify_recipe!(|e| ScalarCalcMod::new(e, |r: &mut BoundStateCalcInput, v| r.energy = v)),
-    )]))
+    )])
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
