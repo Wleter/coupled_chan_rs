@@ -116,15 +116,15 @@ impl GridParams {
         match self {
             GridParams::Cartesian { components } => {
                 let mut reduced_index = index;
-                for (i, c) in components.iter().enumerate() {
+                for (i, c) in components.iter().rev().enumerate() {
                     let c_len = c.len();
                     let index = reduced_index % c_len;
                     reduced_index /= c_len;
 
                     let (n, m) = components[i].get(index, registry);
 
-                    numbers.extend(n);
-                    modifiers.extend(m);
+                    numbers.insert_many(0, n);
+                    modifiers.insert_many(0, m);
                 }
             }
             GridParams::Line { components } => {
@@ -221,6 +221,7 @@ pub struct DependenceCalcInput<C> {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct DependenceData<P, D> {
+    pub index: usize,
     pub parameter: P,
     pub data: D,
 }
@@ -302,6 +303,7 @@ where
                     for data in self.single_calc.calculate(&mut modified, problem) {
                         if let Ok(data) = data {
                             saver.send(DependenceData {
+                                index: i,
                                 parameter: numbers.clone(),
                                 data,
                             });
