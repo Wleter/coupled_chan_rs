@@ -90,7 +90,6 @@ impl C_N {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-#[allow(non_camel_case_types)]
 pub struct Exp {
     d: Scalar<Energy>,
     exponent: Scalar<Inv<Length>>,
@@ -549,6 +548,7 @@ impl std::hash::Hash for SpinConfiguration {
 }
 
 #[derive(Clone, Copy, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PecPolarizationScaling {
     scaling: f64,
     #[serde(default)]
