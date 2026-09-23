@@ -391,12 +391,12 @@ pub fn num_logspace(start: Number, end: Number, n: usize, i: usize) -> Number {
         let start_num = start.as_u64().expect("Logspace can only be performed on positive numbers");
         let end_num = end.as_u64().expect("Logspace can only be performed on positive numbers");
 
-        let start = start_num.ilog10();
-        let end = end_num.ilog10();
+        let start = (start_num as f64).log10();
+        let end = (end_num as f64).log10();
 
-        let step = (end - start) / (n as u32 - 1);
+        let step = (end - start) / (n as f64 - 1.0);
 
-        Number::from_i128((10u64.pow(start + i as u32 * step)) as i128).unwrap()
+        Number::from_i128((10f64.powf(start + i as f64 * step)) as i128).unwrap()
     } else {
         panic!("different start and end number types for logspace provided")
     }
