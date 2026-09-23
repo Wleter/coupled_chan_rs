@@ -116,7 +116,7 @@ impl GridParams {
         match self {
             GridParams::Cartesian { components } => {
                 let mut reduced_index = index;
-                for (i, c) in components.iter().rev().enumerate() {
+                for (i, c) in components.iter().enumerate().rev() {
                     let c_len = c.len();
                     let index = reduced_index % c_len;
                     reduced_index /= c_len;
