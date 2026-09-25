@@ -2,7 +2,7 @@ use hilbert_space::space::{
     BasisId,
     SpaceBasis,
     SpaceElement,
-    SubspaceBasis,
+    SubspaceBasisOf,
 };
 use serde::{
     Deserialize,
@@ -53,8 +53,8 @@ impl UncoupledAtomBasis {
         let s = get_spin_basis(recipe.s);
         let i = get_spin_basis(recipe.i);
 
-        let s = basis.push_subspace(SubspaceBasis::new(s));
-        let i = basis.push_subspace(SubspaceBasis::new(i));
+        let s = basis.push_subspace(SubspaceBasisOf::new(s));
+        let i = basis.push_subspace(SubspaceBasisOf::new(i));
 
         Self { s, i }
     }
@@ -77,7 +77,7 @@ impl CoupledAtomBasis {
         let f = get_spin_pair_magnitudes([recipe.s], [recipe.i]);
         let f = get_spin_pair_basis(f);
 
-        let f = basis.push_subspace(SubspaceBasis::new(f));
+        let f = basis.push_subspace(SubspaceBasisOf::new(f));
 
         Self { f }
     }

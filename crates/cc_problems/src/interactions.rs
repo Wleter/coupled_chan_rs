@@ -1,3 +1,5 @@
+pub mod pes;
+
 use std::{
     collections::HashMap,
     fmt::Display,
@@ -9,21 +11,17 @@ use std::{
 use cc_derive::Parameters;
 use cc_qol_utils::Composite;
 use coupled_chan::{
-    DynInteraction,
-    dispersion::{
+    DynInteraction, NullInteraction, dispersion::{
         AnalyticInteraction,
         ExpLaw,
         PowerLaw,
         lenard_jones,
-    },
-    interpolated::{
+    }, interpolated::{
         InterpolatedPotential,
         Transitioned,
         sin_transition,
         spline_interpolation::SplineBuilder,
-    },
-    morse_long_range,
-    scaled::Scaled,
+    }, morse_long_range, scaled::Scaled
 };
 use hilbert_space::space::BasisElementsRef;
 use serde::{
@@ -32,7 +30,6 @@ use serde::{
 };
 use serde_json::{
     Number,
-    Value,
 };
 use spin_algebra::{
     half_integer::HalfU32,
@@ -200,9 +197,6 @@ impl Spline {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct RKHSInterpolation(PathBuf);
-
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SwitchingRegion {
@@ -212,11 +206,11 @@ pub enum SwitchingRegion {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Interactions {
+    Null,
     LenardJones(LenardJones),
     Analytic(Analytic),
     MorseLongRange(MorseLongRange),
     Spline(Spline),
-    RkhsInterpolation(RKHSInterpolation),
     Transition {
         near: Box<Interactions>,
         far: Box<Interactions>,
@@ -230,11 +224,11 @@ pub enum Interactions {
 impl Interactions {
     pub fn interactions(&self) -> DynInteraction {
         match self {
+            Interactions::Null => DynInteraction::new(NullInteraction),
             Interactions::LenardJones(lenard_jones) => DynInteraction::new(lenard_jones.interaction()),
             Interactions::Analytic(analytic) => DynInteraction::new(analytic.interaction()),
             Interactions::MorseLongRange(morse_long_range) => DynInteraction::new(morse_long_range.interaction()),
             Interactions::Spline(spline) => DynInteraction::new(spline.interaction()),
-            Interactions::RkhsInterpolation(_rkhs_interpolation) => todo!(),
             Interactions::Transition {
                 near,
                 far,
@@ -261,94 +255,59 @@ impl Interactions {
     }
 
     pub fn scaled_interactions(&self, scaling: PecScaling) -> DynInteraction {
-        match scaling.scaling_type {
-            PecScalingType::Full => DynInteraction::new(Scaled {
-                scaling: scaling.value,
-                interaction: self.interactions(),
-            }),
-            PecScalingType::ShortRange => match self {
-                Interactions::LenardJones(lenard_jones) => {
-                    let mut lenard_jones = lenard_jones.clone();
-                    lenard_jones.d_e.scale(scaling.value);
-                    // make C6 = 2.0 * d_e * r_e^6 the same as before
-                    lenard_jones.r_e.scale(1.0 / scaling.value.powf(1. / 6.));
+        match self {
+            Interactions::Null => DynInteraction::new(NullInteraction),
+            Interactions::LenardJones(lenard_jones) => {
+                let mut lenard_jones = lenard_jones.clone();
+                lenard_jones.d_e.scale(scaling.short_range.0 * scaling.full.0);
+                // make C6 = 2.0 * d_e * r_e^6 independent of short_range
+                // and scaling linearly with long_range or full scaling
+                lenard_jones.r_e.scale((scaling.long_range.0 / scaling.short_range.0).powf(1. / 6.));
 
-                    DynInteraction::new(lenard_jones.interaction())
+                DynInteraction::new(lenard_jones.interaction())
+            },
+            Interactions::MorseLongRange(morse_long_range) => {
+                let mut mlr = morse_long_range.clone();
+                mlr.d0.scale(scaling.short_range.0 * scaling.full.0);
+                for t in mlr.tail.iter_mut() {
+                    t.d.scale(scaling.long_range.0 * scaling.full.0);
                 }
-                Interactions::MorseLongRange(morse_long_range) => {
-                    let mut mlr = morse_long_range.clone();
-                    mlr.d0.scale(scaling.value);
-                    DynInteraction::new(mlr.interaction())
-                }
-                Interactions::Transition {
-                    near,
-                    far,
-                    r_start_switch,
-                    r_end_switch,
-                    switching,
-                } => {
-                    let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
-                    let r_start = converter.scalar_value(r_start_switch);
-                    let r_end = converter.scalar_value(r_end_switch);
+                DynInteraction::new(mlr.interaction())
+            },
+            Interactions::Transition { near, far, r_start_switch, r_end_switch, switching } => {
+                let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+                let r_start = converter.scalar_value(r_start_switch);
+                let r_end = converter.scalar_value(r_end_switch);
 
-                    match switching {
-                        SwitchingRegion::SinTransition => DynInteraction::new(Transitioned::new(
-                            near.scaled_interactions(PecScaling::new(scaling.value, PecScalingType::Full)),
-                            far.interactions(),
-                            sin_transition(r_start, r_end),
-                        )),
-                    }
-                }
-                Interactions::Composite(items) => {
-                    DynInteraction::new(Composite::new(items.iter().map(|x| x.scaled_interactions(scaling)).collect()))
-                }
-                Interactions::Analytic(_) => panic!("Short range scaling not implemented for analytic interaction"),
-                Interactions::Spline(_) => panic!("Short range scaling not implemented for spline interpolated interaction"),
-                Interactions::RkhsInterpolation(_) => {
-                    panic!("Short range scaling not implemented for RKHS interpolated interaction")
+                match switching {
+                    SwitchingRegion::SinTransition => DynInteraction::new(Transitioned::new(
+                        near.scaled_interactions(PecScaling::new(scaling.short_range.0 * scaling.full.0, PecScalingType::Full)),
+                        far.scaled_interactions(PecScaling::new(scaling.long_range.0 * scaling.full.0, PecScalingType::Full)),
+                        sin_transition(r_start, r_end),
+                    )),
                 }
             },
-            PecScalingType::LongRange => match self {
-                Interactions::LenardJones(lenard_jones) => {
-                    let mut lenard_jones = lenard_jones.clone();
-                    // make C6 = 2.0 * d_e * r_e^6 scaled linearly
-                    lenard_jones.r_e.scale(scaling.value.powf(1. / 6.));
+            Interactions::Composite(items) => {
+                DynInteraction::new(Composite::new(items.iter().map(|x| x.scaled_interactions(scaling)).collect()))
+            },
+            Interactions::Analytic(analytic) => {
+                assert_ne!(scaling.long_range, ScalingValue::one(), "Analytic interaction does not support short range scaling");
+                assert_ne!(scaling.short_range, ScalingValue::one(), "Analytic interaction does not support long range scaling");
 
-                    DynInteraction::new(lenard_jones.interaction())
+                if scaling.full == ScalingValue::one() {
+                    DynInteraction::new(analytic.interaction())
+                } else {
+                    DynInteraction::new(Scaled { interaction: analytic.interaction(), scaling: scaling.full.0 })
                 }
-                Interactions::MorseLongRange(morse_long_range) => {
-                    let mut mlr = morse_long_range.clone();
-                    for t in mlr.tail.iter_mut() {
-                        t.d.scale(scaling.value);
-                    }
-                    DynInteraction::new(mlr.interaction())
-                }
-                Interactions::Transition {
-                    near,
-                    far,
-                    r_start_switch,
-                    r_end_switch,
-                    switching,
-                } => {
-                    let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
-                    let r_start = converter.scalar_value(r_start_switch);
-                    let r_end = converter.scalar_value(r_end_switch);
+            },
+            Interactions::Spline(spline) => {
+                assert_ne!(scaling.long_range, ScalingValue::one(), "Spline interpolated interaction does not support short range scaling");
+                assert_ne!(scaling.short_range, ScalingValue::one(), "Spline interpolated interaction does not support long range scaling");
 
-                    match switching {
-                        SwitchingRegion::SinTransition => DynInteraction::new(Transitioned::new(
-                            near.interactions(),
-                            far.scaled_interactions(PecScaling::new(scaling.value, PecScalingType::Full)),
-                            sin_transition(r_start, r_end),
-                        )),
-                    }
-                }
-                Interactions::Composite(items) => {
-                    DynInteraction::new(Composite::new(items.iter().map(|x| x.scaled_interactions(scaling)).collect()))
-                }
-                Interactions::Analytic(_) => panic!("Long range scaling not implemented for analytic interaction"),
-                Interactions::Spline(_) => panic!("Long range scaling not implemented for spline interpolated interaction"),
-                Interactions::RkhsInterpolation(_) => {
-                    panic!("Long range scaling not implemented for RKHS interpolated interaction")
+                if scaling.full == ScalingValue::one() {
+                    DynInteraction::new(spline.interaction())
+                } else {
+                    DynInteraction::new(Scaled { interaction: spline.interaction(), scaling: scaling.full.0 })
                 }
             },
         }
@@ -356,7 +315,7 @@ impl Interactions {
 }
 
 #[derive(Clone, Copy, Default, Debug, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum PecScalingType {
     #[default]
     Full,
@@ -364,25 +323,59 @@ pub enum PecScalingType {
     LongRange,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
-#[serde(default)]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[serde(default, deny_unknown_fields)]
 pub struct PecScaling {
-    value: f64,
-    scaling_type: PecScalingType,
+    short_range: ScalingValue,
+    long_range: ScalingValue,
+    full: ScalingValue
 }
 
 impl PecScaling {
     pub fn new(value: f64, scaling_type: PecScalingType) -> Self {
-        Self { value, scaling_type }
+        match scaling_type {
+            PecScalingType::Full => Self {
+                full: ScalingValue(value),
+                ..Default::default()
+            },
+            PecScalingType::ShortRange => Self {
+                short_range: ScalingValue(value),
+                ..Default::default()
+            },
+            PecScalingType::LongRange => Self {
+                long_range: ScalingValue(value),
+                ..Default::default()
+            },
+        }
+    }
+
+    pub fn modify(&mut self, value: f64, scaling_type: PecScalingType) {
+        match scaling_type {
+            PecScalingType::Full => self.full.0 = value,
+            PecScalingType::ShortRange => self.short_range.0 = value,
+            PecScalingType::LongRange => self.long_range.0 = value,
+        }
+    }
+
+    pub fn prod_mut(&mut self, other: Self) {
+        self.full.0 *= other.full.0;
+        self.short_range.0 *= other.short_range.0;
+        self.long_range.0 *= other.long_range.0;
     }
 }
 
-impl Default for PecScaling {
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+pub struct ScalingValue(pub f64);
+
+impl ScalingValue {
+    pub fn one() -> Self {
+        Self::default()
+    }
+}
+
+impl Default for ScalingValue {
     fn default() -> Self {
-        Self {
-            value: 1.0,
-            scaling_type: Default::default(),
-        }
+        Self(1.0)
     }
 }
 
@@ -391,33 +384,6 @@ pub struct PecPolarizations(pub HashMap<SpinConfiguration, Interactions>);
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct PecPolarizationScalings(pub HashMap<SpinConfiguration, PecScaling>);
-
-impl PecPolarizationScalings {
-    pub fn scale(&mut self, spin: SpinConfiguration, value: Value) -> bool {
-        let value: PecScaling = serde_json::from_value(value).expect("Expecting scaling type");
-        if let Some(s) = self.0.get_mut(&spin)
-            && *s == value
-        {
-            false
-        } else {
-            self.0.insert(spin, value);
-            true
-        }
-    }
-
-    pub fn scale_all(&mut self, value: Value) -> bool {
-        let value: PecScaling = serde_json::from_value(value).expect("Expecting scaling type");
-        let mut changed = false;
-        for s in self.0.values_mut() {
-            if *s != value {
-                *s = value;
-                changed = true;
-            }
-        }
-
-        changed
-    }
-}
 
 pub struct PecPolarizationSpec<Mask>
 where
@@ -591,25 +557,12 @@ impl<P: Problem, C: Send + Sync> ModifyParam for PecPolarizationScalingMod<P, C>
         ModificationAction::ParamModify(
             ParamModifications::new(move |r| {
                 if let Some(c) = scaling.configuration {
-                    r.get_mut(id_scalings).0.insert(
-                        c,
-                        PecScaling {
-                            value: scaling.scaling,
-                            scaling_type: scaling.scaling_type,
-                        },
-                    );
+                    r.get_mut(id_scalings).0.insert(c, PecScaling::new(scaling.scaling, scaling.scaling_type));
                     let s = r.get_mut(id_scalings).0.get_mut(&c).expect("Nonexistent");
-                    s.scaling_type = scaling.scaling_type;
-                    s.value = scaling.scaling;
+                    s.modify(scaling.scaling, scaling.scaling_type);
                 } else {
                     for k in r.get(id_pec).0.keys().copied().collect::<Vec<SpinConfiguration>>() {
-                        r.get_mut(id_scalings).0.insert(
-                            k,
-                            PecScaling {
-                                value: scaling.scaling,
-                                scaling_type: scaling.scaling_type,
-                            },
-                        );
+                        r.get_mut(id_scalings).0.insert(k, PecScaling::new(scaling.scaling, scaling.scaling_type));
                     }
                 }
 

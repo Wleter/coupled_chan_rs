@@ -85,6 +85,19 @@ impl<P: Interaction> Interaction for Composite<P> {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct NullInteraction;
+
+impl Interaction for NullInteraction {
+    fn value(&self, _r: f64) -> f64 {
+        0.0
+    }
+
+    fn asymptote_dep(&self) -> AsymptoteDep {
+        AsymptoteDep::Const
+    }
+}
+
 /// Reduced centrifugal term l(l+1) / R^2
 pub struct RedCentrifugal(u32);
 

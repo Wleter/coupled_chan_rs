@@ -8,30 +8,21 @@ use hilbert_space::{
     space::BasisElementsRef,
 };
 use spin_algebra::{
-    Spin,
     SpinLike,
     SpinMagLike,
-    hu32,
     ops::{
-        red_dot_product_factor,
-        red_first_subsystem_mel_factor,
-        red_reduced_harmonics_mel,
-        red_second_subsystem_mel_factor,
-        red_spin_mel,
-        red_tensor_product_factor,
-        wigner_eckart_dot_product_factor,
-        wigner_eckart_factor,
-    },
+        dot_product_separation, red_dot_product_factor, red_first_subsystem_mel_factor, red_reduced_harmonics_mel, red_second_subsystem_mel_factor, red_spin_mel, red_tensor_product_factor, wigner_eckart_dot_product_factor, wigner_eckart_factor
+    }, spin,
 };
 use unit_systems::CODATA_2022;
 
 use crate::{
     Operator,
     atom_operators::{
-        AHifiId,
+        CouplingId,
         BFieldId,
         GFactorId,
-        HifiSpec,
+        CouplingSpec,
         ZeemanSpec,
     },
     diatom_basis::{
@@ -86,59 +77,55 @@ where
 }
 
 impl CoupledSIDiatomBasis {
-    pub fn hifi_a(&self, a_hifi: AHifiId) -> HifiSpec<impl Fn(BasisElementsRef) -> Operator + use<>> {
+    pub fn hifi_a(&self, a_hifi: CouplingId) -> CouplingSpec<impl Fn(BasisElementsRef) -> Operator + use<>> {
         let s_tot_id = self.s_tot;
         let i_tot_id = self.i_tot;
 
-        HifiSpec {
-            a_hifi,
+        CouplingSpec {
+            coupling: a_hifi,
             operator: move |b| {
                 operator_mel!(b, [s_tot_id, i_tot_id], |[s_tot, i_tot]| {
-                    let q_s = s_tot.bra.m() - s_tot.ket.m();
-                    let q_i = i_tot.bra.m() - i_tot.ket.m();
                     let s_tot_mag = s_tot.map(|x| x.as_spin_pair_mag());
                     let i_tot_mag = i_tot.map(|x| x.as_spin_pair_mag());
 
-                    if q_s == -q_i && q_s.double_value().abs() <= 2 {
-                        (-1f64).powi(q_s.double_value() / 2)
-                            * wigner_eckart_factor(s_tot, Spin::new(1, q_s))
+                    dot_product_separation(
+                        s_tot, 
+                        i_tot, 
+                        1, 
+                        |q| wigner_eckart_factor(s_tot, spin!(1, q))
                             * red_first_subsystem_mel_factor(s_tot_mag, 1)
-                            * red_spin_mel(s_tot.bra.pair.0)
-                            * wigner_eckart_factor(i_tot, Spin::new(1, q_i))
+                            * red_spin_mel(s_tot.bra.pair.0), 
+                        |q| wigner_eckart_factor(i_tot, spin!(1, q))
                             * red_first_subsystem_mel_factor(i_tot_mag, 1)
                             * red_spin_mel(i_tot.bra.pair.0)
-                    } else {
-                        0.
-                    }
+                    )
                 })
             },
         }
     }
 
-    pub fn hifi_b(&self, a_hifi: AHifiId) -> HifiSpec<impl Fn(BasisElementsRef) -> Operator + use<>> {
+    pub fn hifi_b(&self, a_hifi: CouplingId) -> CouplingSpec<impl Fn(BasisElementsRef) -> Operator + use<>> {
         let s_tot_id = self.s_tot;
         let i_tot_id = self.i_tot;
 
-        HifiSpec {
-            a_hifi,
+        CouplingSpec {
+            coupling: a_hifi,
             operator: move |b| {
                 operator_mel!(b, [s_tot_id, i_tot_id], |[s_tot, i_tot]| {
-                    let q_s = s_tot.bra.m() - s_tot.ket.m();
-                    let q_i = i_tot.bra.m() - i_tot.ket.m();
                     let s_tot_mag = s_tot.map(|x| x.as_spin_pair_mag());
                     let i_tot_mag = i_tot.map(|x| x.as_spin_pair_mag());
 
-                    if q_s == -q_i && q_s.double_value().abs() <= 2 {
-                        (-1f64).powi(q_s.double_value() / 2)
-                            * (wigner_eckart_factor(s_tot, Spin::new(1, q_s))
-                                * red_second_subsystem_mel_factor(s_tot_mag, 1)
-                                * red_spin_mel(s_tot.bra.pair.1))
-                            * (wigner_eckart_factor(i_tot, Spin::new(1, q_i))
-                                * red_second_subsystem_mel_factor(i_tot_mag, 1)
-                                * red_spin_mel(i_tot.bra.pair.1))
-                    } else {
-                        0.
-                    }
+                    dot_product_separation(
+                        s_tot, 
+                        i_tot, 
+                        1, 
+                        |q| wigner_eckart_factor(s_tot, spin!(1, q))
+                            * red_second_subsystem_mel_factor(s_tot_mag, 1)
+                            * red_spin_mel(s_tot.bra.pair.1), 
+                        |q| wigner_eckart_factor(i_tot, spin!(1, q))
+                            * red_second_subsystem_mel_factor(i_tot_mag, 1)
+                            * red_spin_mel(i_tot.bra.pair.1)
+                    )
                 })
             },
         }
@@ -159,7 +146,7 @@ impl CoupledSIDiatomBasis {
                     let s_tot_mag = s_tot.map(|x| x.as_spin_pair_mag());
 
                     if s_tot.bra.m() == s_tot.ket.m() {
-                        -wigner_eckart_factor(s_tot, Spin::new(1, 0))
+                        -wigner_eckart_factor(s_tot, spin!(1, 0))
                             * red_first_subsystem_mel_factor(s_tot_mag, 1)
                             * red_spin_mel(s_tot.bra.pair.0)
                     } else {
@@ -185,7 +172,7 @@ impl CoupledSIDiatomBasis {
                     let s_tot_mag = s_tot.map(|x| x.as_spin_pair_mag());
 
                     if s_tot.bra.m() == s_tot.ket.m() {
-                        -wigner_eckart_factor(s_tot, Spin::new(1, 0))
+                        -wigner_eckart_factor(s_tot, spin!(1, 0))
                             * red_second_subsystem_mel_factor(s_tot_mag, 1)
                             * red_spin_mel(s_tot.bra.pair.1)
                     } else {
@@ -211,7 +198,7 @@ impl CoupledSIDiatomBasis {
                     let i_tot_mag = i_tot.map(|x| x.as_spin_pair_mag());
 
                     if i_tot.bra.m() == i_tot.ket.m() {
-                        -wigner_eckart_factor(i_tot, Spin::new(1, 0))
+                        -wigner_eckart_factor(i_tot, spin!(1, 0))
                             * red_first_subsystem_mel_factor(i_tot_mag, 1)
                             * red_spin_mel(i_tot.bra.pair.0)
                     } else {
@@ -237,7 +224,7 @@ impl CoupledSIDiatomBasis {
                     let i_tot_mag = i_tot.map(|x| x.as_spin_pair_mag());
 
                     if i_tot.bra.m() == i_tot.ket.m() {
-                        -wigner_eckart_factor(i_tot, Spin::new(1, 0))
+                        -wigner_eckart_factor(i_tot, spin!(1, 0))
                             * red_second_subsystem_mel_factor(i_tot_mag, 1)
                             * red_spin_mel(i_tot.bra.pair.1)
                     } else {
@@ -254,21 +241,17 @@ impl CoupledSIDiatomBasis {
 
         move |b: BasisElementsRef| {
             operator_mel!(b, [s_id, l_id], |[s, l]| {
-                let q = l.bra.m - l.ket.m;
-
-                if q == s.ket.m() - s.bra.m()
-                    && q.double_value().unsigned_abs() <= hu32!(2).double_value()
-                    && s.bra.pair.0 == s.ket.pair.0
-                    && s.bra.pair.1 == s.ket.pair.1
-                {
-                    let phase = (-1f64).powi(q.double_value() / 2);
-                    let rot = wigner_eckart_factor(l, Spin::new(hu32!(2), q)) * red_reduced_harmonics_mel(l, hu32!(2));
-                    let spin = wigner_eckart_factor(s, Spin::new(hu32!(2), -q))
-                        * red_tensor_product_factor(s.map(|s| s.as_spin_pair_mag()), hu32!(1), hu32!(1), hu32!(2))
-                        * red_spin_mel(s.bra.pair.0)
-                        * red_spin_mel(s.bra.pair.1);
-
-                    6f64.sqrt() * phase * rot * spin
+                if s.bra.pair.0 == s.ket.pair.0 && s.bra.pair.1 == s.ket.pair.1 {
+                    f64::sqrt(6.0) * dot_product_separation(
+                        s, 
+                        l, 
+                        2, 
+                        |q| wigner_eckart_factor(s, spin!(2, q))
+                            * red_tensor_product_factor(s.map(|s| s.as_spin_pair_mag()), 1, 1, 2)
+                            * red_spin_mel(s.bra.pair.0)
+                            * red_spin_mel(s.bra.pair.1), 
+                        |q| wigner_eckart_factor(l, spin!(2, q)) * red_reduced_harmonics_mel(l, 2)
+                    )
                 } else {
                     0.0
                 }
@@ -278,11 +261,11 @@ impl CoupledSIDiatomBasis {
 }
 
 impl CoupledFTotDiatomBasis {
-    pub fn hifi_a(&self, a_hifi: AHifiId) -> HifiSpec<impl Fn(BasisElementsRef) -> Operator + use<>> {
+    pub fn hifi_a(&self, a_hifi: CouplingId) -> CouplingSpec<impl Fn(BasisElementsRef) -> Operator + use<>> {
         let f_tot_id = self.f_tot;
 
-        HifiSpec {
-            a_hifi,
+        CouplingSpec {
+            coupling: a_hifi,
             operator: move |b| {
                 operator_mel!(b, [f_tot_id], |[f_tot]| {
                     if f_tot.bra.spin == f_tot.ket.spin {
@@ -299,11 +282,11 @@ impl CoupledFTotDiatomBasis {
         }
     }
 
-    pub fn hifi_b(&self, a_hifi: AHifiId) -> HifiSpec<impl Fn(BasisElementsRef) -> Operator + use<>> {
+    pub fn hifi_b(&self, a_hifi: CouplingId) -> CouplingSpec<impl Fn(BasisElementsRef) -> Operator + use<>> {
         let f_tot_id = self.f_tot;
 
-        HifiSpec {
-            a_hifi,
+        CouplingSpec {
+            coupling: a_hifi,
             operator: move |b| {
                 operator_mel!(b, [f_tot_id], |[f_tot]| {
                     if f_tot.bra.spin == f_tot.ket.spin {
@@ -336,7 +319,7 @@ impl CoupledFTotDiatomBasis {
                     let s_tot_mag = f_tot_mag.map(|x| x.pair.0);
 
                     if f_tot.bra.m() == f_tot.ket.m() {
-                        -wigner_eckart_factor(f_tot, Spin::new(1, 0))
+                        -wigner_eckart_factor(f_tot, spin!(1, 0))
                             * red_first_subsystem_mel_factor(f_tot_mag, 1)
                             * red_first_subsystem_mel_factor(s_tot_mag, 1)
                             * red_spin_mel(s_tot_mag.bra.pair.0)
@@ -364,7 +347,7 @@ impl CoupledFTotDiatomBasis {
                     let s_tot_mag = f_tot_mag.map(|x| x.pair.0);
 
                     if f_tot.bra.m() == f_tot.ket.m() {
-                        -wigner_eckart_factor(f_tot, Spin::new(1, 0))
+                        -wigner_eckart_factor(f_tot, spin!(1, 0))
                             * red_first_subsystem_mel_factor(f_tot_mag, 1)
                             * red_second_subsystem_mel_factor(s_tot_mag, 1)
                             * red_spin_mel(s_tot_mag.bra.pair.1)
@@ -392,7 +375,7 @@ impl CoupledFTotDiatomBasis {
                     let i_tot_mag = f_tot_mag.map(|x| x.pair.1);
 
                     if f_tot.bra.m() == f_tot.ket.m() {
-                        -wigner_eckart_factor(f_tot, Spin::new(1, 0))
+                        -wigner_eckart_factor(f_tot, spin!(1, 0))
                             * red_second_subsystem_mel_factor(f_tot_mag, 1)
                             * red_first_subsystem_mel_factor(i_tot_mag, 1)
                             * red_spin_mel(i_tot_mag.bra.pair.0)
@@ -420,7 +403,7 @@ impl CoupledFTotDiatomBasis {
                     let i_tot_mag = f_tot_mag.map(|x| x.pair.1);
 
                     if f_tot.bra.m() == f_tot.ket.m() {
-                        -wigner_eckart_factor(f_tot, Spin::new(1, 0))
+                        -wigner_eckart_factor(f_tot, spin!(1, 0))
                             * red_second_subsystem_mel_factor(f_tot_mag, 1)
                             * red_second_subsystem_mel_factor(i_tot_mag, 1)
                             * red_spin_mel(i_tot_mag.bra.pair.1)
@@ -434,11 +417,11 @@ impl CoupledFTotDiatomBasis {
 }
 
 impl CoupledDiatomBasis {
-    pub fn hifi_a(&self, a_hifi: AHifiId) -> HifiSpec<impl Fn(BasisElementsRef) -> Operator + use<>> {
+    pub fn hifi_a(&self, a_hifi: CouplingId) -> CouplingSpec<impl Fn(BasisElementsRef) -> Operator + use<>> {
         let fl_tot_id = self.fl_tot;
 
-        HifiSpec {
-            a_hifi,
+        CouplingSpec {
+            coupling: a_hifi,
             operator: move |b| {
                 operator_mel!(b, [fl_tot_id], |[fl_tot]| {
                     if fl_tot.bra.spin == fl_tot.ket.spin
@@ -450,7 +433,7 @@ impl CoupledDiatomBasis {
                         let s_tot_mag = f_tot_mag.map(|x| x.pair.0);
                         let i_tot_mag = f_tot_mag.map(|x| x.pair.1);
 
-                        wigner_eckart_factor(fl_tot, Spin::new(0, 0))
+                        wigner_eckart_factor(fl_tot, spin!(0, 0))
                             * red_first_subsystem_mel_factor(fl_tot_mag, 0)
                             * red_dot_product_factor(f_tot_mag, 1)
                             * red_first_subsystem_mel_factor(s_tot_mag, 1)
@@ -465,11 +448,11 @@ impl CoupledDiatomBasis {
         }
     }
 
-    pub fn hifi_b(&self, a_hifi: AHifiId) -> HifiSpec<impl Fn(BasisElementsRef) -> Operator + use<>> {
+    pub fn hifi_b(&self, a_hifi: CouplingId) -> CouplingSpec<impl Fn(BasisElementsRef) -> Operator + use<>> {
         let fl_tot_id = self.fl_tot;
 
-        HifiSpec {
-            a_hifi,
+        CouplingSpec {
+            coupling: a_hifi,
             operator: move |b| {
                 operator_mel!(b, [fl_tot_id], |[fl_tot]| {
                     if fl_tot.bra.spin == fl_tot.ket.spin
@@ -481,7 +464,7 @@ impl CoupledDiatomBasis {
                         let s_tot_mag = f_tot_mag.map(|x| x.pair.0);
                         let i_tot_mag = f_tot_mag.map(|x| x.pair.1);
 
-                        wigner_eckart_factor(fl_tot, Spin::new(0, 0))
+                        wigner_eckart_factor(fl_tot, spin!(0, 0))
                             * red_first_subsystem_mel_factor(fl_tot_mag, 0)
                             * red_dot_product_factor(f_tot_mag, 1)
                             * red_second_subsystem_mel_factor(s_tot_mag, 1)
@@ -513,7 +496,7 @@ impl CoupledDiatomBasis {
                     let s_tot_mag = f_tot_mag.map(|x| x.pair.0);
 
                     if fl_tot.bra.m() == fl_tot.ket.m() {
-                        -wigner_eckart_factor(fl_tot, Spin::new(1, 0))
+                        -wigner_eckart_factor(fl_tot, spin!(1, 0))
                             * red_first_subsystem_mel_factor(fl_tot_mag, 1)
                             * red_first_subsystem_mel_factor(f_tot_mag, 1)
                             * red_first_subsystem_mel_factor(s_tot_mag, 1)
@@ -543,7 +526,7 @@ impl CoupledDiatomBasis {
                     let s_tot_mag = f_tot_mag.map(|x| x.pair.0);
 
                     if fl_tot.bra.m() == fl_tot.ket.m() {
-                        -wigner_eckart_factor(fl_tot, Spin::new(1, 0))
+                        -wigner_eckart_factor(fl_tot, spin!(1, 0))
                             * red_first_subsystem_mel_factor(fl_tot_mag, 1)
                             * red_first_subsystem_mel_factor(f_tot_mag, 1)
                             * red_second_subsystem_mel_factor(s_tot_mag, 1)
@@ -573,7 +556,7 @@ impl CoupledDiatomBasis {
                     let i_tot_mag = f_tot_mag.map(|x| x.pair.1);
 
                     if fl_tot.bra.m() == fl_tot.ket.m() {
-                        -wigner_eckart_factor(fl_tot, Spin::new(1, 0))
+                        -wigner_eckart_factor(fl_tot, spin!(1, 0))
                             * red_first_subsystem_mel_factor(fl_tot_mag, 1)
                             * red_second_subsystem_mel_factor(f_tot_mag, 1)
                             * red_first_subsystem_mel_factor(i_tot_mag, 1)
@@ -603,7 +586,7 @@ impl CoupledDiatomBasis {
                     let i_tot_mag = f_tot_mag.map(|x| x.pair.1);
 
                     if fl_tot.bra.m() == fl_tot.ket.m() {
-                        -wigner_eckart_factor(fl_tot, Spin::new(1, 0))
+                        -wigner_eckart_factor(fl_tot, spin!(1, 0))
                             * red_first_subsystem_mel_factor(fl_tot_mag, 1)
                             * red_second_subsystem_mel_factor(f_tot_mag, 1)
                             * red_second_subsystem_mel_factor(i_tot_mag, 1)

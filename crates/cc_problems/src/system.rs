@@ -231,9 +231,9 @@ impl Deref for ParamIds {
 
 #[macro_export]
 macro_rules! param_ids {
-    [$($x:expr),*$(,)?] => ({
+    [$($x:expr),*$(,)?] => {
         $crate::system::ParamIds::new($crate::smallvec::smallvec!($($x),*))
-    });
+    };
 }
 
 pub trait OperatorSpec: Send + Sync {

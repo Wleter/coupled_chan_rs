@@ -106,18 +106,6 @@ pub struct SubspaceBasis {
 }
 
 impl SubspaceBasis {
-    #[allow(clippy::new_ret_no_self)]
-    pub fn new<Type: DynSubspaceElement>(basis: Vec<Type>) -> SubspaceBasisOf<Type> {
-        assert!(!basis.is_empty(), "0 size basis is not allowed");
-
-        let basis = basis.into_iter().map(|x| SubspaceElement(Box::new(x))).collect();
-
-        SubspaceBasisOf {
-            basis,
-            id: BasisId::new(0),
-        }
-    }
-
     pub fn elements(&self) -> &[SubspaceElement] {
         &self.basis
     }
@@ -392,7 +380,7 @@ mod tests {
     fn test_space() {
         let mut basis = SpaceBasis::default();
 
-        let e_basis = SubspaceBasis::new(vec![
+        let e_basis = SubspaceBasisOf::new(vec![
             ElectronSpin(2, -2),
             ElectronSpin(2, 0),
             ElectronSpin(2, 2),
@@ -400,10 +388,10 @@ mod tests {
         ]);
         let e_id = basis.push_subspace(e_basis);
 
-        let nuclear = SubspaceBasis::new(vec![NuclearSpin(1, -1), NuclearSpin(1, 1)]);
+        let nuclear = SubspaceBasisOf::new(vec![NuclearSpin(1, -1), NuclearSpin(1, 1)]);
         let n_id = basis.push_subspace(nuclear);
 
-        let vib = SubspaceBasis::new(vec![Vibrational(-1), Vibrational(-2)]);
+        let vib = SubspaceBasisOf::new(vec![Vibrational(-1), Vibrational(-2)]);
         let vib_id = basis.push_subspace(vib);
 
         assert_eq!(basis.size(), 4 * 2 * 2);

@@ -221,6 +221,17 @@ pub fn get_spin_basis(s: impl SpinMagLike) -> Vec<Spin> {
         .collect()
 }
 
+/// Creates vector containing spin basis |s m_s >
+/// for given `s`
+pub fn get_spin_basis_iter(s: impl SpinMagLike) -> impl Iterator<Item = Spin> {
+    let s = s.s();
+    let ds = s.double_value() as i32;
+
+    (-ds..=ds)
+        .step_by(2)
+        .map(move |dms| Spin::new(s, HalfI32::from_doubled(dms)))
+}
+
 /// Creates vector containing combined spin basis |S M_S >
 /// from given `s1` and `s2` spins
 pub fn get_summed_spin_basis(s1: impl SpinMagLike, s2: impl SpinMagLike) -> Vec<Spin> {
@@ -254,7 +265,7 @@ where
 
                 (dspin_min..=dspin_max)
                     .step_by(2)
-                    .map(move |ds| SpinPairMag::new((s1, s2), HalfU32::from_doubled(ds)))
+                    .map(move |ds| spin!((s1, s2), HalfU32::from_doubled(ds)))
             })
         })
         .collect()

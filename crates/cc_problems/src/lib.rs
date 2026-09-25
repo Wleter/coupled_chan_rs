@@ -8,6 +8,8 @@ pub mod operator_mel;
 pub mod parameters;
 pub mod problems;
 pub mod system;
+pub mod tram_basis;
+pub mod rotor_atom_basis;
 
 use std::sync::{
     LazyLock,
@@ -26,7 +28,7 @@ use hilbert_space::{
         BasisId,
         DynSubspaceElement,
         SpaceBasis,
-        SubspaceBasis,
+        SubspaceBasisOf,
     },
 };
 use serde::{
@@ -168,7 +170,7 @@ pub struct OrbitalBasis {
 impl OrbitalBasis {
     pub fn new(recipe: OrbitalRecipe, basis: &mut SpaceBasis) -> Self {
         let l = recipe.basis();
-        let l = basis.push_subspace(SubspaceBasis::new(l));
+        let l = basis.push_subspace(SubspaceBasisOf::new(l));
 
         Self { l }
     }

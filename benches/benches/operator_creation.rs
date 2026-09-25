@@ -25,7 +25,7 @@ use hilbert_space::{
     space::{
         BasisElements,
         SpaceBasis,
-        SubspaceBasis,
+        SubspaceBasisOf,
     },
 };
 
@@ -33,10 +33,10 @@ pub fn dynamic_operator(bencher: Bencher, size: u32) {
     let spins = get_spin_basis(HalfU32::from_doubled(size));
 
     let mut basis = SpaceBasis::default();
-    let s1_id = basis.push_subspace(SubspaceBasis::new(spins.clone()));
-    let s2_id = basis.push_subspace(SubspaceBasis::new(spins.clone()));
-    let s3_id = basis.push_subspace(SubspaceBasis::new(spins.clone()));
-    let s4_id = basis.push_subspace(SubspaceBasis::new(spins.clone()));
+    let s1_id = basis.push_subspace(SubspaceBasisOf::new(spins.clone()));
+    let s2_id = basis.push_subspace(SubspaceBasisOf::new(spins.clone()));
+    let s3_id = basis.push_subspace(SubspaceBasisOf::new(spins.clone()));
+    let s4_id = basis.push_subspace(SubspaceBasisOf::new(spins.clone()));
 
     let basis: BasisElements = basis.get_filtered_basis(|elements| {
         let s1 = elements[s1_id];

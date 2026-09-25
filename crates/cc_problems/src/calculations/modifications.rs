@@ -217,6 +217,59 @@ where
     }
 }
 
+pub struct NumberCalcMod<T, P, C, F> 
+where 
+    T: Into<i128> + TryFrom<i128>, 
+    P: Problem, 
+    F: Fn(&mut P::BasisRecipe, T) 
+{
+    value: T,
+    conversion: F,
+    phantom: PhantomData<(P, C)>,
+}
+
+impl<T, P, C, F> NumberCalcMod<T, P, C, F> 
+where 
+    T: Into<i128> + TryFrom<i128>, 
+    P: Problem, 
+    F: Fn(&mut P::BasisRecipe, T) 
+{
+    pub fn new(value: T, conversion: F) -> Self {
+        Self {
+            value,
+            conversion,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<T, P, C, F> ModifyParam for NumberCalcMod<T, P, C, F>
+where
+    T: Into<i128> + TryFrom<i128> + Copy + Send + Sync, 
+    P: Problem,
+    C: Send + Sync,
+    F: Fn(&mut P::BasisRecipe, T) + Send + Sync,
+    <T as TryFrom<i128>>::Error: std::fmt::Debug
+{
+    type P = P;
+    type C = C;
+
+    fn prep_modify(&self, modified: &mut Modified<Self::P, Self::C>) -> ModificationAction {
+        (self.conversion)(modified.basis, self.value);
+
+        ModificationAction::BasisChange
+    }
+
+    fn as_number(&self) -> Number {
+        Number::from_i128(self.value.into()).unwrap()
+    }
+
+    fn mut_number(&mut self, number: Number) {
+        let value = number.as_i128().unwrap();
+        self.value = value.try_into().unwrap()
+    }
+}
+
 pub fn scalar_from_f64<Q: PhysQuantity>(value: f64) -> Scalar<Q> {
     if value == 0.0 {
         Scalar::new(0.0, Q::default(), "");

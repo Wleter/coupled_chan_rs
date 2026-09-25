@@ -1,4 +1,5 @@
 pub mod diatom_in_b_field;
+pub mod rotor_atom_in_b_field;
 
 use std::collections::HashMap;
 

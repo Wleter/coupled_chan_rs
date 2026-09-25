@@ -46,11 +46,15 @@ use crate::{
     },
 };
 
-pub(crate) type AHifiId = TypedParamId<Scalar<Energy>>;
+pub(crate) type CouplingId = TypedParamId<Scalar<Energy>>;
 pub(crate) type BFieldId = TypedParamId<Scalar<MagneticField>>;
 pub(crate) type GFactorId = TypedParamId<Scalar<MagneticDipole>>;
 
 pub const ELECTRON_G_FACTOR: f64 = -2.002_319_304_360_92;
+
+pub fn electron_g_e() -> Scalar<MagneticDipole> {
+    Scalar::new(ELECTRON_G_FACTOR, MagneticDipole, "mu_bohr")
+}
 
 #[derive(Debug, Clone, Parameters, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
@@ -64,24 +68,24 @@ impl Default for AtomParams {
     fn default() -> Self {
         Self {
             a_hifi: Default::default(),
-            g_e: Scalar::new(ELECTRON_G_FACTOR, MagneticDipole, "mu_bohr"),
+            g_e: electron_g_e(),
             g_n: Default::default(),
         }
     }
 }
 
-pub struct HifiSpec<F: Fn(BasisElementsRef) -> Operator> {
-    pub a_hifi: AHifiId,
+pub struct CouplingSpec<F: Fn(BasisElementsRef) -> Operator> {
+    pub coupling: CouplingId,
     pub(crate) operator: F,
 }
 
-impl<F: Fn(BasisElementsRef) -> Operator> HifiSpec<F> {
-    pub fn new(a_hifi: AHifiId, operator: F) -> Self {
-        Self { a_hifi, operator }
+impl<F: Fn(BasisElementsRef) -> Operator> CouplingSpec<F> {
+    pub fn new(coupling: CouplingId, operator: F) -> Self {
+        Self { coupling, operator }
     }
 }
 
-impl<F: Fn(BasisElementsRef) -> Operator + Send + Sync> OperatorSpec for HifiSpec<F> {
+impl<F: Fn(BasisElementsRef) -> Operator + Send + Sync> OperatorSpec for CouplingSpec<F> {
     fn build_params(&self) -> ParamIds {
         param_ids![]
     }
@@ -91,13 +95,13 @@ impl<F: Fn(BasisElementsRef) -> Operator + Send + Sync> OperatorSpec for HifiSpe
     }
 
     fn coupling_params(&self) -> ParamIds {
-        param_ids![self.a_hifi.vanish()]
+        param_ids![self.coupling.vanish()]
     }
 
     fn coupling(&self, params: &ParameterRegistry) -> f64 {
         let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
 
-        converter.scalar_value(params.get(self.a_hifi))
+        converter.scalar_value(params.get(self.coupling))
     }
 }
 
@@ -141,12 +145,12 @@ impl<F: Fn(BasisElementsRef) -> Operator + Send + Sync> OperatorSpec for ZeemanS
 }
 
 impl UncoupledAtomBasis {
-    pub fn hifi(&self, a_hifi: AHifiId) -> HifiSpec<impl Fn(BasisElementsRef) -> Operator + use<>> {
+    pub fn hifi(&self, a_hifi: CouplingId) -> CouplingSpec<impl Fn(BasisElementsRef) -> Operator + use<>> {
         let s_id = self.s;
         let i_id = self.i;
 
-        HifiSpec {
-            a_hifi,
+        CouplingSpec {
+            coupling: a_hifi,
             operator: move |b| operator_mel!(b, [s_id, i_id], |[s, i]| spin_algebra::ops::dot(s, i)),
         }
     }
@@ -181,11 +185,11 @@ impl UncoupledAtomBasis {
 }
 
 impl CoupledAtomBasis {
-    pub fn hifi(&self, a_hifi: AHifiId) -> HifiSpec<impl Fn(BasisElementsRef) -> Operator + use<>> {
+    pub fn hifi(&self, a_hifi: CouplingId) -> CouplingSpec<impl Fn(BasisElementsRef) -> Operator + use<>> {
         let f_id = self.f;
 
-        HifiSpec {
-            a_hifi,
+        CouplingSpec {
+            coupling: a_hifi,
             operator: move |b| operator_diag_mel!(b, [f_id], |[f]| dot_coupled(f)),
         }
     }

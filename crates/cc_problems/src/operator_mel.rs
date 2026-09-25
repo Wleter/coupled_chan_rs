@@ -1,19 +1,9 @@
 use hilbert_space::operator::Braket;
 use spin_algebra::{
-    Spin,
-    SpinLike,
-    SpinMagLike,
-    SpinPair,
-    get_spin_basis,
-    half_integer::HalfU32,
-    hi32,
-    hu32,
-    ops::{
+    Spin, SpinLike, SpinMagLike, SpinPair, get_spin_basis_iter, half_integer::HalfU32, hi32, hu32, ops::{
         clebsch_gordan_coef,
         triangle_condition,
-    },
-    wigner_3j,
-    wigner_6j,
+    }, wigner_3j, wigner_6j
 };
 
 use crate::Angular;
@@ -27,7 +17,7 @@ pub fn spin_sum_projection_uncoupled(
     s2: Braket<impl SpinLike>,
     s_tot_projected: impl SpinMagLike,
 ) -> f64 {
-    let spins = get_spin_basis(s_tot_projected.s());
+    let spins = get_spin_basis_iter(s_tot_projected.s());
 
     if s1.bra.m() + s2.bra.m() != s1.ket.m() + s2.ket.m()
         || !triangle_condition(s1.bra, s2.bra, s_tot_projected)
@@ -37,8 +27,7 @@ pub fn spin_sum_projection_uncoupled(
     }
 
     spins
-        .iter()
-        .map(|&s| clebsch_gordan_coef(s1.bra, s2.bra, s) * clebsch_gordan_coef(s1.ket, s2.ket, s))
+        .map(|s| clebsch_gordan_coef(s1.bra, s2.bra, s) * clebsch_gordan_coef(s1.ket, s2.ket, s))
         .sum()
 }
 

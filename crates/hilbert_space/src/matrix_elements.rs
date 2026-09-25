@@ -184,7 +184,7 @@ mod tests {
             BasisElements,
             BasisId,
             SpaceBasis,
-            SubspaceBasis,
+            SubspaceBasisOf,
         },
     };
 
@@ -201,13 +201,13 @@ mod tests {
     ) {
         let mut basis = SpaceBasis::default();
 
-        let e_basis = SubspaceBasis::new(vec![ElectronSpin(1, -1), ElectronSpin(1, 1)]);
+        let e_basis = SubspaceBasisOf::new(vec![ElectronSpin(1, -1), ElectronSpin(1, 1)]);
         let e_id = basis.push_subspace(e_basis);
 
-        let nuclear = SubspaceBasis::new(vec![NuclearSpin(1, -1), NuclearSpin(1, 1)]);
+        let nuclear = SubspaceBasisOf::new(vec![NuclearSpin(1, -1), NuclearSpin(1, 1)]);
         let n_id = basis.push_subspace(nuclear);
 
-        let vib = SubspaceBasis::new(vec![Vibrational(-1), Vibrational(-2)]);
+        let vib = SubspaceBasisOf::new(vec![Vibrational(-1), Vibrational(-2)]);
         let vib_id = basis.push_subspace(vib);
 
         (basis.get_basis(), (e_id, n_id, vib_id))
@@ -449,7 +449,7 @@ mod tests {
 
         let mut basis_transform = SpaceBasis::default();
 
-        let s_basis = SubspaceBasis::new(vec![
+        let s_basis = SubspaceBasisOf::new(vec![
             CombinedSpin(2, -2),
             CombinedSpin(2, 0),
             CombinedSpin(2, 2),
@@ -457,7 +457,7 @@ mod tests {
         ]);
         let s_transf_id = basis_transform.push_subspace(s_basis);
 
-        let vib = SubspaceBasis::new(vec![Vibrational(-1), Vibrational(-2)]);
+        let vib = SubspaceBasisOf::new(vec![Vibrational(-1), Vibrational(-2)]);
         let vib_transf_id = basis_transform.push_subspace(vib);
         let basis_transform = basis_transform.get_basis();
 

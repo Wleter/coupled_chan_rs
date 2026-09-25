@@ -2,7 +2,7 @@ use hilbert_space::space::{
     BasisId,
     SpaceBasis,
     SpaceElement,
-    SubspaceBasis,
+    SubspaceBasisOf,
 };
 use serde::{
     Deserialize,
@@ -131,8 +131,8 @@ impl CoupledSIDiatomBasis {
         let i_tot = get_spin_pair_magnitudes([recipe.atom_a.i], [recipe.atom_b.i]);
         let i_tot = get_spin_pair_basis(i_tot);
 
-        let s_tot = basis.push_subspace(SubspaceBasis::new(s_tot));
-        let i_tot = basis.push_subspace(SubspaceBasis::new(i_tot));
+        let s_tot = basis.push_subspace(SubspaceBasisOf::new(s_tot));
+        let i_tot = basis.push_subspace(SubspaceBasisOf::new(i_tot));
         let l = OrbitalBasis::new(recipe.l, basis);
 
         Self { s_tot, i_tot, l }
@@ -173,7 +173,7 @@ impl CoupledFTotDiatomBasis {
         let f_tot = get_spin_pair_magnitudes(s_tot, i_tot);
         let f_tot = get_spin_pair_basis(f_tot);
 
-        let f_tot = basis.push_subspace(SubspaceBasis::new(f_tot));
+        let f_tot = basis.push_subspace(SubspaceBasisOf::new(f_tot));
         let l = OrbitalBasis::new(recipe.l, basis);
 
         Self { f_tot, l }
@@ -224,7 +224,7 @@ impl CoupledDiatomBasis {
         let fl_tot = get_spin_pair_magnitudes(f_tot, l);
         let fl_tot = get_spin_pair_basis(fl_tot);
 
-        let fl_tot = basis.push_subspace(SubspaceBasis::new(fl_tot));
+        let fl_tot = basis.push_subspace(SubspaceBasisOf::new(fl_tot));
 
         Self { fl_tot }
     }
