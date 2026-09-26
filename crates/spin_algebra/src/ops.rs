@@ -289,7 +289,9 @@ pub fn red_harmonics_mel(l: Braket<impl SpinMagLike>, l_sph: impl SpinMagLike) -
     let l_bra = l.bra.s();
     let l_ket = l.ket.s();
 
-    f64::sqrt((l_sph.dim() * l_ket.dim()) as f64 / (4. * PI)) * wigner_3j(l_bra, l_sph, l_ket, hi32!(0), hi32!(0), hi32!(0))
+    (-1f64).powi(l_bra.double_value() as i32 / 2) 
+        * f64::sqrt((l_sph.dim() * l_bra.dim() * l_ket.dim()) as f64 / (4. * PI)) 
+        * wigner_3j(l_bra, l_sph, l_ket, hi32!(0), hi32!(0), hi32!(0))
 }
 
 #[inline]
@@ -299,7 +301,9 @@ pub fn red_reduced_harmonics_mel(l: Braket<impl SpinMagLike>, l_sph: impl SpinMa
     let l_bra = l.bra.s();
     let l_ket = l.ket.s();
 
-    f64::sqrt(l_ket.dim() as f64) * wigner_3j(l_bra, l_sph, l_ket, hi32!(0), hi32!(0), hi32!(0))
+    (-1f64).powi(l_bra.double_value() as i32 / 2) 
+        * f64::sqrt((l_ket.dim() * l_bra.dim()) as f64) 
+        * wigner_3j(l_bra, l_sph, l_ket, hi32!(0), hi32!(0), hi32!(0))
 }
 
 #[cfg(test)]

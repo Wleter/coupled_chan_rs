@@ -99,6 +99,7 @@ where
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
 pub enum OrbitalParity {
     #[default]
     All,

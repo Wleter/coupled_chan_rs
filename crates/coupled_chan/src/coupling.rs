@@ -368,7 +368,7 @@ impl<P: RCoupling> CollisionWMatrix<P> {
         assert_eq!(
             coupling.size(),
             asymptote.asymptote_channels.nrows(),
-            "mismatched sizes between asymptote and coupling"
+            "mismatched sizes between coupling and asymptote"
         );
 
         Self {

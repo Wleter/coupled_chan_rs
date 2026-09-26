@@ -1,8 +1,8 @@
-use hilbert_space::{operator::Braket, operator_mel, space::{BasisElementsRef, BasisId, SpaceBasis, SpaceElement, SubspaceBasisOf}};
+use hilbert_space::{operator::Braket, operator_diag_mel, operator_mel, space::{BasisElementsRef, BasisId, SpaceBasis, SpaceElement, SubspaceBasisOf}};
 use serde::{Deserialize, Serialize};
-use spin_algebra::{Spin, get_spin_basis, half_integer::{HalfI32, HalfU32}, ops::{dot_product_separation, red_first_subsystem_mel_factor, red_reduced_harmonics_mel, red_second_subsystem_mel_factor, red_spin_mel, tensor_product_separation, wigner_eckart_dot_product_factor, wigner_eckart_factor}, spin};
+use spin_algebra::{Spin, SpinMagLike, get_spin_basis, half_integer::{HalfI32, HalfU32}, ops::{dot_product_separation, red_first_subsystem_mel_factor, red_reduced_harmonics_mel, red_second_subsystem_mel_factor, red_spin_mel, tensor_product_separation, wigner_eckart_dot_product_factor, wigner_eckart_factor}, spin};
 
-use crate::{Operator, atom_basis::{AtomRecipe, UncoupledAtomBasis}, atom_operators::{CouplingId, CouplingSpec}, operator_mel::spin_sum_projection_uncoupled, problems::diatom_in_b_field::OrbitalParity, tram_basis::{AngularCoupled, TRAMBasis, TRAMRecipe}};
+use crate::{Angular, Operator, atom_basis::{AtomRecipe, UncoupledAtomBasis}, atom_operators::{CouplingId, CouplingSpec}, operator_mel::spin_sum_projection_uncoupled, problems::diatom_in_b_field::OrbitalParity, tram_basis::{AngularCoupled, TRAMBasis, TRAMRecipe}};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -76,6 +76,26 @@ impl TRAMRotorAtomBasis {
         }
     }
 
+    pub fn rot_energy(&self, rot_const: CouplingId) -> CouplingSpec<impl Fn(BasisElementsRef) -> Operator + use<>> {
+        let n_tot_id = self.tram.tram;
+        CouplingSpec {
+            coupling: rot_const,
+            operator: move |b| operator_diag_mel!(b, [n_tot_id], |[n_tot]| {
+                Angular::new(n_tot.pair.0, 0).squared()
+            })
+        }
+    }
+
+    pub fn rot_energy_distortion(&self, rot_distortion: CouplingId) -> CouplingSpec<impl Fn(BasisElementsRef) -> Operator + use<>> {
+        let n_tot_id = self.tram.tram;
+        CouplingSpec {
+            coupling: rot_distortion,
+            operator: move |b| operator_diag_mel!(b, [n_tot_id], |[n_tot]| {
+                -Angular::new(n_tot.pair.0, 0).squared().powi(2)
+            })
+        }
+    }
+
     pub fn spin_e_rot(&self, spin_e_rot: CouplingId) -> CouplingSpec<impl Fn(BasisElementsRef) -> Operator + use<>> {
         CouplingSpec {
             coupling: spin_e_rot,
@@ -119,8 +139,8 @@ impl TRAMRotorAtomBasis {
         move |b| operator_mel!(b, [s_r_id, s_a_id, n_tot_id], |[s_r, s_a, n_tot]| {
             spin_sum_projection_uncoupled(s_r, s_a, s_tot)
                 * wigner_eckart_dot_product_factor(n_tot, lambda)
-                 * red_reduced_harmonics_mel(n_tot.map(|x| x.pair.0), 2)
-                 * red_reduced_harmonics_mel(n_tot.map(|x| x.pair.1), 2)
+                 * red_reduced_harmonics_mel(n_tot.map(|x| x.pair.0), lambda)
+                 * red_reduced_harmonics_mel(n_tot.map(|x| x.pair.1), lambda)
         })
     }
 
@@ -199,7 +219,7 @@ fn aniso_hifi(
                 ), 
                 |q| wigner_eckart_factor(n_tot, spin!(2, q))
                     * red_first_subsystem_mel_factor(n_tot_mag, 2)
-                    * red_spin_mel(n_tot_mag.bra.pair.0), 
+                    * red_reduced_harmonics_mel(n_tot_mag.map(|x| x.pair.0), 2), 
             )
         } else {
             0.0

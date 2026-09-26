@@ -291,8 +291,8 @@ impl Interactions {
                 DynInteraction::new(Composite::new(items.iter().map(|x| x.scaled_interactions(scaling)).collect()))
             },
             Interactions::Analytic(analytic) => {
-                assert_ne!(scaling.long_range, ScalingValue::one(), "Analytic interaction does not support short range scaling");
-                assert_ne!(scaling.short_range, ScalingValue::one(), "Analytic interaction does not support long range scaling");
+                assert_eq!(scaling.long_range, ScalingValue::one(), "Analytic interaction does not support short range scaling");
+                assert_eq!(scaling.short_range, ScalingValue::one(), "Analytic interaction does not support long range scaling");
 
                 if scaling.full == ScalingValue::one() {
                     DynInteraction::new(analytic.interaction())
@@ -301,8 +301,8 @@ impl Interactions {
                 }
             },
             Interactions::Spline(spline) => {
-                assert_ne!(scaling.long_range, ScalingValue::one(), "Spline interpolated interaction does not support short range scaling");
-                assert_ne!(scaling.short_range, ScalingValue::one(), "Spline interpolated interaction does not support long range scaling");
+                assert_eq!(scaling.long_range, ScalingValue::one(), "Spline interpolated interaction does not support short range scaling");
+                assert_eq!(scaling.short_range, ScalingValue::one(), "Spline interpolated interaction does not support long range scaling");
 
                 if scaling.full == ScalingValue::one() {
                     DynInteraction::new(spline.interaction())

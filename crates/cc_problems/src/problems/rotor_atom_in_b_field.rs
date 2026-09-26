@@ -124,7 +124,7 @@ where
     ModifyRegistry::from([
         ("magnetic_field", modify_recipe!(|b| ScalarParamMod::new(b, ids.b_field))),
         ("red_mass", modify_recipe!(|x| ScalarParamMod::new(x, ids.red_mass))),
-        ("pec_scaling", modify_recipe!(|x| PesPolarizationScalingMod::new(x, ids.pes, ids.scalings))),
+        ("pes_scaling", modify_recipe!(|x| PesPolarizationScalingMod::new(x, ids.pes, ids.scalings))),
     ])
 }
 
@@ -137,7 +137,7 @@ where
     ModifyRegistry::from([
         ("magnetic_field", modify_recipe!(|b| ScalarParamMod::new(b, ids.b_field))),
         ("red_mass", modify_recipe!(|x| ScalarParamMod::new(x, ids.red_mass))),
-        ("pec_scaling", modify_recipe!(|x| PesPolarizationScalingMod::new(x, ids.pes, ids.scalings))),
+        ("pes_scaling", modify_recipe!(|x| PesPolarizationScalingMod::new(x, ids.pes, ids.scalings))),
     ])
 }
 
@@ -263,6 +263,8 @@ impl Problem for RotorAtomInBFieldProblem {
                 "atom.zeeman_n",
                 DynOperatorSpec::new(rotor_atom.atom.zeeman_n(param_ids.b_field, param_ids.atom.g_n)),
             ),
+            ("rotor_energy", DynOperatorSpec::new(rotor_atom.rot_energy(param_ids.rotor.rot_const))),
+            ("rotor_energy_distortion", DynOperatorSpec::new(rotor_atom.rot_energy_distortion(param_ids.rotor.rot_distortion))),
             ("rotor.hifi_a", DynOperatorSpec::new(rotor_atom.rotor_a.hifi(param_ids.rotor_spins.a_hifi_a))),
             ("rotor.hifi_b", DynOperatorSpec::new(rotor_atom.rotor_b.hifi(param_ids.rotor_spins.a_hifi_b))),
             (
@@ -275,10 +277,13 @@ impl Problem for RotorAtomInBFieldProblem {
             ),
             (
                 "rotor.zeeman_n_b",
-                DynOperatorSpec::new(rotor_atom.rotor_a.zeeman_n(param_ids.b_field, param_ids.rotor_spins.g_n_b)),
+                DynOperatorSpec::new(rotor_atom.rotor_b.zeeman_n(param_ids.b_field, param_ids.rotor_spins.g_n_b)),
             ),
             ("rotor.aniso_hifi_a", DynOperatorSpec::new(rotor_atom.aniso_hifi_a(param_ids.rotor_spins.c_hifi_a))),
-            ("rotor.aniso_hifi_b", DynOperatorSpec::new(rotor_atom.aniso_hifi_a(param_ids.rotor_spins.c_hifi_b))),
+            ("rotor.aniso_hifi_b", DynOperatorSpec::new(rotor_atom.aniso_hifi_b(param_ids.rotor_spins.c_hifi_b))),
+            ("rotor.e_rot", DynOperatorSpec::new(rotor_atom.spin_e_rot(param_ids.rotor.spin_e_rot))),
+            ("rotor.n_a_rot", DynOperatorSpec::new(rotor_atom.spin_n_a_rot(param_ids.rotor.spin_n_a_rot))),
+            ("rotor.n_b_rot", DynOperatorSpec::new(rotor_atom.spin_n_b_rot(param_ids.rotor.spin_n_b_rot))),
         ]);
 
         let s_r = basis_recipe.rotor.s;
@@ -290,7 +295,7 @@ impl Problem for RotorAtomInBFieldProblem {
             
             pes.components().into_iter().map(move |lambda| {
                 (
-                    format!("pes_s_{}", s_tot),
+                    format!("pes_s_{s_tot}_lambda_{lambda}"),
                     DynPotentialSpec::new(PesPolarizationSpec {
                         s_tot: s_tot,
                         lambda,
