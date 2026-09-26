@@ -203,13 +203,15 @@ impl WaveFunction {
     pub fn normalize(mut self) -> Self {
         let normalization: f64 = self
             .distances
-            .array_windows()
-            .zip(self.values.array_windows())
-            .map(|([x0, x1], [f0, f1])| {
+            .windows(2)
+            .zip(self.values.windows(2))
+            .map(|(x, f)| unsafe {
+                let f1 = f.get_unchecked(1);
+                let f0 = f.get_unchecked(0);
                 let f1_norm = f1.iter().fold(0., |acc, x| acc + x * x);
                 let f0_norm = f0.iter().fold(0., |acc, x| acc + x * x);
 
-                0.5 * (x1 - x0) * (f1_norm + f0_norm)
+                0.5 * (x.get_unchecked(1) - x.get_unchecked(0)) * (f1_norm + f0_norm)
             })
             .sum();
 
