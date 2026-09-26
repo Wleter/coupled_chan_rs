@@ -1,10 +1,8 @@
 use std::collections::HashMap;
 
-use hilbert_space::{
-    space::{
-        SpaceBasis,
-        SpaceElement,
-    },
+use hilbert_space::space::{
+    SpaceBasis,
+    SpaceElement,
 };
 use serde::{
     Deserialize,
@@ -18,20 +16,70 @@ use spin_algebra::{
 use unit_systems::quantities::{
     Scalar,
     phys_quantities::{
-        Energy, MagneticDipole, MagneticField, Mass
+        Energy,
+        MagneticDipole,
+        MagneticField,
+        Mass,
     },
 };
 
 use crate::{
-    OrbitalBasisElements, atom_operators::{AtomParams, electron_g_e}, calculations::{
-        DynCalc, adiabats::{AdiabatsCalc, adiabats_calc_mods}, bound_states::{BoundStateCalc, bound_states_calc_mods, bound_states_calc_search_mods}, dependence::DependenceCalc, hamiltonian_terms::hamiltonian_terms_calc, levels::EnergyLevelsCalc, modifications::{ModifyRegistry, NumberCalcMod, ScalarParamMod}, resonances::ResonancesCalc, scattering::{ScatteringCalc, scattering_calc_mods}
-    }, diatom_operators::SpinRotationSpec, interactions::{
-        Interactions, SpinConfiguration, pes::{PesPolarizationScalingMod, PesPolarizationScalings, PesPolarizationSpec, PesPolarizations}
-    }, modify_recipe, parameters::Parameters, problems::{Problem, diatom_in_b_field::OrbitalParity}, rotor_atom_basis::{TRAMRotorAtomBasis, TRAMRotorAtomBasisRecipe}, system::{
+    OrbitalBasisElements,
+    atom_operators::{
+        AtomParams,
+        electron_g_e,
+    },
+    calculations::{
+        DynCalc,
+        adiabats::{
+            AdiabatsCalc,
+            adiabats_calc_mods,
+        },
+        bound_states::{
+            BoundStateCalc,
+            bound_states_calc_mods,
+            bound_states_calc_search_mods,
+        },
+        dependence::DependenceCalc,
+        hamiltonian_terms::hamiltonian_terms_calc,
+        levels::EnergyLevelsCalc,
+        modifications::{
+            ModifyRegistry,
+            NumberCalcMod,
+            ScalarParamMod,
+        },
+        resonances::ResonancesCalc,
+        scattering::{
+            ScatteringCalc,
+            scattering_calc_mods,
+        },
+    },
+    diatom_operators::SpinRotationSpec,
+    interactions::{
+        Interactions,
+        SpinConfiguration,
+        pes::{
+            PesPolarizationScalingMod,
+            PesPolarizationScalings,
+            PesPolarizationSpec,
+            PesPolarizations,
+        },
+    },
+    modify_recipe,
+    parameters::Parameters,
+    problems::{
+        Problem,
+        diatom_in_b_field::OrbitalParity,
+    },
+    rotor_atom_basis::{
+        TRAMRotorAtomBasis,
+        TRAMRotorAtomBasisRecipe,
+    },
+    system::{
         DynOperatorSpec,
         DynPotentialSpec,
         HamiltonianSpec,
-    }
+    },
 };
 
 #[derive(Debug, Clone, Parameters, Serialize, Deserialize)]
@@ -49,14 +97,14 @@ pub struct RotorSpinParams {
 
 impl Default for RotorSpinParams {
     fn default() -> Self {
-        Self { 
-            a_hifi_a: Default::default(), 
-            a_hifi_b: Default::default(), 
-            c_hifi_a: Default::default(), 
-            c_hifi_b: Default::default(), 
-            g_e: electron_g_e(), 
-            g_n_a: Default::default(), 
-            g_n_b: Default::default() 
+        Self {
+            a_hifi_a: Default::default(),
+            a_hifi_b: Default::default(),
+            c_hifi_a: Default::default(),
+            c_hifi_b: Default::default(),
+            g_e: electron_g_e(),
+            g_n_a: Default::default(),
+            g_n_b: Default::default(),
         }
     }
 }
@@ -110,9 +158,18 @@ where
     C: Send + Sync + 'static,
 {
     ModifyRegistry::from([
-        ("n_max", modify_recipe!(|n_max| NumberCalcMod::new(n_max, |r: &mut P::BasisRecipe, n| r.tram.n_max = n))),
-        ("l_max", modify_recipe!(|l_max| NumberCalcMod::new(l_max, |r: &mut P::BasisRecipe, l| r.tram.l_max = l))),
-        ("n_tot_max", modify_recipe!(|n_max| NumberCalcMod::new(n_max, |r: &mut P::BasisRecipe, n| r.tram.n_tot_max = n))),
+        (
+            "n_max",
+            modify_recipe!(|n_max| NumberCalcMod::new(n_max, |r: &mut P::BasisRecipe, n| r.tram.n_max = n)),
+        ),
+        (
+            "l_max",
+            modify_recipe!(|l_max| NumberCalcMod::new(l_max, |r: &mut P::BasisRecipe, l| r.tram.l_max = l)),
+        ),
+        (
+            "n_tot_max",
+            modify_recipe!(|n_max| NumberCalcMod::new(n_max, |r: &mut P::BasisRecipe, n| r.tram.n_tot_max = n)),
+        ),
     ])
 }
 
@@ -125,7 +182,10 @@ where
     ModifyRegistry::from([
         ("magnetic_field", modify_recipe!(|b| ScalarParamMod::new(b, ids.b_field))),
         ("red_mass", modify_recipe!(|x| ScalarParamMod::new(x, ids.red_mass))),
-        ("pes_scaling", modify_recipe!(|x| PesPolarizationScalingMod::new(x, ids.pes, ids.scalings))),
+        (
+            "pes_scaling",
+            modify_recipe!(|x| PesPolarizationScalingMod::new(x, ids.pes, ids.scalings)),
+        ),
     ])
 }
 
@@ -138,7 +198,10 @@ where
     ModifyRegistry::from([
         ("magnetic_field", modify_recipe!(|b| ScalarParamMod::new(b, ids.b_field))),
         ("red_mass", modify_recipe!(|x| ScalarParamMod::new(x, ids.red_mass))),
-        ("pes_scaling", modify_recipe!(|x| PesPolarizationScalingMod::new(x, ids.pes, ids.scalings))),
+        (
+            "pes_scaling",
+            modify_recipe!(|x| PesPolarizationScalingMod::new(x, ids.pes, ids.scalings)),
+        ),
     ])
 }
 
@@ -170,8 +233,7 @@ pub fn rotor_atom_scattering_b_field_scan() -> Box<dyn DynCalc<RotorAtomInBField
 
 pub fn rotor_atom_bound_states_b_field_scan() -> Box<dyn DynCalc<RotorAtomInBFieldProblem>> {
     let ids = RotorAtomInBFieldParams::ids();
-    let registry = rotor_atom_in_b_field_params_search_mods()
-        .extend(bound_states_calc_search_mods());
+    let registry = rotor_atom_in_b_field_params_search_mods().extend(bound_states_calc_search_mods());
     let bound_state_calc = BoundStateCalc::new(ids.red_mass, registry);
 
     let registry = rotor_atom_in_b_field_basis_mods()
@@ -183,14 +245,12 @@ pub fn rotor_atom_bound_states_b_field_scan() -> Box<dyn DynCalc<RotorAtomInBFie
 pub fn rotor_atom_resonances_scan() -> Box<dyn DynCalc<RotorAtomInBFieldProblem>> {
     let ids = RotorAtomInBFieldParams::ids();
     let scattering_calc = ScatteringCalc::new(ids.red_mass);
-    let registry = rotor_atom_in_b_field_params_search_mods()
-        .extend(bound_states_calc_search_mods());
+    let registry = rotor_atom_in_b_field_params_search_mods().extend(bound_states_calc_search_mods());
     let bound_state_calc = BoundStateCalc::new(ids.red_mass, registry);
 
     let resonances_calc = ResonancesCalc::new(scattering_calc, bound_state_calc);
 
-    let registry = rotor_atom_in_b_field_basis_mods()
-        .extend(rotor_atom_in_b_field_params_mods());
+    let registry = rotor_atom_in_b_field_basis_mods().extend(rotor_atom_in_b_field_params_mods());
     Box::new(DependenceCalc::new(resonances_calc, registry))
 }
 
@@ -233,9 +293,11 @@ impl Problem for RotorAtomInBFieldProblem {
         let mut basis = SpaceBasis::default();
         let rotor_atom = TRAMRotorAtomBasis::new(basis_recipe, &mut basis);
 
-        let projection_filter = |m, x: SpaceElement| rotor_atom.filter(|((s_r, i_ra, i_rb), (s_a, i_a), n_tot)| {
-            s_r.m() + i_ra.m() + i_rb.m() + s_a.m() + i_a.m() + n_tot.m() == m
-        })(x);
+        let projection_filter = |m, x: SpaceElement| {
+            rotor_atom.filter(|((s_r, i_ra, i_rb), (s_a, i_a), n_tot)| {
+                s_r.m() + i_ra.m() + i_rb.m() + s_a.m() + i_a.m() + n_tot.m() == m
+            })(x)
+        };
         let projection_filter = |x: SpaceElement| {
             if let Some(proj) = basis_recipe.projection {
                 projection_filter(proj, x)
@@ -264,10 +326,22 @@ impl Problem for RotorAtomInBFieldProblem {
                 "atom.zeeman_n",
                 DynOperatorSpec::new(rotor_atom.atom.zeeman_n(param_ids.b_field, param_ids.atom.g_n)),
             ),
-            ("rotor_energy", DynOperatorSpec::new(rotor_atom.rot_energy(param_ids.rotor.rot_const))),
-            ("rotor_energy_distortion", DynOperatorSpec::new(rotor_atom.rot_energy_distortion(param_ids.rotor.rot_distortion))),
-            ("rotor.hifi_a", DynOperatorSpec::new(rotor_atom.rotor_a.hifi(param_ids.rotor_spins.a_hifi_a))),
-            ("rotor.hifi_b", DynOperatorSpec::new(rotor_atom.rotor_b.hifi(param_ids.rotor_spins.a_hifi_b))),
+            (
+                "rotor_energy",
+                DynOperatorSpec::new(rotor_atom.rot_energy(param_ids.rotor.rot_const)),
+            ),
+            (
+                "rotor_energy_distortion",
+                DynOperatorSpec::new(rotor_atom.rot_energy_distortion(param_ids.rotor.rot_distortion)),
+            ),
+            (
+                "rotor.hifi_a",
+                DynOperatorSpec::new(rotor_atom.rotor_a.hifi(param_ids.rotor_spins.a_hifi_a)),
+            ),
+            (
+                "rotor.hifi_b",
+                DynOperatorSpec::new(rotor_atom.rotor_b.hifi(param_ids.rotor_spins.a_hifi_b)),
+            ),
             (
                 "rotor.zeeman_e",
                 DynOperatorSpec::new(rotor_atom.rotor_a.zeeman_e(param_ids.b_field, param_ids.rotor_spins.g_e)),
@@ -280,11 +354,26 @@ impl Problem for RotorAtomInBFieldProblem {
                 "rotor.zeeman_n_b",
                 DynOperatorSpec::new(rotor_atom.rotor_b.zeeman_n(param_ids.b_field, param_ids.rotor_spins.g_n_b)),
             ),
-            ("rotor.aniso_hifi_a", DynOperatorSpec::new(rotor_atom.aniso_hifi_a(param_ids.rotor_spins.c_hifi_a))),
-            ("rotor.aniso_hifi_b", DynOperatorSpec::new(rotor_atom.aniso_hifi_b(param_ids.rotor_spins.c_hifi_b))),
-            ("rotor.e_rot", DynOperatorSpec::new(rotor_atom.spin_e_rot(param_ids.rotor.spin_e_rot))),
-            ("rotor.n_a_rot", DynOperatorSpec::new(rotor_atom.spin_n_a_rot(param_ids.rotor.spin_n_a_rot))),
-            ("rotor.n_b_rot", DynOperatorSpec::new(rotor_atom.spin_n_b_rot(param_ids.rotor.spin_n_b_rot))),
+            (
+                "rotor.aniso_hifi_a",
+                DynOperatorSpec::new(rotor_atom.aniso_hifi_a(param_ids.rotor_spins.c_hifi_a)),
+            ),
+            (
+                "rotor.aniso_hifi_b",
+                DynOperatorSpec::new(rotor_atom.aniso_hifi_b(param_ids.rotor_spins.c_hifi_b)),
+            ),
+            (
+                "rotor.e_rot",
+                DynOperatorSpec::new(rotor_atom.spin_e_rot(param_ids.rotor.spin_e_rot)),
+            ),
+            (
+                "rotor.n_a_rot",
+                DynOperatorSpec::new(rotor_atom.spin_n_a_rot(param_ids.rotor.spin_n_a_rot)),
+            ),
+            (
+                "rotor.n_b_rot",
+                DynOperatorSpec::new(rotor_atom.spin_n_b_rot(param_ids.rotor.spin_n_b_rot)),
+            ),
         ]);
 
         let s_r = basis_recipe.rotor.s;
@@ -293,7 +382,7 @@ impl Problem for RotorAtomInBFieldProblem {
         hamiltonian_spec.add_potentials(polarizations.into_iter().flat_map(|p| {
             let pes = &params.pes.0[&SpinConfiguration::Spin(p.s())];
             let s_tot = p.s();
-            
+
             pes.components().into_iter().map(move |lambda| {
                 (
                     format!("pes_s_{s_tot}_lambda_{lambda}"),

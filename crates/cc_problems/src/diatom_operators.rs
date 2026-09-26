@@ -11,18 +11,27 @@ use spin_algebra::{
     SpinLike,
     SpinMagLike,
     ops::{
-        dot_product_separation, red_dot_product_factor, red_first_subsystem_mel_factor, red_reduced_harmonics_mel, red_second_subsystem_mel_factor, red_spin_mel, red_tensor_product_factor, wigner_eckart_dot_product_factor, wigner_eckart_factor
-    }, spin,
+        dot_product_separation,
+        red_dot_product_factor,
+        red_first_subsystem_mel_factor,
+        red_reduced_harmonics_mel,
+        red_second_subsystem_mel_factor,
+        red_spin_mel,
+        red_tensor_product_factor,
+        wigner_eckart_dot_product_factor,
+        wigner_eckart_factor,
+    },
+    spin,
 };
 use unit_systems::CODATA_2022;
 
 use crate::{
     Operator,
     atom_operators::{
-        CouplingId,
         BFieldId,
-        GFactorId,
+        CouplingId,
         CouplingSpec,
+        GFactorId,
         ZeemanSpec,
     },
     diatom_basis::{
@@ -89,15 +98,19 @@ impl CoupledSIDiatomBasis {
                     let i_tot_mag = i_tot.map(|x| x.as_spin_pair_mag());
 
                     dot_product_separation(
-                        s_tot, 
-                        i_tot, 
-                        1, 
-                        |q| wigner_eckart_factor(s_tot, spin!(1, q))
-                            * red_first_subsystem_mel_factor(s_tot_mag, 1)
-                            * red_spin_mel(s_tot.bra.pair.0), 
-                        |q| wigner_eckart_factor(i_tot, spin!(1, q))
-                            * red_first_subsystem_mel_factor(i_tot_mag, 1)
-                            * red_spin_mel(i_tot.bra.pair.0)
+                        s_tot,
+                        i_tot,
+                        1,
+                        |q| {
+                            wigner_eckart_factor(s_tot, spin!(1, q))
+                                * red_first_subsystem_mel_factor(s_tot_mag, 1)
+                                * red_spin_mel(s_tot.bra.pair.0)
+                        },
+                        |q| {
+                            wigner_eckart_factor(i_tot, spin!(1, q))
+                                * red_first_subsystem_mel_factor(i_tot_mag, 1)
+                                * red_spin_mel(i_tot.bra.pair.0)
+                        },
                     )
                 })
             },
@@ -116,15 +129,19 @@ impl CoupledSIDiatomBasis {
                     let i_tot_mag = i_tot.map(|x| x.as_spin_pair_mag());
 
                     dot_product_separation(
-                        s_tot, 
-                        i_tot, 
-                        1, 
-                        |q| wigner_eckart_factor(s_tot, spin!(1, q))
-                            * red_second_subsystem_mel_factor(s_tot_mag, 1)
-                            * red_spin_mel(s_tot.bra.pair.1), 
-                        |q| wigner_eckart_factor(i_tot, spin!(1, q))
-                            * red_second_subsystem_mel_factor(i_tot_mag, 1)
-                            * red_spin_mel(i_tot.bra.pair.1)
+                        s_tot,
+                        i_tot,
+                        1,
+                        |q| {
+                            wigner_eckart_factor(s_tot, spin!(1, q))
+                                * red_second_subsystem_mel_factor(s_tot_mag, 1)
+                                * red_spin_mel(s_tot.bra.pair.1)
+                        },
+                        |q| {
+                            wigner_eckart_factor(i_tot, spin!(1, q))
+                                * red_second_subsystem_mel_factor(i_tot_mag, 1)
+                                * red_spin_mel(i_tot.bra.pair.1)
+                        },
                     )
                 })
             },
@@ -242,16 +259,19 @@ impl CoupledSIDiatomBasis {
         move |b: BasisElementsRef| {
             operator_mel!(b, [s_id, l_id], |[s, l]| {
                 if s.bra.pair.0 == s.ket.pair.0 && s.bra.pair.1 == s.ket.pair.1 {
-                    f64::sqrt(6.0) * dot_product_separation(
-                        s, 
-                        l, 
-                        2, 
-                        |q| wigner_eckart_factor(s, spin!(2, q))
-                            * red_tensor_product_factor(s.map(|s| s.as_spin_pair_mag()), 1, 1, 2)
-                            * red_spin_mel(s.bra.pair.0)
-                            * red_spin_mel(s.bra.pair.1), 
-                        |q| wigner_eckart_factor(l, spin!(2, q)) * red_reduced_harmonics_mel(l, 2)
-                    )
+                    f64::sqrt(6.0)
+                        * dot_product_separation(
+                            s,
+                            l,
+                            2,
+                            |q| {
+                                wigner_eckart_factor(s, spin!(2, q))
+                                    * red_tensor_product_factor(s.map(|s| s.as_spin_pair_mag()), 1, 1, 2)
+                                    * red_spin_mel(s.bra.pair.0)
+                                    * red_spin_mel(s.bra.pair.1)
+                            },
+                            |q| wigner_eckart_factor(l, spin!(2, q)) * red_reduced_harmonics_mel(l, 2),
+                        )
                 } else {
                     0.0
                 }

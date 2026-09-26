@@ -11,26 +11,29 @@ use std::{
 use cc_derive::Parameters;
 use cc_qol_utils::Composite;
 use coupled_chan::{
-    DynInteraction, NullInteraction, dispersion::{
+    DynInteraction,
+    NullInteraction,
+    dispersion::{
         AnalyticInteraction,
         ExpLaw,
         PowerLaw,
         lenard_jones,
-    }, interpolated::{
+    },
+    interpolated::{
         InterpolatedPotential,
         Transitioned,
         sin_transition,
         spline_interpolation::SplineBuilder,
-    }, morse_long_range, scaled::Scaled
+    },
+    morse_long_range,
+    scaled::Scaled,
 };
 use hilbert_space::space::BasisElementsRef;
 use serde::{
     Deserialize,
     Serialize,
 };
-use serde_json::{
-    Number,
-};
+use serde_json::Number;
 use spin_algebra::{
     half_integer::HalfU32,
     hu32,
@@ -262,10 +265,12 @@ impl Interactions {
                 lenard_jones.d_e.scale(scaling.short_range.0 * scaling.full.0);
                 // make C6 = 2.0 * d_e * r_e^6 independent of short_range
                 // and scaling linearly with long_range or full scaling
-                lenard_jones.r_e.scale((scaling.long_range.0 / scaling.short_range.0).powf(1. / 6.));
+                lenard_jones
+                    .r_e
+                    .scale((scaling.long_range.0 / scaling.short_range.0).powf(1. / 6.));
 
                 DynInteraction::new(lenard_jones.interaction())
-            },
+            }
             Interactions::MorseLongRange(morse_long_range) => {
                 let mut mlr = morse_long_range.clone();
                 mlr.d0.scale(scaling.short_range.0 * scaling.full.0);
@@ -273,43 +278,77 @@ impl Interactions {
                     t.d.scale(scaling.long_range.0 * scaling.full.0);
                 }
                 DynInteraction::new(mlr.interaction())
-            },
-            Interactions::Transition { near, far, r_start_switch, r_end_switch, switching } => {
+            }
+            Interactions::Transition {
+                near,
+                far,
+                r_start_switch,
+                r_end_switch,
+                switching,
+            } => {
                 let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
                 let r_start = converter.scalar_value(r_start_switch);
                 let r_end = converter.scalar_value(r_end_switch);
 
                 match switching {
                     SwitchingRegion::SinTransition => DynInteraction::new(Transitioned::new(
-                        near.scaled_interactions(PecScaling::new(scaling.short_range.0 * scaling.full.0, PecScalingType::Full)),
-                        far.scaled_interactions(PecScaling::new(scaling.long_range.0 * scaling.full.0, PecScalingType::Full)),
+                        near.scaled_interactions(PecScaling::new(
+                            scaling.short_range.0 * scaling.full.0,
+                            PecScalingType::Full,
+                        )),
+                        far.scaled_interactions(PecScaling::new(
+                            scaling.long_range.0 * scaling.full.0,
+                            PecScalingType::Full,
+                        )),
                         sin_transition(r_start, r_end),
                     )),
                 }
-            },
+            }
             Interactions::Composite(items) => {
                 DynInteraction::new(Composite::new(items.iter().map(|x| x.scaled_interactions(scaling)).collect()))
-            },
+            }
             Interactions::Analytic(analytic) => {
-                assert_eq!(scaling.long_range, ScalingValue::one(), "Analytic interaction does not support short range scaling");
-                assert_eq!(scaling.short_range, ScalingValue::one(), "Analytic interaction does not support long range scaling");
+                assert_eq!(
+                    scaling.long_range,
+                    ScalingValue::one(),
+                    "Analytic interaction does not support short range scaling"
+                );
+                assert_eq!(
+                    scaling.short_range,
+                    ScalingValue::one(),
+                    "Analytic interaction does not support long range scaling"
+                );
 
                 if scaling.full == ScalingValue::one() {
                     DynInteraction::new(analytic.interaction())
                 } else {
-                    DynInteraction::new(Scaled { interaction: analytic.interaction(), scaling: scaling.full.0 })
+                    DynInteraction::new(Scaled {
+                        interaction: analytic.interaction(),
+                        scaling: scaling.full.0,
+                    })
                 }
-            },
+            }
             Interactions::Spline(spline) => {
-                assert_eq!(scaling.long_range, ScalingValue::one(), "Spline interpolated interaction does not support short range scaling");
-                assert_eq!(scaling.short_range, ScalingValue::one(), "Spline interpolated interaction does not support long range scaling");
+                assert_eq!(
+                    scaling.long_range,
+                    ScalingValue::one(),
+                    "Spline interpolated interaction does not support short range scaling"
+                );
+                assert_eq!(
+                    scaling.short_range,
+                    ScalingValue::one(),
+                    "Spline interpolated interaction does not support long range scaling"
+                );
 
                 if scaling.full == ScalingValue::one() {
                     DynInteraction::new(spline.interaction())
                 } else {
-                    DynInteraction::new(Scaled { interaction: spline.interaction(), scaling: scaling.full.0 })
+                    DynInteraction::new(Scaled {
+                        interaction: spline.interaction(),
+                        scaling: scaling.full.0,
+                    })
                 }
-            },
+            }
         }
     }
 }
@@ -328,7 +367,7 @@ pub enum PecScalingType {
 pub struct PecScaling {
     short_range: ScalingValue,
     long_range: ScalingValue,
-    full: ScalingValue
+    full: ScalingValue,
 }
 
 impl PecScaling {
@@ -557,12 +596,16 @@ impl<P: Problem, C: Send + Sync> ModifyParam for PecPolarizationScalingMod<P, C>
         ModificationAction::ParamModify(
             ParamModifications::new(move |r| {
                 if let Some(c) = scaling.configuration {
-                    r.get_mut(id_scalings).0.insert(c, PecScaling::new(scaling.scaling, scaling.scaling_type));
+                    r.get_mut(id_scalings)
+                        .0
+                        .insert(c, PecScaling::new(scaling.scaling, scaling.scaling_type));
                     let s = r.get_mut(id_scalings).0.get_mut(&c).expect("Nonexistent");
                     s.modify(scaling.scaling, scaling.scaling_type);
                 } else {
                     for k in r.get(id_pec).0.keys().copied().collect::<Vec<SpinConfiguration>>() {
-                        r.get_mut(id_scalings).0.insert(k, PecScaling::new(scaling.scaling, scaling.scaling_type));
+                        r.get_mut(id_scalings)
+                            .0
+                            .insert(k, PecScaling::new(scaling.scaling, scaling.scaling_type));
                     }
                 }
 

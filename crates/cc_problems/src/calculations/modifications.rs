@@ -217,22 +217,22 @@ where
     }
 }
 
-pub struct NumberCalcMod<T, P, C, F> 
-where 
-    T: Into<i128> + TryFrom<i128>, 
-    P: Problem, 
-    F: Fn(&mut P::BasisRecipe, T) 
+pub struct NumberCalcMod<T, P, C, F>
+where
+    T: Into<i128> + TryFrom<i128>,
+    P: Problem,
+    F: Fn(&mut P::BasisRecipe, T),
 {
     value: T,
     conversion: F,
     phantom: PhantomData<(P, C)>,
 }
 
-impl<T, P, C, F> NumberCalcMod<T, P, C, F> 
-where 
-    T: Into<i128> + TryFrom<i128>, 
-    P: Problem, 
-    F: Fn(&mut P::BasisRecipe, T) 
+impl<T, P, C, F> NumberCalcMod<T, P, C, F>
+where
+    T: Into<i128> + TryFrom<i128>,
+    P: Problem,
+    F: Fn(&mut P::BasisRecipe, T),
 {
     pub fn new(value: T, conversion: F) -> Self {
         Self {
@@ -245,11 +245,11 @@ where
 
 impl<T, P, C, F> ModifyParam for NumberCalcMod<T, P, C, F>
 where
-    T: Into<i128> + TryFrom<i128> + Copy + Send + Sync, 
+    T: Into<i128> + TryFrom<i128> + Copy + Send + Sync,
     P: Problem,
     C: Send + Sync,
     F: Fn(&mut P::BasisRecipe, T) + Send + Sync,
-    <T as TryFrom<i128>>::Error: std::fmt::Debug
+    <T as TryFrom<i128>>::Error: std::fmt::Debug,
 {
     type P = P;
     type C = C;

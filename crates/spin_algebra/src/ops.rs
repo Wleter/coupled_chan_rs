@@ -221,7 +221,7 @@ pub fn red_tensor_product_factor(
 /// <s1' ms1' s2' ms2'||T^k(s1) * T^k(s2)||s1 ms1 s2 ms2> = \sum_q (-1)^q <s1' ms1'|T^k_q(s1)|s1 ms1> <s2' ms2'|T^k_-q(s2)|s2 ms2>
 /// ```
 pub fn dot_product_separation(
-    s1: Braket<impl SpinLike>, 
+    s1: Braket<impl SpinLike>,
     s2: Braket<impl SpinLike>,
     k: impl SpinMagLike,
     t1_mel: impl Fn(HalfI32) -> f64,
@@ -231,9 +231,7 @@ pub fn dot_product_separation(
     let q2 = s2.bra.m() - s2.ket.m();
 
     if q1 == -q2 && q1.double_value().unsigned_abs() <= k.s().double_value() {
-        (-1f64).powi(q1.double_value() / 2)
-            * t1_mel(q1)
-            * t2_mel(q2)
+        (-1f64).powi(q1.double_value() / 2) * t1_mel(q1) * t2_mel(q2)
     } else {
         0.0
     }
@@ -245,8 +243,8 @@ pub fn dot_product_separation(
 /// <s1' ms1' s2' ms2'|(T^k1(s1) ⊗ T^k2(s2))^k_q|s1 ms1 s2 ms2> = \sum_(q1, q2) <k1 q1 k2 q2|kq> <s1' ms1'|T^k1_q1(s1)|s1 ms1> <s2' ms2'|T^k2_q2(s2)|s2 ms2>
 /// ```
 pub fn tensor_product_separation(
-    s1: Braket<impl SpinLike>, 
-    s2: Braket<impl SpinLike>, 
+    s1: Braket<impl SpinLike>,
+    s2: Braket<impl SpinLike>,
     k1: impl SpinMagLike,
     k2: impl SpinMagLike,
     kq: impl SpinLike,
@@ -256,13 +254,11 @@ pub fn tensor_product_separation(
     let q1 = s1.bra.m() - s1.ket.m();
     let q2 = s2.bra.m() - s2.ket.m();
 
-    if q1 + q2 == kq.m() 
-        && q1.double_value().unsigned_abs() <= k1.s().double_value() 
-        && q2.double_value().unsigned_abs() <= k2.s().double_value() 
+    if q1 + q2 == kq.m()
+        && q1.double_value().unsigned_abs() <= k1.s().double_value()
+        && q2.double_value().unsigned_abs() <= k2.s().double_value()
     {
-        clebsch_gordan::clebsch_gordan(k1.s(), q1, k2.s(), q2, kq.s(), kq.m())
-            * t1_mel(q1)
-            * t2_mel(q2)
+        clebsch_gordan::clebsch_gordan(k1.s(), q1, k2.s(), q2, kq.s(), kq.m()) * t1_mel(q1) * t2_mel(q2)
     } else {
         0.0
     }
@@ -289,8 +285,8 @@ pub fn red_harmonics_mel(l: Braket<impl SpinMagLike>, l_sph: impl SpinMagLike) -
     let l_bra = l.bra.s();
     let l_ket = l.ket.s();
 
-    (-1f64).powi(l_bra.double_value() as i32 / 2) 
-        * f64::sqrt((l_sph.dim() * l_bra.dim() * l_ket.dim()) as f64 / (4. * PI)) 
+    (-1f64).powi(l_bra.double_value() as i32 / 2)
+        * f64::sqrt((l_sph.dim() * l_bra.dim() * l_ket.dim()) as f64 / (4. * PI))
         * wigner_3j(l_bra, l_sph, l_ket, hi32!(0), hi32!(0), hi32!(0))
 }
 
@@ -301,8 +297,8 @@ pub fn red_reduced_harmonics_mel(l: Braket<impl SpinMagLike>, l_sph: impl SpinMa
     let l_bra = l.bra.s();
     let l_ket = l.ket.s();
 
-    (-1f64).powi(l_bra.double_value() as i32 / 2) 
-        * f64::sqrt((l_ket.dim() * l_bra.dim()) as f64) 
+    (-1f64).powi(l_bra.double_value() as i32 / 2)
+        * f64::sqrt((l_ket.dim() * l_bra.dim()) as f64)
         * wigner_3j(l_bra, l_sph, l_ket, hi32!(0), hi32!(0), hi32!(0))
 }
 

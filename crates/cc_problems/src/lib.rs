@@ -7,9 +7,9 @@ pub mod interactions;
 pub mod operator_mel;
 pub mod parameters;
 pub mod problems;
+pub mod rotor_atom_basis;
 pub mod system;
 pub mod tram_basis;
-pub mod rotor_atom_basis;
 
 use std::sync::{
     LazyLock,

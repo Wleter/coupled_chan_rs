@@ -14,7 +14,10 @@ use serde_json::Value;
 use crate::{
     calculations::DynCalc,
     parameters::Parameters,
-    problems::{diatom_in_b_field::DiatomInBFieldProblem, rotor_atom_in_b_field::RotorAtomInBFieldProblem},
+    problems::{
+        diatom_in_b_field::DiatomInBFieldProblem,
+        rotor_atom_in_b_field::RotorAtomInBFieldProblem,
+    },
     system::HamiltonianSpec,
 };
 

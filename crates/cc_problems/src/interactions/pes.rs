@@ -1,12 +1,52 @@
-use std::{collections::{HashMap, HashSet}, hash::RandomState, marker::PhantomData};
+use std::{
+    collections::{
+        HashMap,
+        HashSet,
+    },
+    hash::RandomState,
+    marker::PhantomData,
+};
 
 use coupled_chan::DynInteraction;
 use hilbert_space::space::BasisElementsRef;
-use serde::{Deserialize, Serialize};
+use serde::{
+    Deserialize,
+    Serialize,
+};
 use spin_algebra::half_integer::HalfU32;
-use unit_systems::quantities::{Scalar, phys_quantities::Length};
+use unit_systems::quantities::{
+    Scalar,
+    phys_quantities::Length,
+};
 
-use crate::{Operator, calculations::{Modified, modifications::{ModificationAction, ModifyParam}}, interactions::{Interactions, PecScaling, PecScalingType, SpinConfiguration, SwitchingRegion}, param_ids, parameters::{ParameterRegistry, TypedParamId}, problems::Problem, system::{ParamIds, ParamModifications, PotentialSpec}};
+use crate::{
+    Operator,
+    calculations::{
+        Modified,
+        modifications::{
+            ModificationAction,
+            ModifyParam,
+        },
+    },
+    interactions::{
+        Interactions,
+        PecScaling,
+        PecScalingType,
+        SpinConfiguration,
+        SwitchingRegion,
+    },
+    param_ids,
+    parameters::{
+        ParameterRegistry,
+        TypedParamId,
+    },
+    problems::Problem,
+    system::{
+        ParamIds,
+        ParamModifications,
+        PotentialSpec,
+    },
+};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -18,41 +58,49 @@ pub enum PesInteractions {
         r_start_switch: Scalar<Length>,
         r_end_switch: Scalar<Length>,
         switching: SwitchingRegion,
-    }
+    },
 }
 
 impl PesInteractions {
     pub fn components(&self) -> Vec<u32> {
         match self {
             PesInteractions::LegendreComponents(hash_map) => hash_map.keys().copied().collect(),
-            PesInteractions::Transition { near, far, r_start_switch: _, r_end_switch: _, switching: _ } => {
+            PesInteractions::Transition {
+                near,
+                far,
+                r_start_switch: _,
+                r_end_switch: _,
+                switching: _,
+            } => {
                 let near = near.components();
                 let far = far.components();
-        
-                HashSet::<u32, RandomState>::from_iter(near.into_iter().chain(far)).into_iter().collect()
-            },
+
+                HashSet::<u32, RandomState>::from_iter(near.into_iter().chain(far))
+                    .into_iter()
+                    .collect()
+            }
         }
     }
 
     pub fn legendre_component(&self, lambda: u32) -> Interactions {
         match self {
             PesInteractions::LegendreComponents(hash_map) => hash_map.get(&lambda).unwrap_or(&Interactions::Null).clone(),
-            PesInteractions::Transition { 
-                near, 
-                far, 
-                r_start_switch, 
-                r_end_switch, 
-                switching 
+            PesInteractions::Transition {
+                near,
+                far,
+                r_start_switch,
+                r_end_switch,
+                switching,
             } => {
                 let near = near.legendre_component(lambda);
                 let far = far.legendre_component(lambda);
 
-                Interactions::Transition { 
-                    near: Box::new(near), 
-                    far: Box::new(far), 
-                    r_start_switch: r_start_switch.clone(), 
-                    r_end_switch: r_end_switch.clone(), 
-                    switching: *switching 
+                Interactions::Transition {
+                    near: Box::new(near),
+                    far: Box::new(far),
+                    r_start_switch: r_start_switch.clone(),
+                    r_end_switch: r_end_switch.clone(),
+                    switching: *switching,
                 }
             }
         }
@@ -66,7 +114,7 @@ pub enum LegendreComponents {
     All,
     Isotropic,
     Anisotropic,
-    LegendreComponent(u32)
+    LegendreComponent(u32),
 }
 
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -85,7 +133,7 @@ impl PesScalings {
 
         for s in &self.0 {
             if matches!(s.legendre_components, LegendreComponents::All)
-                || matches!(s.legendre_components, LegendreComponents::LegendreComponent(x) if x == lambda) 
+                || matches!(s.legendre_components, LegendreComponents::LegendreComponent(x) if x == lambda)
                 || (lambda == 0 && matches!(s.legendre_components, LegendreComponents::Isotropic))
                 || (lambda != 0 && matches!(s.legendre_components, LegendreComponents::Anisotropic))
             {
@@ -112,14 +160,14 @@ pub struct PesPolarizationScaling {
     #[serde(default)]
     configuration: Option<SpinConfiguration>,
     #[serde(default)]
-    legendre_components: LegendreComponents
+    legendre_components: LegendreComponents,
 }
 
 impl PesPolarizationScaling {
     pub fn into_pes_scaling(self) -> PesScaling {
-        PesScaling { 
+        PesScaling {
             scaling: PecScaling::new(self.scaling, self.scaling_type),
-            legendre_components: self.legendre_components
+            legendre_components: self.legendre_components,
         }
     }
 }
@@ -160,31 +208,37 @@ impl<P: Problem, C: Send + Sync> ModifyParam for PesPolarizationScalingMod<P, C>
                 if let Some(c) = scaling.configuration {
                     let scalings = r.get_mut(id_scalings).0.get_mut(&c);
                     if let Some(scalings) = scalings {
-                        if let Some(s) = scalings.0
+                        if let Some(s) = scalings
+                            .0
                             .iter_mut()
-                            .find(|x| x.legendre_components == scaling.legendre_components) 
+                            .find(|x| x.legendre_components == scaling.legendre_components)
                         {
                             *s = scaling.into_pes_scaling();
                         } else {
                             scalings.0.push(scaling.into_pes_scaling())
                         }
                     } else {
-                        r.get_mut(id_scalings).0.insert(c, PesScalings(vec![scaling.into_pes_scaling()]));
+                        r.get_mut(id_scalings)
+                            .0
+                            .insert(c, PesScalings(vec![scaling.into_pes_scaling()]));
                     }
                 } else {
                     for c in r.get(id_pec).0.keys().copied().collect::<Vec<SpinConfiguration>>() {
                         let scalings = r.get_mut(id_scalings).0.get_mut(&c);
                         if let Some(scalings) = scalings {
-                            if let Some(s) = scalings.0
+                            if let Some(s) = scalings
+                                .0
                                 .iter_mut()
-                                .find(|x| x.legendre_components == scaling.legendre_components) 
+                                .find(|x| x.legendre_components == scaling.legendre_components)
                             {
                                 *s = scaling.into_pes_scaling();
                             } else {
                                 scalings.0.push(scaling.into_pes_scaling())
                             }
                         } else {
-                            r.get_mut(id_scalings).0.insert(c, PesScalings(vec![scaling.into_pes_scaling()]));
+                            r.get_mut(id_scalings)
+                                .0
+                                .insert(c, PesScalings(vec![scaling.into_pes_scaling()]));
                         }
                     }
                 }

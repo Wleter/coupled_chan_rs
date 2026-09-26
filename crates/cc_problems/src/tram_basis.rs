@@ -1,6 +1,21 @@
-use hilbert_space::{Parity, space::{BasisId, SpaceBasis, SubspaceBasisOf}};
-use serde::{Deserialize, Serialize};
-use spin_algebra::{SpinPair, SpinPairMag, get_spin_pair_basis, spin};
+use hilbert_space::{
+    Parity,
+    space::{
+        BasisId,
+        SpaceBasis,
+        SubspaceBasisOf,
+    },
+};
+use serde::{
+    Deserialize,
+    Serialize,
+};
+use spin_algebra::{
+    SpinPair,
+    SpinPairMag,
+    get_spin_pair_basis,
+    spin,
+};
 
 pub type AngularCoupled = SpinPair<u32, u32>;
 
@@ -15,7 +30,7 @@ pub struct TRAMRecipe {
 
 #[derive(Debug, Clone, Copy)]
 pub struct TRAMBasis {
-    pub tram: BasisId<AngularCoupled>
+    pub tram: BasisId<AngularCoupled>,
 }
 
 impl TRAMBasis {
@@ -24,9 +39,7 @@ impl TRAMBasis {
     pub fn new(recipe: &TRAMRecipe, basis: &mut SpaceBasis) -> Self {
         let id = basis.push_subspace(SubspaceBasisOf::new(Self::basis(recipe)));
 
-        Self {
-            tram: id,
-        }
+        Self { tram: id }
     }
 
     pub fn basis(recipe: &TRAMRecipe) -> Vec<AngularCoupled> {
@@ -38,12 +51,19 @@ impl TRAMBasis {
             for n in n_min..=n_max {
                 match recipe.parity {
                     Parity::All => (),
-                    Parity::Even => if (n + l) & 1 == 1 { continue },
-                    Parity::Odd => if (n + l) & 1 == 0 { continue },
+                    Parity::Even => {
+                        if (n + l) & 1 == 1 {
+                            continue;
+                        }
+                    }
+                    Parity::Odd => {
+                        if (n + l) & 1 == 0 {
+                            continue;
+                        }
+                    }
                 }
-                let b: Vec<SpinPairMag<u32, u32>> = (0..=recipe.n_tot_max)
-                    .map(|n_tot| spin!((n, l), n_tot.into()))
-                    .collect();
+                let b: Vec<SpinPairMag<u32, u32>> =
+                    (0..=recipe.n_tot_max).map(|n_tot| spin!((n, l), n_tot.into())).collect();
 
                 basis.extend(get_spin_pair_basis(b))
             }

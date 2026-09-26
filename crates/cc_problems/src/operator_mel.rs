@@ -1,9 +1,19 @@
 use hilbert_space::operator::Braket;
 use spin_algebra::{
-    Spin, SpinLike, SpinMagLike, SpinPair, get_spin_basis_iter, half_integer::HalfU32, hi32, hu32, ops::{
+    Spin,
+    SpinLike,
+    SpinMagLike,
+    SpinPair,
+    get_spin_basis_iter,
+    half_integer::HalfU32,
+    hi32,
+    hu32,
+    ops::{
         clebsch_gordan_coef,
         triangle_condition,
-    }, wigner_3j, wigner_6j
+    },
+    wigner_3j,
+    wigner_6j,
 };
 
 use crate::Angular;

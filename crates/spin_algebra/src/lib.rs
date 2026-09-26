@@ -227,9 +227,7 @@ pub fn get_spin_basis_iter(s: impl SpinMagLike) -> impl Iterator<Item = Spin> {
     let s = s.s();
     let ds = s.double_value() as i32;
 
-    (-ds..=ds)
-        .step_by(2)
-        .map(move |dms| Spin::new(s, HalfI32::from_doubled(dms)))
+    (-ds..=ds).step_by(2).map(move |dms| Spin::new(s, HalfI32::from_doubled(dms)))
 }
 
 /// Creates vector containing combined spin basis |S M_S >
