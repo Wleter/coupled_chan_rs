@@ -131,7 +131,7 @@ impl TRAMRotorAtomBasis {
         let n_tot_id = self.tram.tram;
         CouplingSpec {
             coupling: rot_const,
-            operator: move |b| operator_diag_mel!(b, [n_tot_id], |[n_tot]| { Angular::new(n_tot.pair.0, 0).squared() }),
+            operator: move |b| operator_diag_mel!(b, [n_tot_id], |[n_tot]| Angular::new(n_tot.pair.0, 0).squared() ),
         }
     }
 
@@ -143,7 +143,7 @@ impl TRAMRotorAtomBasis {
         CouplingSpec {
             coupling: rot_distortion,
             operator: move |b| {
-                operator_diag_mel!(b, [n_tot_id], |[n_tot]| { -Angular::new(n_tot.pair.0, 0).squared().powi(2) })
+                operator_diag_mel!(b, [n_tot_id], |[n_tot]| -Angular::new(n_tot.pair.0, 0).squared().powi(2) )
             },
         }
     }
