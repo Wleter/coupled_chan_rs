@@ -8,6 +8,7 @@ pub mod legendre;
 
 #[cfg(feature = "faer")]
 pub mod interpolations;
+pub mod airy;
 
 /// Creates evenly spaced grid of points [start, end] (including) with n points.
 pub fn linspace(start: f64, end: f64, n: usize) -> Vec<f64> {
