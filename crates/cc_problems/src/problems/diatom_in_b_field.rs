@@ -108,6 +108,7 @@ pub enum OrbitalParity {
 }
 
 #[derive(Debug, Clone, Deserialize, cc_derive::Parameters)]
+#[serde(deny_unknown_fields)]
 pub struct DiatomInBFieldParams {
     #[serde(default)]
     pub b_field: Scalar<MagneticField>,
