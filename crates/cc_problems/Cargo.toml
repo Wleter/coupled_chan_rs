@@ -9,8 +9,9 @@ hilbert_space = {path = "../hilbert_space", features = ["faer"]}
 spin_algebra = {path = "../spin_algebra"}
 anyhow = { workspace = true }
 
-serde = {workspace = true}
-serde_json = {workspace = true}
+serde = { workspace = true }
+serde_json = { workspace = true }
+schemars = "1.2"
 
 unit_systems = {path = "../unit_systems", features = ["au", "serde"]}
 cc_qol_utils = { path = "../cc_qol_utils" }
