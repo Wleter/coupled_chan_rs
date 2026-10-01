@@ -131,7 +131,7 @@ fn sort_secant(a: f64, ya: f64, b: f64, yb: f64) -> (f64, f64, f64, f64) {
 macro_rules! assert_approx_eq {
     ($x:expr, $y:expr, $err:expr $(, $message:expr)?) => {
         if $x == $y {
-        } else if ($x - $y).abs() > $x.abs() * $err {
+        } else if ($x - $y).abs() > $x.abs() * $err || $x != $x || $y != $y {
             panic!("assertion failed\nleft side: {:e}\nright side: {:e}", $x, $y)
         }
     };

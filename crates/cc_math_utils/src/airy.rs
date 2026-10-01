@@ -71,6 +71,10 @@ impl AiryData {
         }
     }
 
+    pub fn exponent(&self) -> f64 {
+        self.zeta.abs()
+    }
+
     /// Returns reduced moduli M(x) and phase theta(x) of airy functions defined as:
     /// 
     /// ## For x < 0:
@@ -100,11 +104,11 @@ impl AiryData {
     /// Returns reduced moduli N(x) and phase phi(x) of derivatives of airy functions defined as:
     /// 
     /// ## For x < 0:
-    ///   - ai(x) = M(x) cos(theta(x))
-    ///   - bi(x) = M(x) sin(theta(x))
+    ///   - ai(x) = N(x) cos(phi(x))
+    ///   - bi(x) = N(x) sin(phi(x))
     /// ## For x >= 0:
-    ///   - ai(x) = M(x) sinh(theta(x))
-    ///   - bi(x) = M(x) cosh(theta(x))
+    ///   - ai(x) = N(x) sinh(phi(x))
+    ///   - bi(x) = N(x) cosh(phi(x))
     pub fn red_moduli_phase_deriv(&self) -> (f64, f64) {
         if self.x >= 0.0 {
             (
@@ -145,7 +149,7 @@ pub fn eval_airy(x: f64) -> AiryData {
 
 const NEAR_THRESHOLD: f64 = 0.025;
 
-pub fn airy_near(x: f64) -> AiryData {
+fn airy_near(x: f64) -> AiryData {
     let x_sqr = x * x;
     let x_cube = x_sqr * x;
 
@@ -740,55 +744,108 @@ mod tests {
         assert_approx_eq!(airy.bi(), 0.61537491590587969, 1e-9);
         assert_approx_eq!(airy.ai_deriv(), -0.2588192263650529, 1e-9);
         assert_approx_eq!(airy.bi_deriv(), 0.44828866496656955, 1e-9);
+        let (m, theta) = airy.red_moduli_phase();
+        assert_approx_eq!(airy.red_ai, m * f64::sinh(theta), 1e-9);
+        assert_approx_eq!(airy.red_bi, m * f64::cosh(theta), 1e-9);
+        let (n, phi) = airy.red_moduli_phase_deriv();
+        assert_approx_eq!(airy.red_ai_deriv, n * f64::sinh(phi), 1e-9);
+        assert_approx_eq!(airy.red_bi_deriv, n * f64::cosh(phi), 1e-9);
 
         let airy = eval_airy(1.0);
         assert_approx_eq!(airy.ai(), 0.13529241631288141, 1e-9);
         assert_approx_eq!(airy.bi(), 1.20742359495287125, 1e-9);
         assert_approx_eq!(airy.ai_deriv(), -0.1591474412967932, 1e-9);
         assert_approx_eq!(airy.bi_deriv(), 0.93243593339277563, 1e-9);
+        let (m, theta) = airy.red_moduli_phase();
+        assert_approx_eq!(airy.red_ai, m * f64::sinh(theta), 1e-9);
+        assert_approx_eq!(airy.red_bi, m * f64::cosh(theta), 1e-9);
+        let (n, phi) = airy.red_moduli_phase_deriv();
+        assert_approx_eq!(airy.red_ai_deriv, n * f64::sinh(phi), 1e-9);
+        assert_approx_eq!(airy.red_bi_deriv, n * f64::cosh(phi), 1e-9);
 
         let airy = eval_airy(5.0);
         assert_approx_eq!(airy.ai(), 0.00010834442813607, 1e-9);
         assert_approx_eq!(airy.bi(), 657.792044171171182, 1e-9);
         assert_approx_eq!(airy.ai_deriv(), -0.0002474138908684, 1e-9);
         assert_approx_eq!(airy.bi_deriv(), 1435.81908021798251, 1e-9);
+        let (m, theta) = airy.red_moduli_phase();
+        assert_approx_eq!(airy.red_ai, m * f64::sinh(theta), 1e-9);
+        assert_approx_eq!(airy.red_bi, m * f64::cosh(theta), 1e-9);
+        let (n, phi) = airy.red_moduli_phase_deriv();
+        assert_approx_eq!(airy.red_ai_deriv, n * f64::sinh(phi), 1e-9);
+        assert_approx_eq!(airy.red_bi_deriv, n * f64::cosh(phi), 1e-9);
 
         let airy = eval_airy(10.0);
         assert_approx_eq!(airy.ai(), 1.10475325528986859e-10, 1e-9);
         assert_approx_eq!(airy.bi(), 4.55641153548225140e8, 1e-9);
         assert_approx_eq!(airy.ai_deriv(), -3.5206336767389236e-10, 1e-9);
         assert_approx_eq!(airy.bi_deriv(), 1.42923613448286577e9, 1e-9);
+        let (m, theta) = airy.red_moduli_phase();
+        assert_approx_eq!(airy.red_ai, m * f64::sinh(theta), 1e-9);
+        assert_approx_eq!(airy.red_bi, m * f64::cosh(theta), 1e-9);
+        let (n, phi) = airy.red_moduli_phase_deriv();
+        assert_approx_eq!(airy.red_ai_deriv, n * f64::sinh(phi), 1e-9);
+        assert_approx_eq!(airy.red_bi_deriv, n * f64::cosh(phi), 1e-9);
 
         let airy = eval_airy(10.0);
         assert_approx_eq!(airy.ai(), 1.10475325528986859e-10, 1e-9);
         assert_approx_eq!(airy.bi(), 4.55641153548225140e8, 1e-9);
         assert_approx_eq!(airy.ai_deriv(), -3.5206336767389236e-10, 1e-9);
         assert_approx_eq!(airy.bi_deriv(), 1.42923613448286577e9, 1e-9);
+        let (m, theta) = airy.red_moduli_phase();
+        assert_approx_eq!(airy.red_ai, m * f64::sinh(theta), 1e-9);
+        assert_approx_eq!(airy.red_bi, m * f64::cosh(theta), 1e-9);
+        let (n, phi) = airy.red_moduli_phase_deriv();
+        assert_approx_eq!(airy.red_ai_deriv, n * f64::sinh(phi), 1e-9);
+        assert_approx_eq!(airy.red_bi_deriv, n * f64::cosh(phi), 1e-9);
 
         let airy = eval_airy(100.0);
         assert_approx_eq!(airy.ai(), 2.63448215208818448e-291, 1e-9);
         assert_approx_eq!(airy.bi(), 6.04122399667020139e288, 1e-9);
         assert_approx_eq!(airy.ai_deriv(), -2.6351403616044099e-290, 1e-9);
         assert_approx_eq!(airy.bi_deriv(), 6.03971274531060290e289, 1e-9);
+        let (m, theta) = airy.red_moduli_phase();
+        assert_approx_eq!(airy.red_ai, m * f64::sinh(theta), 1e-9);
+        assert_approx_eq!(airy.red_bi, m * f64::cosh(theta), 1e-9);
+        let (n, phi) = airy.red_moduli_phase_deriv();
+        assert_approx_eq!(airy.red_ai_deriv, n * f64::sinh(phi), 1e-9);
+        assert_approx_eq!(airy.red_bi_deriv, n * f64::cosh(phi), 1e-9);
 
         let airy = eval_airy(-1.0);
         assert_approx_eq!(airy.ai(), 0.53556088329235211, 1e-9);
         assert_approx_eq!(airy.bi(), 0.10399738949694461, 1e-9);
         assert_approx_eq!(airy.ai_deriv(), -0.0101605671166452, 1e-9);
         assert_approx_eq!(airy.bi_deriv(), 0.59237562642279235, 1e-9);
+        let (m, theta) = airy.red_moduli_phase();
+        assert_approx_eq!(airy.red_ai, m * f64::cos(theta), 1e-9);
+        assert_approx_eq!(airy.red_bi, m * f64::sin(theta), 1e-9);
+        let (n, phi) = airy.red_moduli_phase_deriv();
+        assert_approx_eq!(airy.red_ai_deriv, n * f64::cos(phi), 1e-9);
+        assert_approx_eq!(airy.red_bi_deriv, n * f64::sin(phi), 1e-9);
 
         let airy = eval_airy(-10.0);
         assert_approx_eq!(airy.ai(), 0.04024123848644319, 1e-9);
         assert_approx_eq!(airy.bi(), -0.3146798296438386, 1e-9);
         assert_approx_eq!(airy.ai_deriv(), 0.99626504413279005, 1e-9);
         assert_approx_eq!(airy.bi_deriv(), 0.11941411339990923, 1e-9);
+        let (m, theta) = airy.red_moduli_phase();
+        assert_approx_eq!(airy.ai(), m * f64::cos(theta), 1e-9);
+        assert_approx_eq!(airy.bi(), m * f64::sin(theta), 1e-9);
+        let (n, phi) = airy.red_moduli_phase_deriv();
+        assert_approx_eq!(airy.ai_deriv(), n * f64::cos(phi), 1e-9);
+        assert_approx_eq!(airy.bi_deriv(), n * f64::sin(phi), 1e-9);
+
 
         let airy = eval_airy(-100.0);
         assert_approx_eq!(airy.ai(), 0.17675339323955287, 1e-9);
         assert_approx_eq!(airy.bi(), 0.02427388768016013, 1e-9);
         assert_approx_eq!(airy.ai_deriv(), -0.2422970316605838, 1e-9);
         assert_approx_eq!(airy.bi_deriv(), 1.76759489323406093, 1e-9);
+        let (m, theta) = airy.red_moduli_phase();
+        assert_approx_eq!(airy.ai(), m * f64::cos(theta), 1e-9);
+        assert_approx_eq!(airy.bi(), m * f64::sin(theta), 1e-9);
+        let (n, phi) = airy.red_moduli_phase_deriv();
+        assert_approx_eq!(airy.ai_deriv(), n * f64::cos(phi), 1e-9);
+        assert_approx_eq!(airy.bi_deriv(), n * f64::sin(phi), 1e-9);
     }
-
-
 }

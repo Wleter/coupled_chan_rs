@@ -1,5 +1,6 @@
 pub mod log_derivative;
 pub mod numerov;
+pub mod airy;
 
 use std::f64::consts::PI;
 
