@@ -405,12 +405,12 @@ mod tests {
 
         let x = -200.;
         let delta = -0.05;
-        let airy_x_1 = airy_y(x, delta, 100, 1e-6);
-        assert_approx_eq!(airy_x_1.0 * f64::exp(airy_x_1.1), -0.241987, 1e-3);
+        let airy_y_1 = airy_y(x, delta, 100, 1e-6);
+        assert_approx_eq!(airy_y_1.0 * f64::exp(airy_y_1.1), -0.241987, 1e-3);
 
         let x = -2000.;
         let delta = 0.2;
-        let airy_x_1 = airy_y(x, delta, 100, 1e-6);
-        assert_approx_eq!(airy_x_1.0 * f64::exp(airy_x_1.1), 0.282239, 1e-3);
+        let airy_y_1 = airy_y(x, delta, 100, 1e-6);
+        assert_approx_eq!(airy_y_1.0 * f64::exp(airy_y_1.1), 0.282239, 1e-3);
     }
 }
