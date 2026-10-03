@@ -23,25 +23,20 @@ use cc_matrix_utils::faer::{
     inverse_ldlt_inplace_nodes,
 };
 use faer::{
-    Accum::Replace,
-    Par::Seq,
-    dyn_stack::MemBuffer,
-    linalg::{
+    Accum::Replace, MatMut, Par::Seq, Shape, diag::{Diag, DiagRef}, dyn_stack::MemBuffer, linalg::{
         matmul::matmul,
         solvers::DenseSolveCore,
-    },
-    unzip,
-    zip,
+    }, make_guard, unzip, zip
 };
 
 // doi: 10.1063/1.451472
 pub trait LogDerivReference {
     fn w_ref(w_c: &Matrix, w_ref: &mut Matrix);
 
-    fn imbedding1(h: f64, w_ref: &Matrix, out: &mut Matrix);
-    fn imbedding2(h: f64, w_ref: &Matrix, out: &mut Matrix);
-    fn imbedding3(h: f64, w_ref: &Matrix, out: &mut Matrix);
-    fn imbedding4(h: f64, w_ref: &Matrix, out: &mut Matrix);
+    fn imbedding1(h: f64, w_ref: &Matrix, out: &mut Diag<f64>);
+    fn imbedding2(h: f64, w_ref: &Matrix, out: &mut Diag<f64>);
+    fn imbedding3(h: f64, w_ref: &Matrix, out: &mut Diag<f64>);
+    fn imbedding4(h: f64, w_ref: &Matrix, out: &mut Diag<f64>);
 }
 
 pub type JohnsonLogDerivative<'a, W, S> = DiabaticLogDerivative<'a, Johnson, W, S>;
@@ -53,25 +48,21 @@ impl LogDerivReference for Johnson {
         w_ref.fill(0.);
     }
 
-    fn imbedding1(h: f64, _w_ref: &Matrix, out: &mut Matrix) {
-        out.fill(0.);
-
-        out.diagonal_mut().column_vector_mut().iter_mut().for_each(|y1| *y1 = 1.0 / h);
+    fn imbedding1(h: f64, _w_ref: &Matrix, out: &mut Diag<f64>) {
+        out.column_vector_mut().iter_mut().for_each(|y1| *y1 = 1.0 / h);
     }
 
-    fn imbedding2(h: f64, _w_ref: &Matrix, out: &mut Matrix) {
-        out.fill(0.);
-
-        out.diagonal_mut().column_vector_mut().iter_mut().for_each(|y2| *y2 = 1.0 / h);
+    fn imbedding2(h: f64, _w_ref: &Matrix, out: &mut Diag<f64>) {
+        out.column_vector_mut().iter_mut().for_each(|y2| *y2 = 1.0 / h);
     }
 
     #[inline]
-    fn imbedding3(h: f64, w_ref: &Matrix, out: &mut Matrix) {
+    fn imbedding3(h: f64, w_ref: &Matrix, out: &mut Diag<f64>) {
         Self::imbedding2(h, w_ref, out);
     }
 
     #[inline]
-    fn imbedding4(h: f64, w_ref: &Matrix, out: &mut Matrix) {
+    fn imbedding4(h: f64, w_ref: &Matrix, out: &mut Diag<f64>) {
         Self::imbedding1(h, w_ref, out);
     }
 }
@@ -89,11 +80,8 @@ impl LogDerivReference for DiabaticManolopoulos {
             .for_each(|(w_ref, &w_c)| *w_ref = w_c);
     }
 
-    fn imbedding1(h: f64, w_ref: &Matrix, out: &mut Matrix) {
-        out.fill(0.);
-
-        out.diagonal_mut()
-            .column_vector_mut()
+    fn imbedding1(h: f64, w_ref: &Matrix, out: &mut Diag<f64>) {
+        out.column_vector_mut()
             .iter_mut()
             .zip(w_ref.diagonal().column_vector().iter())
             .for_each(|(y1, &p2)| {
@@ -105,11 +93,8 @@ impl LogDerivReference for DiabaticManolopoulos {
             });
     }
 
-    fn imbedding2(h: f64, w_ref: &Matrix, out: &mut Matrix) {
-        out.fill(0.);
-
-        out.diagonal_mut()
-            .column_vector_mut()
+    fn imbedding2(h: f64, w_ref: &Matrix, out: &mut Diag<f64>) {
+        out.column_vector_mut()
             .iter_mut()
             .zip(w_ref.diagonal().column_vector().iter())
             .for_each(|(y2, &p2)| {
@@ -122,12 +107,12 @@ impl LogDerivReference for DiabaticManolopoulos {
     }
 
     #[inline]
-    fn imbedding3(h: f64, w_ref: &Matrix, out: &mut Matrix) {
+    fn imbedding3(h: f64, w_ref: &Matrix, out: &mut Diag<f64>) {
         Self::imbedding2(h, w_ref, out);
     }
 
     #[inline]
-    fn imbedding4(h: f64, w_ref: &Matrix, out: &mut Matrix) {
+    fn imbedding4(h: f64, w_ref: &Matrix, out: &mut Diag<f64>) {
         Self::imbedding1(h, w_ref, out);
     }
 }
@@ -228,11 +213,11 @@ struct LogDerivativeStep<R: LogDerivReference> {
     id: Matrix,
     buffer1: Matrix,
     buffer2: Matrix,
-    buffer3: Matrix,
     inverse_buffer: MemBuffer,
-
+    
     z_matrix: Matrix,
     w_ref: Matrix,
+    imbedding_buffer: Diag<f64>,
 
     reference: PhantomData<R>,
     w_matrix_buffer: Matrix,
@@ -246,11 +231,11 @@ impl<R: LogDerivReference> LogDerivativeStep<R> {
             id: Matrix::identity(size, size),
             buffer1: Matrix::zeros(size, size),
             buffer2: Matrix::zeros(size, size),
-            buffer3: Matrix::zeros(size, size),
             inverse_buffer: get_ldlt_inverse_buffer(size),
 
             z_matrix: Matrix::zeros(size, size),
             w_ref: Matrix::zeros(size, size),
+            imbedding_buffer: Diag::zeros(size),
 
             w_matrix_buffer: Matrix::zeros(size, size),
 
@@ -275,101 +260,90 @@ impl<R: LogDerivReference> LogDerivativeStep<R> {
 
         zip!(self.buffer2.as_mut(), self.id.as_ref())
         .for_each(|unzip!(b, u)| {
-            *b = 6. / (h * h) * (*b - u)
+            *b = 8. / h * (*b - u)
         });
-        // buffer2 is a W_tilde(c)
+        // buffer2 is a 4 / 3 * h * W_tilde(c)
 
-        R::imbedding4(h, &self.w_ref, &mut self.buffer1);
+        R::imbedding4(h, &self.w_ref, &mut self.imbedding_buffer);
+        mat_diag_add_inplace(self.buffer2.as_mut(), self.imbedding_buffer.as_ref());
+        R::imbedding1(h, &self.w_ref, &mut self.imbedding_buffer);
+        mat_diag_add_inplace(self.buffer2.as_mut(), self.imbedding_buffer.as_ref());
+        // buffer2 is a z^-1(a, b, c)
 
-        zip!(self.buffer1.as_mut(), self.buffer2.as_ref())
-        .for_each(|unzip!(y4, w_tilde)| {
-            *y4 += 2. * h / 3. * w_tilde
-        });
-        // buffer1 is a y_4(a, c)
-
-        R::imbedding1(h, &self.w_ref, &mut self.buffer3);
-
-        zip!(self.buffer3.as_mut(), self.buffer2.as_ref())
-        .for_each(|unzip!(y4, w_tilde)| {
-            *y4 += 2. * h / 3. * w_tilde
-        });
-        // buffer3 is a y_1(c, b)
-
-        zip!(self.buffer1.as_mut(), self.buffer3.as_ref())
-        .for_each(|unzip!(y4, y1)| {
-            *y4 += y1
-        });
-        inverse_ldlt_inplace(self.buffer1.as_ref(), self.z_matrix.as_mut(), &mut self.inverse_buffer);
+        inverse_ldlt_inplace(self.buffer2.as_ref(), self.z_matrix.as_mut(), &mut self.inverse_buffer);
         // z_matrix is a z(a, b, c)
 
-        R::imbedding2(h, &self.w_ref, &mut self.buffer1);
-        matmul(self.buffer3.as_mut(), Replace, self.buffer1.as_ref(), self.z_matrix.as_ref(), 1.0, Seq);
-        R::imbedding3(h, &self.w_ref, &mut self.buffer1);
-        matmul(self.buffer2.as_mut(), Replace, self.buffer3.as_ref(), self.buffer1.as_ref(), 1.0, Seq);
-        // buffer2 is a second term in y_1(a, b)
+        self.buffer1.copy_from(&self.z_matrix);
+        R::imbedding2(h, &self.w_ref, &mut self.imbedding_buffer);
+        diag_mat_mul_inplace(self.imbedding_buffer.as_ref(), self.buffer1.as_mut());
+        R::imbedding3(h, &self.w_ref, &mut self.imbedding_buffer);
+        mat_diag_mul_inplace(self.buffer1.as_mut(), self.imbedding_buffer.as_ref());
+        // buffer1 is a second term in y_1(a, b)
 
-        R::imbedding1(h, &self.w_ref, &mut self.buffer3);
-
-        zip!(self.buffer3.as_mut(), self.w_matrix_buffer.as_ref(), self.w_ref.as_ref())
+        zip!(self.buffer2.as_mut(), self.w_matrix_buffer.as_ref(), self.w_ref.as_ref())
         .for_each(|unzip!(y1, w_a, w_ref)| {
-            *y1 += h / 3. * (w_ref - w_a) // sign change because of different convention
+            *y1 = h / 3. * (w_ref - w_a) // sign change because of different convention
         });
-        // buffer3 is a y_1(a, c)
+        R::imbedding1(h, &self.w_ref, &mut self.imbedding_buffer);
+        mat_diag_add_inplace(self.buffer2.as_mut(), self.imbedding_buffer.as_ref());
+        // buffer2 is a y_1(a, c)
 
-        zip!(self.buffer3.as_mut(), self.buffer2.as_ref())
+        zip!(self.buffer2.as_mut(), self.buffer1.as_ref())
         .for_each(|unzip!(y1, b)| {
             *y1 -= b
         });
-        // buffer3 is a y_1(a, b)
+        // buffer2 is a y_1(a, b)
 
-        zip!(self.buffer3.as_mut(), sol.sol.0.as_ref())
+        zip!(self.buffer2.as_mut(), sol.sol.0.as_ref())
         .for_each(|unzip!(y1, sol)| {
             *y1 += sol
         });
-
-        let mut nodes_new = inverse_ldlt_inplace_nodes(self.buffer3.as_ref(), sol.sol.0.as_mut(), &mut self.inverse_buffer);
+        let mut nodes_new = inverse_ldlt_inplace_nodes(self.buffer2.as_ref(), sol.sol.0.as_mut(), &mut self.inverse_buffer);
         // sol is now (y + y1(a, b))^-1
 
-        R::imbedding2(h, &self.w_ref, &mut self.buffer1);
-        matmul(self.buffer3.as_mut(), Replace, self.buffer1.as_ref(), self.z_matrix.as_ref(), 1.0, Seq);
-        matmul(self.buffer2.as_mut(), Replace, self.buffer3.as_ref(), self.buffer1.as_ref(), 1.0, Seq);
+        self.buffer1.copy_from(&self.z_matrix);
+        R::imbedding2(h, &self.w_ref, &mut self.imbedding_buffer);
+        diag_mat_mul_inplace(self.imbedding_buffer.as_ref(), self.buffer1.as_mut());
+        mat_diag_mul_inplace(self.buffer1.as_mut(), self.imbedding_buffer.as_ref());
 
-        matmul(self.buffer1.as_mut(), Replace, sol.sol.0.as_ref(), self.buffer2.as_ref(), 1.0, Seq);
-        // buffer1 is now (y + y1(a, b))^-1 * y_2(a, b)
+        matmul(self.buffer2.as_mut(), Replace, sol.sol.0.as_ref(), self.buffer1.as_ref(), 1.0, Seq);
+        // buffer2 is now (y + y1(a, b))^-1 * y_2(a, b)
 
         if let Some(wave_storage) = &mut self.wave_storage {
             wave_storage.push(sol.r, &self.buffer1)
         }
 
-        R::imbedding3(h, &self.w_ref, &mut self.buffer2);
-        matmul(sol.sol.0.as_mut(), Replace, self.buffer2.as_ref(), self.z_matrix.as_ref(), 1.0, Seq);
-        matmul(self.buffer3.as_mut(), Replace, sol.sol.0.as_ref(), self.buffer2.as_ref(), 1.0, Seq);
+        self.buffer1.copy_from(&self.z_matrix);
+        R::imbedding3(h, &self.w_ref, &mut self.imbedding_buffer);
+        diag_mat_mul_inplace(self.imbedding_buffer.as_ref(), self.buffer1.as_mut());
+        mat_diag_mul_inplace(self.buffer1.as_mut(), self.imbedding_buffer.as_ref());
 
-        matmul(sol.sol.0.as_mut(), Replace, self.buffer3.as_ref(), self.buffer1.as_ref(), 1.0, Seq);
+        matmul(sol.sol.0.as_mut(), Replace, self.buffer1.as_ref(), self.buffer2.as_ref(), 1.0, Seq);
         // sol is now y_3(a, b) * (y + y1(a, b))^-1 * y_2(a, b)
 
-        R::imbedding3(h, &self.w_ref, &mut self.buffer1);
-        matmul(self.buffer3.as_mut(), Replace, self.buffer1.as_ref(), self.z_matrix.as_ref(), 1.0, Seq);
-        R::imbedding2(h, &self.w_ref, &mut self.buffer1);
-        matmul(self.buffer2.as_mut(), Replace, self.buffer3.as_ref(), self.buffer1.as_ref(), 1.0, Seq);
-        // buffer2 is a second term in y_4(a, b)
+        R::imbedding3(h, &self.w_ref, &mut self.imbedding_buffer);
+        diag_mat_mul_inplace(self.imbedding_buffer.as_ref(), self.z_matrix.as_mut());
+        R::imbedding2(h, &self.w_ref, &mut self.imbedding_buffer);
+        mat_diag_mul_inplace(self.z_matrix.as_mut(), self.imbedding_buffer.as_ref());
+        // z_matrix is a second term in y_4(a, b)
 
         w_matrix.value_inplace(sol.r + sol.dr, &mut self.w_matrix_buffer);
-        R::imbedding4(h, &self.w_ref, &mut self.buffer3);
 
-        zip!(self.buffer3.as_mut(), self.w_matrix_buffer.as_ref(), self.w_ref.as_ref())
+        zip!(self.buffer1.as_mut(), self.w_matrix_buffer.as_ref(), self.w_ref.as_ref())
         .for_each(|unzip!(y4, w_a, w_ref)| {
-            *y4 += h / 3. * (w_ref - w_a) // sign change because of different convention
+            *y4 = h / 3. * (w_ref - w_a) // sign change because of different convention
         });
-        // buffer3 is a y_4(c, b)
+        R::imbedding4(h, &self.w_ref, &mut self.imbedding_buffer);
+        mat_diag_add_inplace(self.buffer1.as_mut(), self.imbedding_buffer.as_ref());
+        // buffer1 is a y_4(c, b)
 
-        zip!(self.buffer3.as_mut(), self.buffer2.as_ref())
+        zip!(self.buffer1.as_mut(), self.z_matrix.as_ref())
         .for_each(|unzip!(y4, b)| {
             *y4 -= b
         });
-        // buffer3 is a y_4(a, b)
+        // buffer1 is a y_4(a, b)
 
-        zip!(sol.sol.0.as_mut(), self.buffer3.as_ref())
+        zip!(sol.sol.0.as_mut(), self.buffer1.as_ref())
         .for_each(|unzip!(y, y4)| {
             *y = y4 - *y
         });
@@ -383,4 +357,60 @@ impl<R: LogDerivReference> LogDerivativeStep<R> {
 
         sol.r += sol.dr;
     }
+}
+
+#[allow(non_snake_case)]
+fn diag_mat_mul_inplace<N: Shape, K: Shape>(
+    a: DiagRef<f64, N>, 
+    b: MatMut<f64, N, K>
+) {
+    let a_shape = a.dim();
+    let (b_rows, b_cols) = b.shape();
+    assert_eq!(a_shape, b_rows);
+
+	make_guard!(N);
+	make_guard!(K);
+	let n = b_rows.bind(N);
+	let k = b_cols.bind(K);
+
+    let a = a.as_shape(n);
+    let mut b = b.as_shape_mut(n, k);
+
+    for j in k.indices() {
+        for i in n.indices() {
+            b[(i, j)] *= a[i]
+        }
+    }
+}
+
+#[allow(non_snake_case)]
+fn mat_diag_mul_inplace<N: Shape, K: Shape>(
+    a: MatMut<f64, N, K>,
+    b: DiagRef<f64, K>, 
+) {
+    let (a_rows, a_cols) = a.shape();
+    let b_shape = b.dim();
+    assert_eq!(a_cols, b_shape);
+
+	make_guard!(N);
+	make_guard!(K);
+	let n = a_rows.bind(N);
+	let k = a_cols.bind(K);
+
+    let mut a = a.as_shape_mut(n, k);
+    let b = b.as_shape(k);
+
+    for j in k.indices() {
+        for i in n.indices() {
+            a[(i, j)] *= b[j]
+        }
+    }
+}
+
+fn mat_diag_add_inplace(a: MatMut<f64>, b: DiagRef<f64>) {
+    a.diagonal_mut()
+        .column_vector_mut()
+        .iter_mut()
+        .zip(b.column_vector().iter())
+        .for_each(|(b2, y)| *b2 += y);
 }
