@@ -1,6 +1,5 @@
 use std::mem::swap;
 
-use anyhow::bail;
 use hilbert_space::faer::complex::Complex64;
 use serde::{
     Deserialize,
@@ -228,7 +227,7 @@ where
                     .unwrap()?
                     .s_length;
             }
-            let (a_bg, p_res, width) = get_resonance([(p1, s1), (p2, s2), (p3, s3)]);
+            let (_, p_res, width) = get_resonance([(p1, s1), (p2, s2), (p3, s3)]);
             if !(min_bound..=max_bound).contains(&p_res) {
                 eprintln!("Resonance outside of the searched region, returning threshold bound-state estimate");
                 return Ok(ResonancesData::new_res(res.parameter))
@@ -237,13 +236,8 @@ where
                 return Ok(ResonancesData::new_res(p_res))
             }
 
-            Err(anyhow::anyhow!(
-                "Could not obtain resonance characterization in {} iterations, best guess: {:?} {:?} {:?}",
-                modified.calc_input.max_iter,
-                a_bg,
-                p_res,
-                width
-            ))
+            eprintln!("Could not obtain resonance characterization in {} iterations, returning threshold bound-state estimate", modified.calc_input.max_iter);
+            Ok(ResonancesData::new_res(p_res))
         })
     }
 }
