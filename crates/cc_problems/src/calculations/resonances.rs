@@ -109,8 +109,8 @@ where
         results.into_iter().map(move |res| {
             let res = res?;
 
-            let min_bound = res.parameter - 10.0 * p_err;
-            let max_bound = res.parameter + 10.0 * p_err;
+            let min_bound = res.parameter - 50.0 * p_err;
+            let max_bound = res.parameter + 50.0 * p_err;
 
             let mut p1 = res.parameter;
             let mut p2 = p1 - p_err;
@@ -230,6 +230,7 @@ where
             let (_, p_res, width) = get_resonance([(p1, s1), (p2, s2), (p3, s3)]);
             if !(min_bound..=max_bound).contains(&p_res) {
                 eprintln!("Resonance outside of the searched region, returning threshold bound-state estimate");
+
                 return Ok(ResonancesData::new_res(res.parameter))
             }
             if modified.calc_input.eps * p_err > width.abs() || !width.is_finite() {
