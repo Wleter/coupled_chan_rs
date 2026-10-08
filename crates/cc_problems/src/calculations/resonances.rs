@@ -40,11 +40,17 @@ impl<P: Problem> ResonancesCalc<P> {
 #[derive(Clone, Debug, Serialize)]
 pub struct ResonancesData {
     parameter_res: f64,
-    a_bg: f64,
-    width: f64,
+    a_bg: Option<f64>,
+    width: Option<f64>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     decay_width: Option<f64>,
+}
+
+impl ResonancesData {
+    pub fn new_res(parameter_res: f64) -> Self {
+        Self { parameter_res, a_bg: None, width: None, decay_width: None }
+    }
 }
 
 #[derive(Clone, Deserialize)]
@@ -187,16 +193,18 @@ where
 
                 if converged {
                     if !(min_bound..=max_bound).contains(&p_res) {
-                        bail!("Resonance outside of the searched region")
+                        eprintln!("Resonance outside of the searched region, returning threshold bound-state estimate");
+                        
+                        return Ok(ResonancesData::new_res(res.parameter))
                     }
                     if modified.calc_input.eps * p_err > width.abs() || !width.is_finite() {
-                        bail!("Resonance width is too small {width:?}")
+                        return Ok(ResonancesData::new_res(res.parameter))
                     }
 
                     return Ok(ResonancesData {
                         parameter_res: p_res,
-                        a_bg,
-                        width,
+                        a_bg: Some(a_bg),
+                        width: Some(width),
                         decay_width: None,
                     });
                 }
@@ -222,10 +230,11 @@ where
             }
             let (a_bg, p_res, width) = get_resonance([(p1, s1), (p2, s2), (p3, s3)]);
             if !(min_bound..=max_bound).contains(&p_res) {
-                bail!("Resonance outside of the searched region")
+                eprintln!("Resonance outside of the searched region, returning threshold bound-state estimate");
+                return Ok(ResonancesData::new_res(res.parameter))
             }
             if modified.calc_input.eps * p_err > width.abs() || !width.is_finite() {
-                bail!("Resonance width is too small: {width:?}")
+                return Ok(ResonancesData::new_res(res.parameter))
             }
 
             Err(anyhow::anyhow!(
