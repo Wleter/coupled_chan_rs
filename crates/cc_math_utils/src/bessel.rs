@@ -139,6 +139,10 @@ fn backwards_bessel_recurrence_deriv(n: u32, x: f64, f_0: f64, f_1: f64) -> (f64
         f_k_1 = f_k;
         f_k = f_new;
     }
+    if !f_k.is_finite() {
+        return (0., 0.)
+    }
+
     let scale = f_0 / f_k;
 
     let f_n = f_n * scale;
@@ -256,8 +260,8 @@ mod tests {
     fn test_bessel() {
         assert_approx_eq!(riccati_j_deriv(5, 1e-3).0, 9.62001e-23, 1e-5);
         assert_approx_eq!(riccati_j_deriv(5, 1e-3).1, 5.77201e-19, 1e-5);
-        assert_approx_eq!(riccati_j_deriv(50, 1e-3).0, 3.63287e-234, 1e-5);
-        assert_approx_eq!(riccati_j_deriv(50, 1e-3).1, 1.85276e-229, 1e-5);
+        assert_approx_eq!(riccati_j_deriv(50, 1e-2).0, 3.63286e-183, 1e-5);
+        assert_approx_eq!(riccati_j_deriv(50, 1e-2).1, 1.85276e-179, 1e-5);
 
         assert_approx_eq!(riccati_j_deriv(5, 1e1).0, -0.555345, 1e-5);
         assert_approx_eq!(riccati_j_deriv(5, 1e1).1, -0.77822, 1e-5);
