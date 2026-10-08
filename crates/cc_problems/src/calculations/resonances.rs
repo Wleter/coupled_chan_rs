@@ -198,7 +198,7 @@ where
                         return Ok(ResonancesData::new_res(res.parameter))
                     }
                     if modified.calc_input.eps * p_err > width.abs() || !width.is_finite() {
-                        return Ok(ResonancesData::new_res(res.parameter))
+                        return Ok(ResonancesData::new_res(p_res))
                     }
 
                     return Ok(ResonancesData {
@@ -234,7 +234,7 @@ where
                 return Ok(ResonancesData::new_res(res.parameter))
             }
             if modified.calc_input.eps * p_err > width.abs() || !width.is_finite() {
-                return Ok(ResonancesData::new_res(res.parameter))
+                return Ok(ResonancesData::new_res(p_res))
             }
 
             Err(anyhow::anyhow!(
