@@ -310,7 +310,7 @@ impl<R: LogDerivReference> LogDerivativeStep<R> {
         // buffer2 is now (y + y1(a, b))^-1 * y_2(a, b)
 
         if let Some(wave_storage) = &mut self.wave_storage {
-            wave_storage.push(sol.r, &self.buffer1)
+            wave_storage.push(sol.r, &self.buffer2)
         }
 
         self.buffer1.copy_from(&self.z_matrix);
