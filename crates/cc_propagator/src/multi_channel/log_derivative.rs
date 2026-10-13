@@ -359,8 +359,7 @@ impl<R: LogDerivReference> LogDerivativeStep<R> {
     }
 }
 
-#[allow(non_snake_case)]
-fn diag_mat_mul_inplace<N: Shape, K: Shape>(
+pub(crate) fn diag_mat_mul_inplace<N: Shape, K: Shape>(
     a: DiagRef<f64, N>, 
     b: MatMut<f64, N, K>
 ) {
@@ -368,10 +367,10 @@ fn diag_mat_mul_inplace<N: Shape, K: Shape>(
     let (b_rows, b_cols) = b.shape();
     assert_eq!(a_shape, b_rows);
 
-	make_guard!(N);
-	make_guard!(K);
-	let n = b_rows.bind(N);
-	let k = b_cols.bind(K);
+	make_guard!(n);
+	make_guard!(k);
+	let n = b_rows.bind(n);
+	let k = b_cols.bind(k);
 
     let a = a.as_shape(n);
     let mut b = b.as_shape_mut(n, k);
@@ -383,8 +382,7 @@ fn diag_mat_mul_inplace<N: Shape, K: Shape>(
     }
 }
 
-#[allow(non_snake_case)]
-fn mat_diag_mul_inplace<N: Shape, K: Shape>(
+pub(crate) fn mat_diag_mul_inplace<N: Shape, K: Shape>(
     a: MatMut<f64, N, K>,
     b: DiagRef<f64, K>, 
 ) {
@@ -392,10 +390,10 @@ fn mat_diag_mul_inplace<N: Shape, K: Shape>(
     let b_shape = b.dim();
     assert_eq!(a_cols, b_shape);
 
-	make_guard!(N);
-	make_guard!(K);
-	let n = a_rows.bind(N);
-	let k = a_cols.bind(K);
+	make_guard!(n);
+	make_guard!(k);
+	let n = a_rows.bind(n);
+	let k = a_cols.bind(k);
 
     let mut a = a.as_shape_mut(n, k);
     let b = b.as_shape(k);
@@ -407,7 +405,7 @@ fn mat_diag_mul_inplace<N: Shape, K: Shape>(
     }
 }
 
-fn mat_diag_add_inplace(a: MatMut<f64>, b: DiagRef<f64>) {
+pub(crate) fn mat_diag_add_inplace(a: MatMut<f64>, b: DiagRef<f64>) {
     a.diagonal_mut()
         .column_vector_mut()
         .iter_mut()

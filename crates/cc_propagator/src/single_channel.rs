@@ -2,6 +2,7 @@ use crate::WaveStorage;
 
 pub mod log_derivative;
 pub mod numerov;
+pub mod airy;
 
 /// Trait for representing W function
 /// in an equation y''(x) = W(x) y(x)

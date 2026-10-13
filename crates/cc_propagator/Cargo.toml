@@ -6,9 +6,6 @@ edition.workspace = true
 [dependencies]
 faer = { workspace = true, optional = true}
 cc_matrix_utils = { path = "../cc_matrix_utils", features = ["faer"], optional = true}
-
-
-[dev-dependencies]
 cc_math_utils = {path = "../cc_math_utils"}
 
 [features]
