@@ -1,7 +1,7 @@
 
 use cc_matrix_utils::faer::{get_ldlt_inverse_buffer, get_self_adjoint_evd_buffer, inverse_ldlt_inplace_nodes, self_adjoint_evd_inplace};
 use faer::{Shape, diag::Diag, dyn_stack::MemBuffer, linalg::{matmul::matmul, solvers::DenseSolveCore}, make_guard, matrix_free::LinOp, unzip, zip};
-use crate::{Boundary, Direction, LogDeriv, Nodes, Propagator, Solution, WaveStorage, WithNodeCount, WithWaveStorage, multi_channel::{Matrix, WMatrix, log_derivative::{diag_mat_mul_inplace, mat_diag_add_inplace, mat_diag_mul_inplace}}, single_channel::airy::get_imbeddings, step_strategy::LinearRefStepStrat};
+use crate::{Boundary, Direction, LogDeriv, Nodes, Propagator, Solution, WaveStorage, WithNodeCount, WithWaveStorage, multi_channel::{Matrix, WMatrix, diabatic_log_derivative::{diag_mat_mul_inplace, mat_diag_add_inplace, mat_diag_mul_inplace}}, single_channel::airy::get_imbeddings, step_strategy::LinearRefStepStrat};
 
 const ROOT_3: f64 = 1.732050807;
 

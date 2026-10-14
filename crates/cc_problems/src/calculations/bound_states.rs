@@ -12,7 +12,7 @@ use coupled_chan::{
         CollisionWMatrix,
         RCoupling,
     },
-    multi_channel::log_derivative::{
+    multi_channel::diabatic_log_derivative::{
         JohnsonLogDerivative,
         ManolopoulosLogDerivative,
     },

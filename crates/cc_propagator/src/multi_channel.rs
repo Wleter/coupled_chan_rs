@@ -1,4 +1,4 @@
-pub mod log_derivative;
+pub mod diabatic_log_derivative;
 pub mod numerov;
 pub mod airy;
 
@@ -77,7 +77,7 @@ mod tests {
         Propagator,
         WithWaveStorage,
         multi_channel::{
-            log_derivative::{
+            diabatic_log_derivative::{
                 JohnsonLogDerivative,
                 ManolopoulosLogDerivative,
             },

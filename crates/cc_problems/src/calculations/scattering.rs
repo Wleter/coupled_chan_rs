@@ -20,7 +20,7 @@ use coupled_chan::{
     multi_channel::{
         Matrix,
         WMatrix,
-        log_derivative::{
+        diabatic_log_derivative::{
             JohnsonLogDerivative,
             ManolopoulosLogDerivative,
         },
