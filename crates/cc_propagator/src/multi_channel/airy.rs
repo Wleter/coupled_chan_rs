@@ -7,6 +7,7 @@ const ROOT_3: f64 = 1.732050807;
 
 pub struct AiryLogDerivative<'a, W: WMatrix<f64>> {
     w_matrix: &'a W,
+    solution_local: Solution<LogDeriv<Matrix>>,
     solution: Solution<LogDeriv<Matrix>>,
     nodes: Nodes,
 
@@ -38,6 +39,7 @@ impl<'a, W: WMatrix<f64>> AiryLogDerivative<'a, W> {
 
         Self {
             step,
+            solution_local: sol.clone(),
             solution: sol,
             nodes: Nodes(0),
             w_matrix,
@@ -45,11 +47,11 @@ impl<'a, W: WMatrix<f64>> AiryLogDerivative<'a, W> {
     }
 
     fn step_r_target(&mut self, r: Option<f64>) {
-        if let Some(r) = r && (self.solution.r - r).abs() < self.step.dr_next.abs() {
-            self.step.dr_next *= ((self.solution.r - r) / self.step.dr_next).abs()
+        if let Some(r) = r && (self.solution_local.r - r).abs() < self.step.dr_next.abs() {
+            self.step.dr_next *= ((self.solution_local.r - r) / self.step.dr_next).abs()
         }
 
-        self.step.perform_step(&mut self.solution, &mut self.nodes, self.w_matrix);
+        self.step.perform_step(&mut self.solution_local, &mut self.nodes, self.w_matrix);
     }
 }
 
@@ -57,13 +59,51 @@ impl<W: WMatrix<f64>> Propagator<LogDeriv<Matrix>> for AiryLogDerivative<'_, W> 
     fn step(&mut self) -> &Solution<LogDeriv<Matrix>> {
         self.step_r_target(None);
 
+        self.solution.r = self.solution_local.r;
+        self.solution.dr = self.solution_local.dr;
+        matmul(
+            self.step.buffer1.as_mut(), 
+            faer::Accum::Replace, 
+            self.step.adiabatic_transf.as_ref().transpose(), 
+            self.solution_local.sol.0.as_ref(), 
+            1.0, 
+            faer::Par::Seq
+        );
+        matmul(
+            self.solution.sol.0.as_mut(), 
+            faer::Accum::Replace, 
+            self.step.buffer1.as_ref(), 
+            self.step.adiabatic_transf.as_ref(), 
+            1.0, 
+            faer::Par::Seq
+        );
+
         &self.solution
     }
 
     fn propagate_to(&mut self, r: f64) -> &Solution<LogDeriv<Matrix>> {
-        while (self.solution.r - r) * self.solution.dr.signum() < 0. {
+        while (self.solution_local.r - r) * self.solution_local.dr.signum() < 0. {
             self.step_r_target(Some(r));
         }
+
+        self.solution.r = self.solution_local.r;
+        self.solution.dr = self.solution_local.dr;
+        matmul(
+            self.step.buffer1.as_mut(), 
+            faer::Accum::Replace, 
+            self.step.adiabatic_transf.as_ref().transpose(), 
+            self.solution_local.sol.0.as_ref(), 
+            1.0, 
+            faer::Par::Seq
+        );
+        matmul(
+            self.solution.sol.0.as_mut(), 
+            faer::Accum::Replace, 
+            self.step.buffer1.as_ref(), 
+            self.step.adiabatic_transf.as_ref(), 
+            1.0, 
+            faer::Par::Seq
+        );
 
         &self.solution
     }
@@ -182,7 +222,24 @@ impl AiryLogDerivativeStep {
 
         mat_diag_mul_inplace(self.buffer1.as_mut(), self.y23.as_ref());
         if let Some(wave_storage) = &mut self.wave_storage {
-            wave_storage.push(sol.r, &self.buffer1)
+            matmul(
+                self.buffer2.as_mut(), 
+                faer::Accum::Replace, 
+                self.adiabatic_transf.as_ref().transpose(), 
+                self.buffer1.as_ref(), 
+                1.0, 
+                faer::Par::Seq
+            );
+            matmul(
+                sol.sol.0.as_mut(),
+                faer::Accum::Replace, 
+                self.buffer2.as_ref(), 
+                self.adiabatic_transf.as_ref(), 
+                1.0, 
+                faer::Par::Seq
+            );
+
+            wave_storage.push(sol.r, &sol.sol.0)
         }
         diag_mat_mul_inplace(self.y23.as_ref(), self.buffer1.as_mut());
 
@@ -192,11 +249,6 @@ impl AiryLogDerivativeStep {
         });
         mat_diag_add_inplace(sol.sol.0.as_mut(), self.y4.as_ref());
         // sol is Y_new = y4 - y3 (Y + y1)^-1 y2 in local basis
-
-
-
-
-
 
         let dim = w_matrix.size();
         if h < 0. {
@@ -256,12 +308,14 @@ impl AiryLogDerivativeStep {
             .for_each_triangular_lower(faer::linalg::zip::Diag::Skip, |unzip!(x)| {
                 w_deriv_off_estimate = f64::max(x.abs(), w_deriv_off_estimate)
             });
+
         let mut average_wave_length = 0.0;
         let n = w_matrix.size();
         zip!(self.w_ref.as_ref())
             .for_each(|unzip!(x)| {
-                average_wave_length += *x / n as f64;
+                average_wave_length += f64::sqrt(x.abs())
             });
+        average_wave_length /= n as f64;
 
         self.dr_next = self.step_strat.get_step(r, dr, average_wave_length, w_deriv_off_estimate, None)
     }

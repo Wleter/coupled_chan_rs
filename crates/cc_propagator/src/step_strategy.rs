@@ -158,17 +158,13 @@ impl LinearRefStepStrat {
                     error_deriv_off
                 };
 
-                if *tolerance != 0.0 {
-                    let mut factor = (tolerance / error).powf(1. / change_power);
-                    if dr_prev < 0. {
-                        factor *= (1. + dr_prev / r).powi(3)
-                    }
-                    let factor = f64::min(2., factor);
-
-                    f64::clamp(dr_prev * factor, *dr_min, *dr_max)
-                } else {
-                    todo!()
+                let mut factor = (tolerance / error).powf(1. / change_power);
+                if dr_prev < 0. {
+                    factor *= (1. + dr_prev / r).powi(3)
                 }
+                let factor = f64::min(2., factor);
+
+                f64::clamp(dr_prev * factor, *dr_min, *dr_max)
             },
             LinearRefStepStrat::Transitioned { transition_point, before, after } => {
                 if r < *transition_point {
