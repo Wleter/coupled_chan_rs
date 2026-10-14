@@ -82,3 +82,101 @@ impl<S1: Step, S2: Step> Step for TransitionStep<S1, S2> {
         }
     }
 }
+
+#[derive(Debug, Clone)]
+pub enum ConstRefStepStrat {
+    Fixed {
+        dr: f64
+    },
+    LocalWavelength {
+        dr_min: f64,
+        dr_max: f64,
+        wave_length_ratio: f64
+    },
+    Transitioned {
+        transition_point: f64,
+        before: Box<ConstRefStepStrat>,
+        after: Box<ConstRefStepStrat>
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum LinearRefStepStrat {
+    Fixed {
+        dr: f64
+    },
+    ErrorEstimated {
+        tolerance: f64,
+        change_power: f64,
+        dr_min: f64,
+        dr_max: f64,
+    },
+    Transitioned {
+        transition_point: f64,
+        before: Box<LinearRefStepStrat>,
+        after: Box<LinearRefStepStrat>
+    }
+}
+
+impl LinearRefStepStrat {
+    pub fn init_step(
+        &self, 
+        r: f64,
+    ) -> f64 {
+        match self {
+            LinearRefStepStrat::Fixed { dr } => *dr,
+            LinearRefStepStrat::ErrorEstimated { tolerance: _, change_power: _, dr_min, dr_max: _ } => {
+                *dr_min
+            },
+            LinearRefStepStrat::Transitioned { transition_point, before, after } => {
+                if r < *transition_point {
+                    before.init_step(r)
+                } else {
+                    after.init_step(r)
+                }
+            },
+        }
+    }
+
+    pub fn get_step(
+        &self, 
+        r: f64,
+        dr_prev: f64, 
+        average_wave_length: f64,
+        w_deriv_off_estimate: f64,
+        w_dderiv_estimate: Option<f64>
+    ) -> f64 {
+        match self {
+            LinearRefStepStrat::Fixed { dr } => *dr,
+            LinearRefStepStrat::ErrorEstimated { tolerance, change_power, dr_min, dr_max } => {
+                let error_deriv_off = (average_wave_length * w_deriv_off_estimate * dr_prev.powi(3) / 12.).abs();
+                let error = if let Some(w_dderiv_estimate) = w_dderiv_estimate {
+                    let error_dderiv = (w_dderiv_estimate * dr_prev.powi(3) / 12.).abs();
+
+                    f64::max(error_dderiv, error_deriv_off)
+                } else {
+                    error_deriv_off
+                };
+
+                if *tolerance != 0.0 {
+                    let mut factor = (tolerance / error).powf(1. / change_power);
+                    if dr_prev < 0. {
+                        factor *= (1. + dr_prev / r).powi(3)
+                    }
+                    let factor = f64::min(2., factor);
+
+                    f64::clamp(dr_prev * factor, *dr_min, *dr_max)
+                } else {
+                    todo!()
+                }
+            },
+            LinearRefStepStrat::Transitioned { transition_point, before, after } => {
+                if r < *transition_point {
+                    before.get_step(r, dr_prev, average_wave_length, w_deriv_off_estimate, w_dderiv_estimate)
+                } else {
+                    after.get_step(r, dr_prev, average_wave_length, w_deriv_off_estimate, w_dderiv_estimate)
+                }
+            },
+        }
+    }
+}

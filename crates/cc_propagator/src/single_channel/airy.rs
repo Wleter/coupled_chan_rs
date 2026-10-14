@@ -51,7 +51,7 @@ impl<'a, W: WFunction, S: Step> AiryLogDerivative<'a, W, S> {
         let w_ref = (w_function_plus + w_function_minus) / 2.0;
         let w_deriv_ref = (w_function_plus - w_function_minus) * root_3 / h ;
 
-        let imbeddings = get_imbeddings(w_ref, w_deriv_ref, self.solution.r, h, self.asymptotic_criterion);
+        let imbeddings = get_imbeddings(w_ref, w_deriv_ref, h, self.asymptotic_criterion);
 
         let inversion_term = 1. / (self.solution.sol.0 + imbeddings.y1);
         let sol_new = imbeddings.y4 - (imbeddings.y23).powi(2) * inversion_term;
@@ -123,7 +123,7 @@ const AIRY_ACC: f64 = 1e-20;
 const AIRY_N_MAX: usize = 100;
 
 
-pub(crate) fn get_imbeddings(w_ref: f64, w_deriv_ref: f64, r: f64, dr: f64, asymptotic_criterion: f64) -> Imbeddings {
+pub(crate) fn get_imbeddings(w_ref: f64, w_deriv_ref: f64, dr: f64, asymptotic_criterion: f64) -> Imbeddings {
     // no sign since w_ref, w_deriv_ref are on the RHS of the Schrodinger equation
     let alpha = f64::cbrt(w_deriv_ref);
     let rho = -dr / 2.0;
