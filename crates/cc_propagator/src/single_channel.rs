@@ -52,10 +52,9 @@ mod tests {
         Propagator,
         WithWaveStorage,
         single_channel::{
-            log_derivative::LogDerivative,
-            numerov::RatioNumerov,
+            airy::AiryLogDerivative, log_derivative::LogDerivative, numerov::RatioNumerov
         },
-        step_strategy::SingleStep,
+        step_strategy::{LinearRefStepStrat, SingleStep},
     };
 
     use super::*;
@@ -109,6 +108,34 @@ mod tests {
         };
 
         let mut log_deriv = LogDerivative::new(&w_function, SingleStep::new(1e-3), boundary);
+        log_deriv.init_wave_storage();
+        let analytic = |x: f64| -k * f64::tan(k * x);
+        let analytic_val = |x: f64| f64::cos(k * x);
+
+        let sol = log_deriv.propagate_to(1. / 3. * PI / k);
+        assert_approx_eq!(analytic(sol.r), sol.sol.0, 1e-4);
+        let (rs, wave) = log_deriv.get_wave_storage().unwrap().reconstruct(1., false);
+        assert_approx_eq!(*wave.last().unwrap(), analytic_val(*rs.last().unwrap()), 1e-4);
+
+        let sol = log_deriv.propagate_to(2. / 3. * PI / k);
+        assert_approx_eq!(analytic(sol.r), sol.sol.0, 1e-4);
+        let (rs, wave) = log_deriv.get_wave_storage().unwrap().reconstruct(1., false);
+        assert_approx_eq!(*wave.last().unwrap(), analytic_val(*rs.last().unwrap()), 1e-4);
+    }
+
+    #[test]
+    pub fn test_single_chan_airy_log_derivative() {
+        let k = 5.;
+
+        let w_function = SingleValue(k * k);
+        let boundary = Boundary {
+            r_start: 0.,
+            direction: Direction::Outwards,
+            value: 1.,
+            derivative: 0.,
+        };
+
+        let mut log_deriv = AiryLogDerivative::new(&w_function, LinearRefStepStrat::Fixed { dr: 1e-3 }, boundary);
         log_deriv.init_wave_storage();
         let analytic = |x: f64| -k * f64::tan(k * x);
         let analytic_val = |x: f64| f64::cos(k * x);

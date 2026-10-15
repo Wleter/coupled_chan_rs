@@ -77,13 +77,12 @@ mod tests {
         Propagator,
         WithWaveStorage,
         multi_channel::{
-            diabatic_log_derivative::{
+            airy::AiryLogDerivative, diabatic_log_derivative::{
                 JohnsonLogDerivative,
                 ManolopoulosLogDerivative,
-            },
-            numerov::RatioNumerov,
+            }, numerov::RatioNumerov
         },
-        step_strategy::SingleStep,
+        step_strategy::{LinearRefStepStrat, SingleStep},
     };
 
     use super::*;
@@ -209,6 +208,42 @@ mod tests {
         let analytic_val = |x: f64| (&u * col![f64::cos(k1 * x), 0.,]).iter().copied().collect::<Vec<f64>>();
 
         let mut log_deriv = ManolopoulosLogDerivative::new(&w_matrix, SingleStep::new(1e-3), boundary);
+        log_deriv.init_wave_storage();
+
+        let sol = log_deriv.propagate_to(1. / 3. * PI / k1);
+        assert_approx_eq!(mat => analytic(sol.r), sol.sol.0, 1e-4);
+        let (rs, wave) = log_deriv.get_wave_storage().unwrap().reconstruct(start.as_ref(), false);
+        assert_approx_eq!(iter => wave.last().unwrap(), analytic_val(*rs.last().unwrap()), 1e-4);
+
+        let sol = log_deriv.propagate_to(2. / 3. * PI / k1);
+        assert_approx_eq!(mat => analytic(sol.r), sol.sol.0, 1e-4);
+        let (rs, wave) = log_deriv.get_wave_storage().unwrap().reconstruct(start.as_ref(), false);
+        assert_approx_eq!(iter => wave.last().unwrap(), analytic_val(*rs.last().unwrap()), 1e-4);
+    }
+
+    #[test]
+    pub fn test_multi_chan_log_derivative_airy() {
+        let k1 = 5.;
+        let k2 = 9.;
+
+        let k2_mid = (k1 * k1 + k2 * k2) / 2.;
+        let k2_diff = (k2 * k2 - k1 * k1) / 2.;
+        let w_matrix = SingleValue(mat![[k2_mid, k2_diff], [k2_diff, k2_mid]]);
+
+        let u = mat![[1., 1.], [-1., 1.]] / f64::sqrt(2.);
+        let start = &u * mat![[1.], [0.]].col(0);
+
+        let boundary = Boundary {
+            r_start: 0.,
+            direction: Direction::Outwards,
+            value: mat![[1., 0.], [0., 1.]],
+            derivative: mat![[0., 0.], [0., 0.]],
+        };
+
+        let analytic = |x: f64| &u * mat![[-k1 * f64::tan(k1 * x), 0.], [0., -k2 * f64::tan(k2 * x)],] * u.transpose();
+        let analytic_val = |x: f64| (&u * col![f64::cos(k1 * x), 0.,]).iter().copied().collect::<Vec<f64>>();
+
+        let mut log_deriv = AiryLogDerivative::new(&w_matrix, LinearRefStepStrat::Fixed { dr: 1e-3 }, boundary);
         log_deriv.init_wave_storage();
 
         let sol = log_deriv.propagate_to(1. / 3. * PI / k1);

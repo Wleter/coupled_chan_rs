@@ -1,40 +1,45 @@
 use std::f64::consts::{PI, TAU};
 use cc_math_utils::airy::eval_airy;
 
-use crate::{Boundary, Direction, LogDeriv, Nodes, Propagator, Solution, WaveStorage, WithNodeCount, WithWaveStorage, single_channel::{WFunction, local_wavelength}, step_strategy::Step};
+use crate::{Boundary, Direction, LogDeriv, Nodes, Propagator, Solution, WaveStorage, WithNodeCount, WithWaveStorage, single_channel::WFunction, step_strategy::LinearRefStepStrat};
+
+const ROOT_3: f64 = 1.732050807;
 
 /// based on multichannel-channel version of airy log-derivative
-pub struct AiryLogDerivative<'a, W: WFunction, S: Step> {
+pub struct AiryLogDerivative<'a, W: WFunction> {
     w_function: &'a W,
-    step: S,
+    step: LinearRefStepStrat,
     nodes: Nodes,
     wave_storage: Option<WaveStorage<f64>>,
 
+    dr_prev: f64,
+    w_ref_prev: f64,
+
     solution: Solution<LogDeriv<f64>>,
-    asymptotic_criterion: f64,
 }
 
-impl<'a, W: WFunction, S: Step> AiryLogDerivative<'a, W, S> {
-    pub fn new(w_function: &'a W, step: S, boundary: Boundary<f64>, asymptotic_criterion: f64) -> Self {
+impl<'a, W: WFunction> AiryLogDerivative<'a, W> {
+    pub fn new(w_function: &'a W, step: LinearRefStepStrat, boundary: Boundary<f64>) -> Self {
         let r = boundary.r_start;
 
-        let w_function_value = w_function.value(r);
-        let local_wavelength = local_wavelength(w_function_value);
-
         let dr = match boundary.direction {
-            Direction::Inwards => -(step.get_step(r, local_wavelength).abs()),
-            Direction::Outwards => step.get_step(r, local_wavelength).abs(),
+            Direction::Inwards => -(step.init_step(r).abs()),
+            Direction::Outwards => step.init_step(r).abs(),
         };
-
         let sol = LogDeriv(boundary.derivative / boundary.value);
+
+        let w_function_plus = w_function.value(r + dr / 2. * (-1. + 1. / ROOT_3));
+        let w_function_minus = w_function.value(r + dr / 2. * (-1. - 1. / ROOT_3));
+        let w_ref = (w_function_plus + w_function_minus) / 2.0;
 
         Self {
             w_function,
+            dr_prev: dr,
+            w_ref_prev: w_ref,
             step,
             solution: Solution { r, dr, sol },
             nodes: Nodes(0),
             wave_storage: None,
-            asymptotic_criterion
         }
     }
 
@@ -44,14 +49,13 @@ impl<'a, W: WFunction, S: Step> AiryLogDerivative<'a, W, S> {
         }
         let h = self.solution.dr;
 
-        let root_3 = f64::sqrt(3.0);
-        let w_function_plus = self.w_function.value(self.solution.r + h / 2. * (1. + 1. / root_3));
-        let w_function_minus = self.w_function.value(self.solution.r + h / 2. * (1. - 1. / root_3));
+        let w_function_plus = self.w_function.value(self.solution.r + h / 2. * (1. + 1. / ROOT_3));
+        let w_function_minus = self.w_function.value(self.solution.r + h / 2. * (1. - 1. / ROOT_3));
 
         let w_ref = (w_function_plus + w_function_minus) / 2.0;
-        let w_deriv_ref = (w_function_plus - w_function_minus) * root_3 / h ;
+        let w_deriv_ref = (w_function_plus - w_function_minus) * ROOT_3 / h ;
 
-        let imbeddings = get_imbeddings(w_ref, w_deriv_ref, h, self.asymptotic_criterion);
+        let imbeddings = get_imbeddings(w_ref, w_deriv_ref, h);
 
         let inversion_term = 1. / (self.solution.sol.0 + imbeddings.y1);
         let sol_new = imbeddings.y4 - (imbeddings.y23).powi(2) * inversion_term;
@@ -68,17 +72,20 @@ impl<'a, W: WFunction, S: Step> AiryLogDerivative<'a, W, S> {
             (inversion_term >= 0.) as u64
         };
 
-        let wavelength = local_wavelength(w_ref);
-
-        let dr_new = self.step.get_step(self.solution.r, wavelength);
+        let dr_mid = (self.dr_prev + h) / 2.;
+        let w_dderiv_estimate = 2. / (dr_mid * dr_mid) * (w_ref - self.w_ref_prev + w_deriv_ref * dr_mid).abs();
+        // w_deriv_off_estimate = 0 so average k does not matter
+        let dr_new = self.step.get_step(self.solution.r, self.dr_prev, 0.0, 0.0, Some(w_dderiv_estimate));
         
+        self.w_ref_prev = self.solution.sol.0;
         self.solution.sol.0 = sol_new;
         self.solution.r += self.solution.dr;
-        self.solution.dr = dr_new.clamp(0., 2. * self.solution.dr.abs()) * self.solution.dr.signum();
+        self.dr_prev = self.solution.dr;
+        self.solution.dr = dr_new;
     }
 }
 
-impl<W: WFunction, S: Step> Propagator<LogDeriv<f64>> for AiryLogDerivative<'_, W, S> {
+impl<W: WFunction> Propagator<LogDeriv<f64>> for AiryLogDerivative<'_, W> {
     fn step(&mut self) -> &Solution<LogDeriv<f64>> {
         self.step_r_target(None);
         &self.solution
@@ -93,13 +100,13 @@ impl<W: WFunction, S: Step> Propagator<LogDeriv<f64>> for AiryLogDerivative<'_, 
     }
 }
 
-impl<W: WFunction, S: Step> WithNodeCount for AiryLogDerivative<'_, W, S> {
+impl<W: WFunction> WithNodeCount for AiryLogDerivative<'_, W> {
     fn nodes(&self) -> crate::Nodes {
         self.nodes
     }
 }
 
-impl<W: WFunction, S: Step> WithWaveStorage<f64> for AiryLogDerivative<'_, W, S> {
+impl<W: WFunction> WithWaveStorage<f64> for AiryLogDerivative<'_, W> {
     fn init_wave_storage(&mut self) {
         self.wave_storage = Some(WaveStorage::default())
     }
@@ -121,17 +128,21 @@ pub(crate) struct Imbeddings {
 
 const AIRY_ACC: f64 = 1e-20;
 const AIRY_N_MAX: usize = 100;
+const ASYMPTOTIC_CRITERION: f64 = 20.0;
 
+pub(crate) fn get_imbeddings(w_ref: f64, mut w_deriv_ref: f64, dr: f64) -> Imbeddings {
+    // for stability, todo! reconsider value to be on dimensionless quantity
+    if w_deriv_ref == 0.0 {
+        w_deriv_ref = 1e-30
+    }
 
-pub(crate) fn get_imbeddings(w_ref: f64, w_deriv_ref: f64, dr: f64, asymptotic_criterion: f64) -> Imbeddings {
-    // no sign since w_ref, w_deriv_ref are on the RHS of the Schrodinger equation
-    let alpha = f64::cbrt(w_deriv_ref);
+    let alpha = -f64::cbrt(w_deriv_ref);
     let rho = -dr / 2.0;
     let beta = w_ref / w_deriv_ref;
     let x = alpha * (rho + beta);
     let dx = alpha * dr;
 
-    if x.abs() >= asymptotic_criterion {
+    if x.abs() >= ASYMPTOTIC_CRITERION {
         let c2_w = airy_x(x, dx, AIRY_N_MAX, AIRY_ACC);
 
         let c1_w_neg = airy_y(x, dx, AIRY_N_MAX, AIRY_ACC);

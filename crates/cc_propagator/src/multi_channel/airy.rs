@@ -18,8 +18,7 @@ impl<'a, W: WMatrix<f64>> AiryLogDerivative<'a, W> {
     pub fn new(
         w_matrix: &'a W, 
         step_strat: LinearRefStepStrat, 
-        boundary: Boundary<Matrix>, 
-        asymptotic_criterion: f64
+        boundary: Boundary<Matrix>,
     ) -> Self {
         let r = boundary.r_start;
         let dr = match boundary.direction {
@@ -27,7 +26,7 @@ impl<'a, W: WMatrix<f64>> AiryLogDerivative<'a, W> {
             Direction::Outwards => step_strat.init_step(r).abs(),
         };
 
-        let mut step = AiryLogDerivativeStep::new(w_matrix.size(), step_strat, dr, asymptotic_criterion);
+        let mut step = AiryLogDerivativeStep::new(w_matrix.size(), step_strat, dr);
         step.get_init_prev_w_ref(r, dr, w_matrix);
 
         let mut sol = Solution {
@@ -42,6 +41,27 @@ impl<'a, W: WMatrix<f64>> AiryLogDerivative<'a, W> {
             solution_local: sol.clone(),
             solution: sol,
             nodes: Nodes(0),
+            w_matrix,
+        }
+    }
+
+    pub fn from_log_derivative(
+        w_matrix: &'a W, 
+        step_strat: LinearRefStepStrat, 
+        solution: Solution<LogDeriv<Matrix>>,
+        nodes: Nodes,
+    ) -> Self {
+        let mut step = AiryLogDerivativeStep::new(w_matrix.size(), step_strat, solution.dr);
+        step.get_init_prev_w_ref(solution.r, solution.dr, w_matrix);
+
+        let mut sol_local = solution.clone();
+        sol_local.sol.0 = &step.adiabatic_transf * sol_local.sol.0 * step.adiabatic_transf.transpose();
+
+        Self {
+            step,
+            solution_local: sol_local,
+            solution: solution,
+            nodes,
             w_matrix,
         }
     }
@@ -144,11 +164,10 @@ pub struct AiryLogDerivativeStep {
     inverse_buffer: MemBuffer,
     diagonalisation_buffer: MemBuffer,
     wave_storage: Option<WaveStorage<Matrix>>,
-    asymptotic_criterion: f64
 }
 
 impl AiryLogDerivativeStep {
-    pub fn new(size: usize, step_strat: LinearRefStepStrat, dr_next: f64, asymptotic_criterion: f64) -> Self {
+    pub fn new(size: usize, step_strat: LinearRefStepStrat, dr_next: f64) -> Self {
         Self {
             step_strat,
             dr_next,
@@ -166,7 +185,6 @@ impl AiryLogDerivativeStep {
             inverse_buffer: get_ldlt_inverse_buffer(size),
             diagonalisation_buffer: get_self_adjoint_evd_buffer(size),
             wave_storage: None,
-            asymptotic_criterion
         }
     }
 
@@ -188,7 +206,7 @@ impl AiryLogDerivativeStep {
             let w_deriv_ref = self.w_deriv_ref.diagonal().as_shape(n);
 
             for i in n.indices() {
-                let imbeddings = get_imbeddings(w_ref[i], w_deriv_ref[i], h, self.asymptotic_criterion);
+                let imbeddings = get_imbeddings(w_ref[i], w_deriv_ref[i], h);
 
                 y1[i] = imbeddings.y1;
                 y23[i] = imbeddings.y23;
@@ -281,9 +299,10 @@ impl AiryLogDerivativeStep {
         self_adjoint_evd_inplace(
             self.buffer1.as_ref(),
             self.w_ref.as_mut(), 
-            Some(self.adiabatic_transf.as_mut()), 
+            Some(self.buffer2.as_mut()), 
             &mut self.diagonalisation_buffer
         );
+        self.adiabatic_transf.copy_from(self.buffer2.transpose());
 
         // convert w_deriv_ref to local basis
         matmul(
@@ -351,12 +370,12 @@ impl AiryLogDerivativeStep {
         matmul(
             self.adiabatic_connection_buffer.as_mut(), 
             faer::Accum::Replace, 
-            self.buffer2.as_ref(), 
+            self.buffer2.transpose(), 
             self.adiabatic_transf.transpose(), 
             1.0, 
             faer::Par::Seq
         );
-        self.adiabatic_transf.copy_from(&self.buffer2);
+        self.adiabatic_transf.copy_from(self.buffer2.transpose());
 
         // convert w_deriv_ref to local basis
         matmul(
@@ -382,13 +401,13 @@ impl AiryLogDerivativeStep {
                 w_deriv_off_estimate = f64::max(x.abs(), w_deriv_off_estimate)
             });
 
-        let mut average_wave_length = 0.0;
+        let mut average_wave_vector = 0.0;
         let n = w_matrix.size();
         zip!(self.w_ref.as_ref())
             .for_each(|unzip!(x)| {
-                average_wave_length += f64::sqrt(x.abs())
+                average_wave_vector += f64::sqrt(x.abs())
             });
-        average_wave_length /= n as f64;
+        average_wave_vector /= n as f64;
 
         let mut w_dderiv_estimate = 0.0;
         {
@@ -406,6 +425,6 @@ impl AiryLogDerivativeStep {
         }
         w_dderiv_estimate /= n as f64;
 
-        self.dr_next = self.step_strat.get_step(r + dr, dr, average_wave_length, w_deriv_off_estimate, Some(w_dderiv_estimate))
+        self.dr_next = self.step_strat.get_step(r + dr, dr, average_wave_vector, w_deriv_off_estimate, Some(w_dderiv_estimate))
     }
 }

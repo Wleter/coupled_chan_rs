@@ -142,14 +142,14 @@ impl LinearRefStepStrat {
         &self, 
         r: f64,
         dr_prev: f64, 
-        average_wave_length: f64,
+        average_wave_vector: f64,
         w_deriv_off_estimate: f64,
         w_dderiv_estimate: Option<f64>
     ) -> f64 {
         match self {
             LinearRefStepStrat::Fixed { dr } => *dr,
             LinearRefStepStrat::ErrorEstimated { tolerance, change_power, dr_min, dr_max } => {
-                let error_deriv_off = (average_wave_length * w_deriv_off_estimate * dr_prev.powi(3) / 12.).abs();
+                let error_deriv_off = (average_wave_vector * w_deriv_off_estimate * dr_prev.powi(3) / 12.).abs();
                 let error = if let Some(w_dderiv_estimate) = w_dderiv_estimate {
                     let error_dderiv = (w_dderiv_estimate * dr_prev.powi(3) / 12.).abs();
 
@@ -168,9 +168,9 @@ impl LinearRefStepStrat {
             },
             LinearRefStepStrat::Transitioned { transition_point, before, after } => {
                 if r < *transition_point {
-                    before.get_step(r, dr_prev, average_wave_length, w_deriv_off_estimate, w_dderiv_estimate)
+                    before.get_step(r, dr_prev, average_wave_vector, w_deriv_off_estimate, w_dderiv_estimate)
                 } else {
-                    after.get_step(r, dr_prev, average_wave_length, w_deriv_off_estimate, w_dderiv_estimate)
+                    after.get_step(r, dr_prev, average_wave_vector, w_deriv_off_estimate, w_dderiv_estimate)
                 }
             },
         }

@@ -140,7 +140,7 @@ pub fn eval_airy(x: f64) -> AiryData {
         x if x.abs() <= NEAR_THRESHOLD => airy_near(x),
         x if x >= 9.0 => airy_9_expansion(x),
         x if x >= 4.5 => airy_4_5_expansion(x),
-        x if x > -NEAR_THRESHOLD => airy_0_to_4_5_expansion(x),
+        x if x > NEAR_THRESHOLD => airy_0_to_4_5_expansion(x),
         x if x >= -5.0 => airy_0_to_neg_5_expansion(x),
         x if x < -5.0 => airy_neg_5_expansion(x),
         _ => unreachable!()
