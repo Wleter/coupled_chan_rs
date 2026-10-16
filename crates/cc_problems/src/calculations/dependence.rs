@@ -204,7 +204,6 @@ impl<C: SingleCalc> DependenceCalc<C> {
 }
 
 #[derive(Clone, Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct DependenceCalcInput<C> {
     pub save_filepath: PathBuf,
     #[serde(default = "default_file_access")]

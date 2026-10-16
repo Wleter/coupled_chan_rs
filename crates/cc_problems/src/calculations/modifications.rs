@@ -270,6 +270,55 @@ where
     }
 }
 
+pub struct FloatCalcMod<P, C, F>
+where
+    P: Problem,
+    F: Fn(&mut C, f64),
+{
+    value: f64,
+    conversion: F,
+    phantom: PhantomData<(P, C)>,
+}
+
+impl<P, C, F> FloatCalcMod<P, C, F>
+where
+    P: Problem,
+    F: Fn(&mut C, f64)
+{
+    pub fn new(value: f64, conversion: F) -> Self {
+        Self {
+            value,
+            conversion,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<P, C, F> ModifyParam for FloatCalcMod<P, C, F>
+where
+    P: Problem,
+    C: Send + Sync,
+    F: Fn(&mut C, f64) + Send + Sync,
+{
+    type P = P;
+    type C = C;
+
+    fn prep_modify(&self, modified: &mut Modified<Self::P, Self::C>) -> ModificationAction {
+        (self.conversion)(modified.calc_input, self.value);
+
+        ModificationAction::BasisChange
+    }
+
+    fn as_number(&self) -> Number {
+        Number::from_f64(self.value.into()).unwrap()
+    }
+
+    fn mut_number(&mut self, number: Number) {
+        let value = number.as_f64().unwrap();
+        self.value = value.try_into().unwrap()
+    }
+}
+
 pub fn scalar_from_f64<Q: PhysQuantity>(value: f64) -> Scalar<Q> {
     if value == 0.0 {
         Scalar::new(0.0, Q::default(), "");

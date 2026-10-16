@@ -160,6 +160,24 @@ impl<'a, R: LogDerivReference, W: WMatrix<f64>, S: Step> DiabaticLogDerivative<'
         }
     }
 
+    pub fn from_log_derivative(
+        w_matrix: &'a W, 
+        step_strat: S, 
+        solution: Solution<LogDeriv<Matrix>>,
+        nodes: Nodes,
+    ) -> Self {
+        let mut step = LogDerivativeStep::new(w_matrix.size());
+        w_matrix.value_inplace(solution.r, &mut step.w_matrix_buffer);
+
+        Self {
+            step,
+            step_strat,
+            solution,
+            nodes,
+            w_matrix,
+        }
+    }
+
     fn step_r_target(&mut self, r: Option<f64>) {
         let wavelength = local_wavelength(&self.step.w_matrix_buffer);
 

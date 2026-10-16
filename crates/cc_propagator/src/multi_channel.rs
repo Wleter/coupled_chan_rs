@@ -10,10 +10,13 @@ use faer::{
     linalg::solvers::DenseSolveCore,
 };
 
-use crate::WaveStorage;
+use crate::{LogDeriv, Propagator, WaveStorage, WithNodeCount, WithWaveStorage};
 
 // todo! make everything generic on matrix backend
 pub type Matrix = Mat<f64>;
+
+pub trait LogDerivativePropagator: Propagator<LogDeriv<Matrix>> + WithNodeCount + WithWaveStorage<Matrix> {}
+impl<T: Propagator<LogDeriv<Matrix>> + WithNodeCount + WithWaveStorage<Matrix>> LogDerivativePropagator for T {}
 
 /// Trait for representing W matrix
 /// in an equation y''(x) = W(x) y(x)

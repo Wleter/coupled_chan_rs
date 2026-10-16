@@ -2,19 +2,12 @@ use cc_math_utils::brent_root_method;
 use coupled_chan::{
     cc_propagator::{
         Direction,
-        Propagator,
-        WithNodeCount,
-        WithWaveStorage,
     },
     coupling::{
         Asymptote,
         CollisionParams,
         CollisionWMatrix,
         RCoupling,
-    },
-    multi_channel::diabatic_log_derivative::{
-        JohnsonLogDerivative,
-        ManolopoulosLogDerivative,
     },
 };
 use hilbert_space::faer;
@@ -39,15 +32,11 @@ use crate::{
         SingleCalc,
         dependence::NamedValue,
         modifications::{
-            ModifyParam,
-            ModifyRegistry,
-            ScalarCalcMod,
+            FloatCalcMod, ModifyParam, ModifyRegistry, ScalarCalcMod
         },
         scattering::{
-            Boundary,
-            CoupledChanSolver,
-            Step,
-            StepScalingMod,
+            Boundary, 
+            CoupledChanPropagator
         },
     },
     modify_recipe,
@@ -87,8 +76,8 @@ pub struct BoundStateCalcInput {
     pub r_match: Scalar<Length>,
     pub r_max: Scalar<Length>,
 
-    pub step: Step,
-    pub solver: LogDerivSolver,
+    pub propagator_out: CoupledChanPropagator,
+    pub propagator_in: CoupledChanPropagator,
 
     #[serde(default)]
     pub get_occupations: bool,
@@ -123,7 +112,10 @@ pub fn bound_states_calc_mods<P: Problem + 'static>() -> ModifyRegistry<P, Bound
         ),
         (
             "step_scaling",
-            modify_recipe!(|x| StepScalingMod::new(x, |r: &mut BoundStateCalcInput| &mut r.step)),
+            modify_recipe!(|x| FloatCalcMod::new(x, |r: &mut BoundStateCalcInput, v| {
+                r.propagator_out.scale_step(v);
+                r.propagator_in.scale_step(v);
+            })),
         ),
     ])
 }
@@ -133,22 +125,6 @@ pub fn bound_states_calc_search_mods<P: Problem + 'static>() -> ModifyRegistry<P
         "energy",
         modify_recipe!(|e| ScalarCalcMod::new(e, |r: &mut BoundStateCalcInput, v| r.energy = v)),
     )])
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum LogDerivSolver {
-    JohnsonLogDeriv,
-    ManolopoulosLogDeriv,
-}
-
-impl From<LogDerivSolver> for CoupledChanSolver {
-    fn from(val: LogDerivSolver) -> Self {
-        match val {
-            LogDerivSolver::JohnsonLogDeriv => CoupledChanSolver::JohnsonLogDeriv,
-            LogDerivSolver::ManolopoulosLogDeriv => CoupledChanSolver::ManolopoulosLogDeriv,
-        }
-    }
 }
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
@@ -630,36 +606,14 @@ pub fn bound_mismatch(
     let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
     let r_match = converter.scalar_value(&input.r_match);
 
-    let (matching_matrix, nodes) = match input.solver {
-        LogDerivSolver::JohnsonLogDeriv => {
-            let step = input.step.get_step();
-            let mut solver_in = JohnsonLogDerivative::new(w_matrix, step, boundary_in);
-            let sol_in = solver_in.propagate_to(r_match);
+    let mut propagator_in = input.propagator_in.get_propagator(boundary_in, w_matrix);
+    let sol_in = propagator_in.propagate_to(r_match);
 
-            let step = input.step.get_step();
-            let mut solver_out = JohnsonLogDerivative::new(w_matrix, step, boundary_out);
-            let sol_out = solver_out.propagate_to(r_match);
+    let mut propagator_out = input.propagator_out.get_propagator(boundary_out, w_matrix);
+    let sol_out = propagator_out.propagate_to(r_match);
 
-            let matching_matrix = &sol_out.sol.0 - &sol_in.sol.0;
-            let nodes = solver_in.nodes().0 + solver_out.nodes().0;
-
-            (matching_matrix, nodes)
-        }
-        LogDerivSolver::ManolopoulosLogDeriv => {
-            let step = input.step.get_step();
-            let mut solver_in = ManolopoulosLogDerivative::new(w_matrix, step, boundary_in);
-            let sol_in = solver_in.propagate_to(r_match);
-
-            let step = input.step.get_step();
-            let mut solver_out = ManolopoulosLogDerivative::new(w_matrix, step, boundary_out);
-            let sol_out = solver_out.propagate_to(r_match);
-
-            let matching_matrix = &sol_out.sol.0 - &sol_in.sol.0;
-            let nodes = solver_in.nodes().0 + solver_out.nodes().0;
-
-            (matching_matrix, nodes)
-        }
-    };
+    let matching_matrix = &sol_out.sol.0 - &sol_in.sol.0;
+    let nodes = propagator_in.nodes().0 + propagator_out.nodes().0;
 
     let eigenvalues = matching_matrix
         .self_adjoint_eigenvalues(faer::Side::Lower)
@@ -683,85 +637,40 @@ fn bound_wave(w_matrix: &CollisionWMatrix<impl RCoupling>, input: &BoundStateCal
     let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
     let r_match = converter.scalar_value(&input.r_match);
 
-    // todo! code duplication
-    match input.solver {
-        LogDerivSolver::JohnsonLogDeriv => {
-            let step = input.step.get_step();
-            let mut solver_in = JohnsonLogDerivative::new(w_matrix, step, boundary_in);
-            solver_in.init_wave_storage();
-            let sol_in = solver_in.propagate_to(r_match);
+    let mut propagator_in = input.propagator_in.get_propagator(boundary_in, w_matrix);
+    propagator_in.init_wave_storage();
+    let sol_in = propagator_in.propagate_to(r_match);
 
-            let step = input.step.get_step();
-            let mut solver_out = JohnsonLogDerivative::new(w_matrix, step, boundary_out);
-            solver_out.init_wave_storage();
-            let sol_out = solver_out.propagate_to(r_match);
+    let mut propagator_out = input.propagator_out.get_propagator(boundary_out, w_matrix);
+    propagator_out.init_wave_storage();
+    let sol_out = propagator_out.propagate_to(r_match);
 
-            let matching_matrix = &sol_out.sol.0 - &sol_in.sol.0;
-            let nodes = solver_in.nodes().0 + solver_out.nodes().0;
+    let matching_matrix = &sol_out.sol.0 - &sol_in.sol.0;
+    let nodes = propagator_in.nodes().0 + propagator_out.nodes().0;
 
-            let eigen = matching_matrix
-                .self_adjoint_eigen(faer::Side::Lower)
-                .expect("could not diagonalize matching matrix");
+    let eigen = matching_matrix
+        .self_adjoint_eigen(faer::Side::Lower)
+        .expect("could not diagonalize matching matrix");
 
-            let init_wave = eigen.U().col((target_nodes - nodes) as usize);
+    let init_wave = eigen.U().col((target_nodes - nodes) as usize);
 
-            let wave_in = solver_in.get_wave_storage().as_ref().unwrap().reconstruct(init_wave, true);
-            let wave_in = WaveFunction {
-                distances: wave_in.0,
-                values: wave_in.1,
-            };
+    let wave_in = propagator_in.get_wave_storage().as_ref().unwrap().reconstruct(init_wave, true);
+    let wave_in = WaveFunction {
+        distances: wave_in.0,
+        values: wave_in.1,
+    };
 
-            let wave_out = solver_out.get_wave_storage().as_ref().unwrap().reconstruct(init_wave, true);
-            let mut wave_out = WaveFunction {
-                distances: wave_out.0,
-                values: wave_out.1,
-            };
+    let wave_out = propagator_out.get_wave_storage().as_ref().unwrap().reconstruct(init_wave, true);
+    let mut wave_out = WaveFunction {
+        distances: wave_out.0,
+        values: wave_out.1,
+    };
 
-            wave_out.reverse();
-            wave_out.distances.extend(wave_in.distances);
-            wave_out.values.extend(wave_in.values);
+    wave_out.reverse();
+    wave_out.distances.extend(wave_in.distances);
+    wave_out.values.extend(wave_in.values);
 
-            wave_out.normalize()
-        }
-        LogDerivSolver::ManolopoulosLogDeriv => {
-            let step = input.step.get_step();
-            let mut solver_in = ManolopoulosLogDerivative::new(w_matrix, step, boundary_in);
-            solver_in.init_wave_storage();
-            let sol_in = solver_in.propagate_to(r_match);
-
-            let step = input.step.get_step();
-            let mut solver_out = ManolopoulosLogDerivative::new(w_matrix, step, boundary_out);
-            solver_out.init_wave_storage();
-            let sol_out = solver_out.propagate_to(r_match);
-
-            let matching_matrix = &sol_out.sol.0 - &sol_in.sol.0;
-            let nodes = solver_in.nodes().0 + solver_out.nodes().0;
-
-            let eigen = matching_matrix
-                .self_adjoint_eigen(faer::Side::Lower)
-                .expect("could not diagonalize matching matrix");
-
-            let init_wave = eigen.U().col((target_nodes - nodes) as usize);
-
-            let wave_in = solver_in.get_wave_storage().as_ref().unwrap().reconstruct(init_wave, true);
-            let wave_in = WaveFunction {
-                distances: wave_in.0,
-                values: wave_in.1,
-            };
-
-            let wave_out = solver_out.get_wave_storage().as_ref().unwrap().reconstruct(init_wave, true);
-            let mut wave_out = WaveFunction {
-                distances: wave_out.0,
-                values: wave_out.1,
-            };
-
-            wave_out.reverse();
-            wave_out.distances.extend(wave_in.distances);
-            wave_out.values.extend(wave_in.values);
-
-            wave_out.normalize()
-        }
-    }
+    wave_out.normalize()
 }
 
 pub fn modify_from_f64<P: Problem, C>(modify: &mut dyn ModifyParam<P = P, C = C>, value: f64) {
