@@ -77,7 +77,7 @@ impl<'a, W: WFunction> AiryLogDerivative<'a, W> {
         // w_deriv_off_estimate = 0 so average k does not matter
         let dr_new = self.step.get_step(self.solution.r, self.dr_prev, 0.0, 0.0, Some(w_dderiv_estimate));
         
-        self.w_ref_prev = self.solution.sol.0;
+        self.w_ref_prev = w_ref;
         self.solution.sol.0 = sol_new;
         self.solution.r += self.solution.dr;
         self.dr_prev = self.solution.dr;
@@ -174,7 +174,7 @@ pub(crate) fn get_imbeddings(w_ref: f64, mut w_deriv_ref: f64, dr: f64) -> Imbed
             Imbeddings {
                 y1: alpha * n1 / m1 * (f64::sinh(theta2 - phi1) - f64::tanh(zeta2 - zeta1) * f64::sinh(theta2 + phi1)) / d,
                 y23: alpha / (PI * m1 * m2 * f64::cosh(zeta2 - zeta1) * d),
-                y4: alpha * n2 / m2 * (f64::sinh(theta1 - phi2) - f64::tanh(zeta2 - zeta1) * f64::sinh(theta1 + phi2)) / d,
+                y4: alpha * n2 / m2 * (f64::sinh(theta1 - phi2) + f64::tanh(zeta2 - zeta1) * f64::sinh(theta1 + phi2)) / d,
             }
         } else if x < 0. && y < 0. {
             Imbeddings {
