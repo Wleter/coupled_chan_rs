@@ -77,7 +77,7 @@ pub struct BoundStateCalcInput {
     pub r_match: Scalar<Length>,
     pub r_max: Scalar<Length>,
 
-    /// Coupled channel propagator to use, 
+    /// Coupled channel propagator to use,
     /// inwards propagation can be overridden by
     /// optional `propagator_in` field.
     pub propagator: CoupledChanPropagator,
@@ -619,7 +619,7 @@ pub fn bound_mismatch(
     } else {
         input.propagator.get_propagator(boundary_in, w_matrix)
     };
-    
+
     let sol_in = propagator_in.propagate_to(r_match);
 
     let mut propagator_out = input.propagator.get_propagator(boundary_out, w_matrix);
