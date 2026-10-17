@@ -1,7 +1,22 @@
-use std::f64::consts::{PI, TAU};
 use cc_math_utils::airy::eval_airy;
+use std::f64::consts::{
+    PI,
+    TAU,
+};
 
-use crate::{Boundary, Direction, LogDeriv, Nodes, Propagator, Solution, WaveStorage, WithNodeCount, WithWaveStorage, single_channel::WFunction, step_strategy::LinearRefStepStrat};
+use crate::{
+    Boundary,
+    Direction,
+    LogDeriv,
+    Nodes,
+    Propagator,
+    Solution,
+    WaveStorage,
+    WithNodeCount,
+    WithWaveStorage,
+    single_channel::WFunction,
+    step_strategy::LinearRefStepStrat,
+};
 
 const ROOT_3: f64 = 1.732050807;
 
@@ -44,7 +59,9 @@ impl<'a, W: WFunction> AiryLogDerivative<'a, W> {
     }
 
     fn step_r_target(&mut self, r: Option<f64>) {
-        if let Some(r) = r && (self.solution.r - r).abs() < self.solution.dr.abs() {
+        if let Some(r) = r
+            && (self.solution.r - r).abs() < self.solution.dr.abs()
+        {
             self.solution.dr *= ((self.solution.r - r) / self.solution.dr).abs()
         }
         let h = self.solution.dr;
@@ -53,7 +70,7 @@ impl<'a, W: WFunction> AiryLogDerivative<'a, W> {
         let w_function_minus = self.w_function.value(self.solution.r + h / 2. * (1. - 1. / ROOT_3));
 
         let w_ref = (w_function_plus + w_function_minus) / 2.0;
-        let w_deriv_ref = (w_function_plus - w_function_minus) * ROOT_3 / h ;
+        let w_deriv_ref = (w_function_plus - w_function_minus) * ROOT_3 / h;
 
         let imbeddings = get_imbeddings(w_ref, w_deriv_ref, h);
 
@@ -75,8 +92,10 @@ impl<'a, W: WFunction> AiryLogDerivative<'a, W> {
         let dr_mid = (self.dr_prev + h) / 2.;
         let w_dderiv_estimate = 2. / (dr_mid * dr_mid) * (w_ref - self.w_ref_prev + w_deriv_ref * dr_mid).abs();
         // w_deriv_off_estimate = 0 so average k does not matter
-        let dr_new = self.step.get_step(self.solution.r, self.dr_prev, 0.0, 0.0, Some(w_dderiv_estimate));
-        
+        let dr_new = self
+            .step
+            .get_step(self.solution.r, self.dr_prev, 0.0, 0.0, Some(w_dderiv_estimate));
+
         self.w_ref_prev = w_ref;
         self.solution.sol.0 = sol_new;
         self.solution.r += self.solution.dr;
@@ -183,38 +202,40 @@ pub(crate) fn get_imbeddings(w_ref: f64, mut w_deriv_ref: f64, dr: f64) -> Imbed
                 y4: alpha * n2 / m2 * f64::sin(phi2 - theta1) / f64::sin(theta2 - theta1),
             }
         } else if x >= 0. {
-            let d = f64::cosh(theta1) * (
-                -f64::cos(theta2) * (1.0 + f64::tanh(zeta1)) 
-                + f64::tanh(theta1) * f64::sin(theta2) * (1.0 - f64::tanh(zeta1)) 
-            );
+            let d = f64::cosh(theta1)
+                * (-f64::cos(theta2) * (1.0 + f64::tanh(zeta1))
+                    + f64::tanh(theta1) * f64::sin(theta2) * (1.0 - f64::tanh(zeta1)));
 
             Imbeddings {
-                y1: alpha * n1 / m1 * f64::cosh(phi1) * (
-                    f64::cos(theta2) * (1.0 + f64::tanh(zeta1)) 
-                    - f64::tanh(phi1) * f64::sin(theta2) * (1.0 - f64::tanh(zeta1)) 
-                ) / d,
+                y1: alpha * n1 / m1
+                    * f64::cosh(phi1)
+                    * (f64::cos(theta2) * (1.0 + f64::tanh(zeta1))
+                        - f64::tanh(phi1) * f64::sin(theta2) * (1.0 - f64::tanh(zeta1)))
+                    / d,
                 y23: alpha / (PI * m1 * m2 * f64::cosh(zeta1) * d),
-                y4: alpha * n2 / m2 * f64::cosh(theta1) * (
-                    -f64::cos(phi2) * (1.0 + f64::tanh(zeta1)) 
-                    + f64::tanh(theta1) * f64::sin(phi2) * (1.0 - f64::tanh(zeta1)) 
-                ) / d,
+                y4: alpha * n2 / m2
+                    * f64::cosh(theta1)
+                    * (-f64::cos(phi2) * (1.0 + f64::tanh(zeta1))
+                        + f64::tanh(theta1) * f64::sin(phi2) * (1.0 - f64::tanh(zeta1)))
+                    / d,
             }
         } else {
-            let d = f64::cosh(theta2) * (
-                f64::cos(theta1) * (1.0 + f64::tanh(zeta2)) 
-                - f64::tanh(theta2) * f64::sin(theta1) * (1.0 - f64::tanh(zeta2)) 
-            );
+            let d = f64::cosh(theta2)
+                * (f64::cos(theta1) * (1.0 + f64::tanh(zeta2))
+                    - f64::tanh(theta2) * f64::sin(theta1) * (1.0 - f64::tanh(zeta2)));
 
             Imbeddings {
-                y1: alpha * n1 / m1 * f64::cosh(theta2) * (
-                    -f64::cos(phi1) * (1.0 + f64::tanh(zeta2)) 
-                    + f64::tanh(theta2) * f64::sin(phi1) * (1.0 - f64::tanh(zeta2)) 
-                ) / d,
+                y1: alpha * n1 / m1
+                    * f64::cosh(theta2)
+                    * (-f64::cos(phi1) * (1.0 + f64::tanh(zeta2))
+                        + f64::tanh(theta2) * f64::sin(phi1) * (1.0 - f64::tanh(zeta2)))
+                    / d,
                 y23: alpha / (PI * m1 * m2 * f64::cosh(zeta2) * d),
-                y4: alpha * n2 / m2 * f64::cosh(phi2) * (
-                    f64::cos(theta1) * (1.0 + f64::tanh(zeta2)) 
-                    - f64::tanh(phi2) * f64::sin(theta1) * (1.0 - f64::tanh(zeta2)) 
-                ) / d,
+                y4: alpha * n2 / m2
+                    * f64::cosh(phi2)
+                    * (f64::cos(theta1) * (1.0 + f64::tanh(zeta2))
+                        - f64::tanh(phi2) * f64::sin(theta1) * (1.0 - f64::tanh(zeta2)))
+                    / d,
             }
         }
     }
@@ -265,10 +286,9 @@ fn airy_x(x: f64, delta: f64, n_max: usize, acc: f64) -> (f64, f64) {
         let series_even_shifted = airy_power_series_even(zeta_shifted, n_max, acc);
         let series_even = airy_power_series_even(zeta, n_max, acc);
 
-        let a = pre_factor * (
-            -sin * (series_odd_shifted * series_odd + series_even * series_even_shifted)
-            + cos * (series_odd_shifted * series_even - series_odd * series_even_shifted)
-        );
+        let a = pre_factor
+            * (-sin * (series_odd_shifted * series_odd + series_even * series_even_shifted)
+                + cos * (series_odd_shifted * series_even - series_odd * series_even_shifted));
 
         (a, 0.0)
     }
@@ -319,10 +339,9 @@ fn airy_y(x: f64, delta: f64, n_max: usize, acc: f64) -> (f64, f64) {
         let series_even_shifted = airy_power_series_even(zeta_shifted, n_max, acc);
         let series_even = airy_deriv_power_series_even(zeta, n_max, acc);
 
-        let a = pre_factor * (
-            cos * (series_odd_shifted * series_odd + series_even * series_even_shifted)
-            + sin * (series_odd_shifted * series_even - series_odd * series_even_shifted)
-        );
+        let a = pre_factor
+            * (cos * (series_odd_shifted * series_odd + series_even * series_even_shifted)
+                + sin * (series_odd_shifted * series_even - series_odd * series_even_shifted));
 
         (a, 0.0)
     }
@@ -338,251 +357,220 @@ fn power_expansion_at_one(x: f64, k: f64, n_max: usize, acc: f64) -> f64 {
             let n_f = n as f64;
             series_n *= (k + 1. - n_f) / n_f * x;
 
-            if series_n.abs() < rel_acc {
-                None
-            } else {
-                Some(series_n)
-            }
+            if series_n.abs() < rel_acc { None } else { Some(series_n) }
         })
         .collect::<Vec<f64>>();
 
     if series.len() == n_max {
         println!(
-            "Power series expansion possibly inaccurate, last term in power series value: {}, wanted accuracy: {acc}", 
+            "Power series expansion possibly inaccurate, last term in power series value: {}, wanted accuracy: {acc}",
             series.last().unwrap()
         )
     }
 
     // for numerical stability sum from smallest to largest values
-    series
-        .iter()
-        .rev()
-        .sum()
+    series.iter().rev().sum()
 }
 
-/// calculates power series of the airy expansion sum_k c_k zeta^-k, with up to `n_max` terms to numerical accuracy `acc`.
+/// calculates power series of the airy expansion sum_k c_k zeta^-k, with up to `n_max` terms to
+/// numerical accuracy `acc`.
 fn airy_power_series(zeta: f64, n_max: usize, acc: f64) -> f64 {
     let mut term_n = 1.0;
 
     let series = [1.0]
         .into_iter()
-        .chain((1..=n_max)
-            .map_while(|n| {
-                let n_f = n as f64;
-                term_n *= 3. / 4. * (6. - 5. / n_f) * ((6. * n_f - 1.) / 54.);
-                term_n /= zeta;
-                if term_n.abs() < acc {
-                    None
-                } else {
-                    Some(term_n)
-                }
-            })
-        )
+        .chain((1..=n_max).map_while(|n| {
+            let n_f = n as f64;
+            term_n *= 3. / 4. * (6. - 5. / n_f) * ((6. * n_f - 1.) / 54.);
+            term_n /= zeta;
+            if term_n.abs() < acc { None } else { Some(term_n) }
+        }))
         .collect::<Vec<f64>>();
 
     if series.len() == n_max {
         println!(
-            "Airy power series expansion possibly inaccurate, last term in power series value: {}, wanted accuracy: {acc}", 
+            "Airy power series expansion possibly inaccurate, last term in power series value: {}, wanted accuracy: {acc}",
             series.last().unwrap()
         )
     }
 
     // for numerical stability sum from smallest to largest values
-    series
-        .iter()
-        .rev()
-        .sum()
+    series.iter().rev().sum()
 }
 
-/// calculates power series of the airy derivative expansion sum_k d_k zeta^-k, with up to `n_max` terms to numerical accuracy `acc`.
+/// calculates power series of the airy derivative expansion sum_k d_k zeta^-k, with up to `n_max`
+/// terms to numerical accuracy `acc`.
 fn airy_deriv_power_series(zeta: f64, n_max: usize, acc: f64) -> f64 {
     let mut term_n_c = 1.0;
 
     let series = [1.0]
         .into_iter()
-        .chain((1..=n_max)
-            .map_while(|n| {
-                let n_f = n as f64;
-                term_n_c *= 3. / 4. * (6. - 5. / n_f) * ((6. * n_f - 1.) / 54.);
-                term_n_c /= zeta;
-                let term_n = (1. + 6. * n_f) / (1. - 6. * n_f) * term_n_c;
-                if term_n.abs() < acc {
-                    None
-                } else {
-                    Some(term_n)
-                }
-            })
-        )
+        .chain((1..=n_max).map_while(|n| {
+            let n_f = n as f64;
+            term_n_c *= 3. / 4. * (6. - 5. / n_f) * ((6. * n_f - 1.) / 54.);
+            term_n_c /= zeta;
+            let term_n = (1. + 6. * n_f) / (1. - 6. * n_f) * term_n_c;
+            if term_n.abs() < acc { None } else { Some(term_n) }
+        }))
         .collect::<Vec<f64>>();
 
     if series.len() == n_max {
         println!(
-            "Airy power series expansion possibly inaccurate, last term in power series value: {}, wanted accuracy: {acc}", 
+            "Airy power series expansion possibly inaccurate, last term in power series value: {}, wanted accuracy: {acc}",
             series.last().unwrap()
         )
     }
 
     // for numerical stability sum from smallest to largest values
-    series
-        .iter()
-        .rev()
-        .sum()
+    series.iter().rev().sum()
 }
 
-/// calculates power series of the airy expansion sum_k (-1)^k c_(2k+1) zeta^-(2k+1), with up to `n_max` terms to numerical accuracy `acc`.
+/// calculates power series of the airy expansion sum_k (-1)^k c_(2k+1) zeta^-(2k+1), with up to
+/// `n_max` terms to numerical accuracy `acc`.
 fn airy_power_series_odd(zeta: f64, n_max: usize, acc: f64) -> f64 {
     let mut index_2n_1 = 1;
     let mut term_2n_1 = 3.75 / 54. / zeta;
     let rel_acc = term_2n_1.abs() * acc;
 
     let series = (0..=n_max)
-            .map_while(|n| {
-                while index_2n_1 < 2 * n + 1 {
-                    index_2n_1 += 1;
-                    let n_f = index_2n_1 as f64;
-                    term_2n_1 *= 3. / 4. * (6. - 5. / n_f) * ((6. * n_f - 1.) / 54.);
-                    term_2n_1 /= zeta;
-                }
+        .map_while(|n| {
+            while index_2n_1 < 2 * n + 1 {
+                index_2n_1 += 1;
+                let n_f = index_2n_1 as f64;
+                term_2n_1 *= 3. / 4. * (6. - 5. / n_f) * ((6. * n_f - 1.) / 54.);
+                term_2n_1 /= zeta;
+            }
 
-                if term_2n_1.abs() < rel_acc {
-                    None
-                } else {
-                    Some((-1i32).pow(n as u32) as f64 * term_2n_1)
-                }
-            })
+            if term_2n_1.abs() < rel_acc {
+                None
+            } else {
+                Some((-1i32).pow(n as u32) as f64 * term_2n_1)
+            }
+        })
         .collect::<Vec<f64>>();
 
     if series.len() == n_max {
         println!(
-            "Airy power series expansion possibly inaccurate, last term in power series value: {}, wanted accuracy: {acc}", 
+            "Airy power series expansion possibly inaccurate, last term in power series value: {}, wanted accuracy: {acc}",
             series.last().unwrap()
         )
     }
 
     // for numerical stability sum from smallest to largest values
-    series
-        .iter()
-        .rev()
-        .sum()
+    series.iter().rev().sum()
 }
 
-/// calculates power series of the airy derivative expansion sum_k (-1)^k d_(2k+1) zeta^-(2k+1), with up to `n_max` terms to numerical accuracy `acc`.
+/// calculates power series of the airy derivative expansion sum_k (-1)^k d_(2k+1) zeta^-(2k+1),
+/// with up to `n_max` terms to numerical accuracy `acc`.
 fn airy_deriv_power_series_odd(zeta: f64, n_max: usize, acc: f64) -> f64 {
     let mut index_2n_1 = 1;
     let mut term_2n_1_c = 3.75 / 54. / zeta;
     let rel_acc = 7. / 5. * term_2n_1_c.abs() * acc;
 
     let series = (0..=n_max)
-            .map_while(|n| {
-                while index_2n_1 < 2 * n + 1 {
-                    index_2n_1 += 1;
-                    let n_f = index_2n_1 as f64;
-                    term_2n_1_c *= 3. / 4. * (6. - 5. / n_f) * ((6. * n_f - 1.) / 54.);
-                    term_2n_1_c /= zeta;
-                }
+        .map_while(|n| {
+            while index_2n_1 < 2 * n + 1 {
+                index_2n_1 += 1;
                 let n_f = index_2n_1 as f64;
-                let term_2n_1 = (1. + 6. * n_f) / (1. - 6. * n_f) * term_2n_1_c;
+                term_2n_1_c *= 3. / 4. * (6. - 5. / n_f) * ((6. * n_f - 1.) / 54.);
+                term_2n_1_c /= zeta;
+            }
+            let n_f = index_2n_1 as f64;
+            let term_2n_1 = (1. + 6. * n_f) / (1. - 6. * n_f) * term_2n_1_c;
 
-                if term_2n_1.abs() < rel_acc {
-                    None
-                } else {
-                    Some((-1i32).pow(n as u32) as f64 * term_2n_1)
-                }
-            })
+            if term_2n_1.abs() < rel_acc {
+                None
+            } else {
+                Some((-1i32).pow(n as u32) as f64 * term_2n_1)
+            }
+        })
         .collect::<Vec<f64>>();
 
     if series.len() == n_max {
         println!(
-            "Airy power series expansion possibly inaccurate, last term in power series value: {}, wanted accuracy: {acc}", 
+            "Airy power series expansion possibly inaccurate, last term in power series value: {}, wanted accuracy: {acc}",
             series.last().unwrap()
         )
     }
 
     // for numerical stability sum from smallest to largest values
-    series
-        .iter()
-        .rev()
-        .sum()
+    series.iter().rev().sum()
 }
 
-/// calculates power series of the airy expansion sum_k (-1)^k c_2k zeta^-2k, with up to `n_max` terms to numerical accuracy `acc`.
+/// calculates power series of the airy expansion sum_k (-1)^k c_2k zeta^-2k, with up to `n_max`
+/// terms to numerical accuracy `acc`.
 fn airy_power_series_even(zeta: f64, n_max: usize, acc: f64) -> f64 {
     let mut index_2n = 0;
     let mut term_2n = 1.;
 
     let series = (0..=n_max)
-            .map_while(|n| {
-                while index_2n < 2 * n {
-                    index_2n += 1;
-                    let n_f = index_2n as f64;
-                    term_2n *= 3. / 4. * (6. - 5. / n_f) * ((6. * n_f - 1.) / 54.);
-                    term_2n /= zeta;
-                }
+        .map_while(|n| {
+            while index_2n < 2 * n {
+                index_2n += 1;
+                let n_f = index_2n as f64;
+                term_2n *= 3. / 4. * (6. - 5. / n_f) * ((6. * n_f - 1.) / 54.);
+                term_2n /= zeta;
+            }
 
-                if term_2n.abs() < acc {
-                    None
-                } else {
-                    Some((-1i32).pow(n as u32) as f64 * term_2n)
-                }
-            })
+            if term_2n.abs() < acc {
+                None
+            } else {
+                Some((-1i32).pow(n as u32) as f64 * term_2n)
+            }
+        })
         .collect::<Vec<f64>>();
 
     if series.len() == n_max {
         println!(
-            "Airy power series expansion possibly inaccurate, last term in power series value: {}, wanted accuracy: {acc}", 
+            "Airy power series expansion possibly inaccurate, last term in power series value: {}, wanted accuracy: {acc}",
             series.last().unwrap()
         )
     }
 
     // for numerical stability sum from smallest to largest values
-    series
-        .iter()
-        .rev()
-        .sum()
+    series.iter().rev().sum()
 }
 
-/// calculates power series of the airy derivative expansion sum_k (-1)^k d_2k zeta^-2k, with up to `n_max` terms to numerical accuracy `acc`.
+/// calculates power series of the airy derivative expansion sum_k (-1)^k d_2k zeta^-2k, with up to
+/// `n_max` terms to numerical accuracy `acc`.
 fn airy_deriv_power_series_even(zeta: f64, n_max: usize, acc: f64) -> f64 {
     let mut index_2n = 0;
     let mut term_2n_c = 1.;
 
     let series = (0..=n_max)
-            .map_while(|n| {
-                while index_2n < 2 * n {
-                    index_2n += 1;
-                    let n_f = index_2n as f64;
-                    term_2n_c *= 3. / 4. * (6. - 5. / n_f) * ((6. * n_f - 1.) / 54.);
-                    term_2n_c /= zeta;
-                }
+        .map_while(|n| {
+            while index_2n < 2 * n {
+                index_2n += 1;
                 let n_f = index_2n as f64;
-                let term_2n = (1. + 6. * n_f) / (1. - 6. * n_f) * term_2n_c;
+                term_2n_c *= 3. / 4. * (6. - 5. / n_f) * ((6. * n_f - 1.) / 54.);
+                term_2n_c /= zeta;
+            }
+            let n_f = index_2n as f64;
+            let term_2n = (1. + 6. * n_f) / (1. - 6. * n_f) * term_2n_c;
 
-                if term_2n.abs() < acc {
-                    None
-                } else {
-                    Some((-1i32).pow(n as u32) as f64 * term_2n)
-                }
-            })
+            if term_2n.abs() < acc {
+                None
+            } else {
+                Some((-1i32).pow(n as u32) as f64 * term_2n)
+            }
+        })
         .collect::<Vec<f64>>();
 
     if series.len() == n_max {
         println!(
-            "Airy power series expansion possibly inaccurate, last term in power series value: {}, wanted accuracy: {acc}", 
+            "Airy power series expansion possibly inaccurate, last term in power series value: {}, wanted accuracy: {acc}",
             series.last().unwrap()
         )
     }
 
     // for numerical stability sum from smallest to largest values
-    series
-        .iter()
-        .rev()
-        .sum()
+    series.iter().rev().sum()
 }
 
 #[cfg(test)]
 mod tests {
-    use cc_math_utils::assert_approx_eq;
     use super::*;
+    use cc_math_utils::assert_approx_eq;
 
     #[test]
     pub fn test_airy_x() {

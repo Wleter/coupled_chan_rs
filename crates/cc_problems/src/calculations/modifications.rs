@@ -283,7 +283,7 @@ where
 impl<P, C, F> FloatCalcMod<P, C, F>
 where
     P: Problem,
-    F: Fn(&mut C, f64)
+    F: Fn(&mut C, f64),
 {
     pub fn new(value: f64, conversion: F) -> Self {
         Self {

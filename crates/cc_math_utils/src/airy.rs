@@ -8,21 +8,20 @@ use std::f64::consts::FRAC_PI_4;
 ///   - Ai'(x) = red_ai_deriv exp(-zeta)
 ///   - Bi'(x) = red_bi_deriv exp(zeta)
 ///   - zeta = 2 / 3 x^(3/2)
-/// 
+///
 /// ## For x < -5:
 ///   - Ai(x) = red_ai cos(zeta) + red_bi sin(zeta)
 ///   - Bi(x) = red_bi cos(zeta) - red_ai sin(zeta)
 ///   - Ai'(x) = red_ai_deriv cos(zeta) + red_bi_deriv sin(zeta)
 ///   - Bi'(x) = red_bi_deriv cos(zeta) - red_ai_deriv sin(zeta)
 ///   - zeta = 2 / 3 x^(3/2) + PI / 4
-/// 
-/// ## For -5 <= x < 0: 
+///
+/// ## For -5 <= x < 0:
 ///   - Ai(x) = red_ai
 ///   - Bi(x) = red_bi
 ///   - Ai'(x) = red_ai_deriv
 ///   - Bi'(x) = red_bi_deriv
 ///   - zeta = 0
-/// 
 #[derive(Debug, Clone, Copy)]
 pub struct AiryData {
     x: f64,
@@ -40,7 +39,7 @@ impl AiryData {
             x if x >= 0. => self.red_ai * f64::exp(-self.zeta),
             x if x < -5. => self.red_ai * f64::cos(self.zeta) + self.red_bi * f64::sin(self.zeta),
             x if x < 0. => self.red_ai,
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 
@@ -49,7 +48,7 @@ impl AiryData {
             x if x >= 0. => self.red_bi * f64::exp(self.zeta),
             x if x < -5. => self.red_bi * f64::cos(self.zeta) - self.red_ai * f64::sin(self.zeta),
             x if x < 0. => self.red_bi,
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 
@@ -58,7 +57,7 @@ impl AiryData {
             x if x >= 0. => self.red_ai_deriv * f64::exp(-self.zeta),
             x if x < -5. => self.red_ai_deriv * f64::cos(self.zeta) + self.red_bi_deriv * f64::sin(self.zeta),
             x if x < 0. => self.red_ai_deriv,
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 
@@ -67,7 +66,7 @@ impl AiryData {
             x if x >= 0. => self.red_bi_deriv * f64::exp(self.zeta),
             x if x < -5. => self.red_bi_deriv * f64::cos(self.zeta) - self.red_ai_deriv * f64::sin(self.zeta),
             x if x < 0. => self.red_bi_deriv,
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 
@@ -76,7 +75,7 @@ impl AiryData {
     }
 
     /// Returns reduced moduli M(x) and phase theta(x) of airy functions defined as:
-    /// 
+    ///
     /// ## For x < 0:
     ///   - ai(x) = M(x) cos(theta(x))
     ///   - bi(x) = M(x) sin(theta(x))
@@ -87,22 +86,22 @@ impl AiryData {
         if self.x >= 0.0 {
             (
                 f64::sqrt(self.red_bi * self.red_bi - self.red_ai * self.red_ai),
-                f64::atanh(self.red_ai / self.red_bi)
+                f64::atanh(self.red_ai / self.red_bi),
             )
         } else if self.x < -5. {
             (
                 f64::sqrt(self.red_ai * self.red_ai + self.red_bi * self.red_bi),
-                f64::atan2(self.red_bi, self.red_ai) - self.zeta
+                f64::atan2(self.red_bi, self.red_ai) - self.zeta,
             )
         } else {
             (
                 f64::sqrt(self.red_ai * self.red_ai + self.red_bi * self.red_bi),
-                f64::atan2(self.red_bi, self.red_ai)
+                f64::atan2(self.red_bi, self.red_ai),
             )
         }
     }
     /// Returns reduced moduli N(x) and phase phi(x) of derivatives of airy functions defined as:
-    /// 
+    ///
     /// ## For x < 0:
     ///   - ai(x) = N(x) cos(phi(x))
     ///   - bi(x) = N(x) sin(phi(x))
@@ -113,17 +112,17 @@ impl AiryData {
         if self.x >= 0.0 {
             (
                 f64::sqrt(self.red_bi_deriv * self.red_bi_deriv - self.red_ai_deriv * self.red_ai_deriv),
-                f64::atanh(self.red_ai_deriv / self.red_bi_deriv)
+                f64::atanh(self.red_ai_deriv / self.red_bi_deriv),
             )
         } else if self.x < -5. {
             (
                 f64::sqrt(self.red_ai_deriv * self.red_ai_deriv + self.red_bi_deriv * self.red_bi_deriv),
-                f64::atan2(self.red_bi_deriv, self.red_ai_deriv) - self.zeta
+                f64::atan2(self.red_bi_deriv, self.red_ai_deriv) - self.zeta,
             )
         } else {
             (
                 f64::sqrt(self.red_ai_deriv * self.red_ai_deriv + self.red_bi_deriv * self.red_bi_deriv),
-                f64::atan2(self.red_bi_deriv, self.red_ai_deriv)
+                f64::atan2(self.red_bi_deriv, self.red_ai_deriv),
             )
         }
     }
@@ -143,7 +142,7 @@ pub fn eval_airy(x: f64) -> AiryData {
         x if x > NEAR_THRESHOLD => airy_0_to_4_5_expansion(x),
         x if x >= -5.0 => airy_0_to_neg_5_expansion(x),
         x if x < -5.0 => airy_neg_5_expansion(x),
-        _ => unreachable!()
+        _ => unreachable!(),
     }
 }
 
@@ -174,10 +173,17 @@ fn airy_near(x: f64) -> AiryData {
             red_ai_deriv: red_ai_deriv * exp,
             red_bi: red_bi / exp,
             red_bi_deriv: red_bi_deriv / exp,
-            zeta
+            zeta,
         }
     } else {
-        AiryData { x, red_ai, red_ai_deriv, red_bi, red_bi_deriv, zeta: 0.0}
+        AiryData {
+            x,
+            red_ai,
+            red_ai_deriv,
+            red_bi,
+            red_bi_deriv,
+            zeta: 0.0,
+        }
     }
 }
 
@@ -192,7 +198,14 @@ fn airy_9_expansion(x: f64) -> AiryData {
     let red_ai_deriv = horner(t, RED_AI_DERIV_9) * x_root4;
     let red_bi_deriv = horner(t, RED_BI_DERIV_9) * x_root4;
 
-    AiryData { x, red_ai, red_ai_deriv, red_bi, red_bi_deriv, zeta }
+    AiryData {
+        x,
+        red_ai,
+        red_ai_deriv,
+        red_bi,
+        red_bi_deriv,
+        zeta,
+    }
 }
 
 fn airy_4_5_expansion(x: f64) -> AiryData {
@@ -201,13 +214,19 @@ fn airy_4_5_expansion(x: f64) -> AiryData {
     let exp2x = (zeta - 2.625 * x).exp();
     let t = 4.0 * x / 9.0 - 3.0;
 
-
     let red_ai = horner(t, RED_AI_4_5) * exp1x;
     let red_bi = horner(t, RED_BI_4_5) / exp1x;
     let red_ai_deriv = horner(t, RED_AI_DERIV_4_5) * exp1x;
     let red_bi_deriv = horner(t, RED_BI_DERIV_4_5) / exp2x;
 
-    AiryData { x, red_ai, red_ai_deriv, red_bi, red_bi_deriv, zeta }
+    AiryData {
+        x,
+        red_ai,
+        red_ai_deriv,
+        red_bi,
+        red_bi_deriv,
+        zeta,
+    }
 }
 
 fn airy_0_to_4_5_expansion(x: f64) -> AiryData {
@@ -222,7 +241,14 @@ fn airy_0_to_4_5_expansion(x: f64) -> AiryData {
     let red_ai_deriv = horner(t, RED_AI_DERIV_POS) * exp2z;
     let red_bi_deriv = horner(t, RED_BI_DERIV_POS) / exp1z;
 
-    AiryData { x, red_ai, red_ai_deriv, red_bi, red_bi_deriv, zeta }
+    AiryData {
+        x,
+        red_ai,
+        red_ai_deriv,
+        red_bi,
+        red_bi_deriv,
+        zeta,
+    }
 }
 
 fn airy_0_to_neg_5_expansion(x: f64) -> AiryData {
@@ -242,7 +268,14 @@ fn airy_0_to_neg_5_expansion(x: f64) -> AiryData {
     let ai_deriv = x * x * f - g;
     let bi_deriv = SQRT_3 * (x * x * f + g);
 
-    AiryData { x, red_ai: ai, red_ai_deriv: ai_deriv, red_bi: bi, red_bi_deriv: bi_deriv, zeta: 0.0 }
+    AiryData {
+        x,
+        red_ai: ai,
+        red_ai_deriv: ai_deriv,
+        red_bi: bi,
+        red_bi_deriv: bi_deriv,
+        zeta: 0.0,
+    }
 }
 
 fn airy_neg_5_expansion(x: f64) -> AiryData {
@@ -259,9 +292,15 @@ fn airy_neg_5_expansion(x: f64) -> AiryData {
 
     let zeta = zeta + FRAC_PI_4;
 
-    AiryData { x, red_ai: ai, red_ai_deriv: ai_deriv, red_bi: bi, red_bi_deriv: bi_deriv, zeta }
+    AiryData {
+        x,
+        red_ai: ai,
+        red_ai_deriv: ai_deriv,
+        red_bi: bi,
+        red_bi_deriv: bi_deriv,
+        zeta,
+    }
 }
-
 
 #[inline]
 fn horner(x: f64, c: &[f64]) -> f64 {
@@ -276,9 +315,7 @@ fn chebyshev_series(x: f64, c: &[f64]) -> f64 {
     let b0 = 2. * x * a0 - c[1];
     let (a, b) = c[2..c.len() - 1]
         .iter()
-        .fold((a0, b0), |(a, b), &ck| {
-            (b, 2.0 * x * b - a + ck)
-        });
+        .fold((a0, b0), |(a, b), &ck| (b, 2.0 * x * b - a + ck));
 
     x * b - a + c[c.len() - 1]
 }
@@ -730,8 +767,8 @@ const RED_BI_DERIV_NEG: &[f64] = &[
 
 #[cfg(test)]
 mod tests {
-    use crate::assert_approx_eq;
     use super::*;
+    use crate::assert_approx_eq;
 
     #[test]
     pub fn test_airy() {
@@ -834,7 +871,6 @@ mod tests {
         let (n, phi) = airy.red_moduli_phase_deriv();
         assert_approx_eq!(airy.ai_deriv(), n * f64::cos(phi), 1e-9);
         assert_approx_eq!(airy.bi_deriv(), n * f64::sin(phi), 1e-9);
-
 
         let airy = eval_airy(-100.0);
         assert_approx_eq!(airy.ai(), 0.17675339323955287, 1e-9);

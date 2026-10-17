@@ -1,8 +1,8 @@
 use crate::WaveStorage;
 
+pub mod airy;
 pub mod log_derivative;
 pub mod numerov;
-pub mod airy;
 
 /// Trait for representing W function
 /// in an equation y''(x) = W(x) y(x)
@@ -52,9 +52,14 @@ mod tests {
         Propagator,
         WithWaveStorage,
         single_channel::{
-            airy::AiryLogDerivative, log_derivative::LogDerivative, numerov::RatioNumerov
+            airy::AiryLogDerivative,
+            log_derivative::LogDerivative,
+            numerov::RatioNumerov,
         },
-        step_strategy::{LinearRefStepStrat, SingleStep},
+        step_strategy::{
+            LinearRefStepStrat,
+            SingleStep,
+        },
     };
 
     use super::*;

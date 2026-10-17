@@ -48,7 +48,12 @@ pub struct ResonancesData {
 
 impl ResonancesData {
     pub fn new_res(parameter_res: f64) -> Self {
-        Self { parameter_res, a_bg: None, width: None, decay_width: None }
+        Self {
+            parameter_res,
+            a_bg: None,
+            width: None,
+            decay_width: None,
+        }
     }
 }
 
@@ -193,11 +198,11 @@ where
                 if converged {
                     if !(min_bound..=max_bound).contains(&p_res) {
                         eprintln!("Resonance outside of the searched region, returning threshold bound-state estimate");
-                        
-                        return Ok(ResonancesData::new_res(res.parameter))
+
+                        return Ok(ResonancesData::new_res(res.parameter));
                     }
                     if modified.calc_input.eps * p_err > width.abs() || !width.is_finite() {
-                        return Ok(ResonancesData::new_res(p_res))
+                        return Ok(ResonancesData::new_res(p_res));
                     }
 
                     return Ok(ResonancesData {
@@ -231,13 +236,16 @@ where
             if !(min_bound..=max_bound).contains(&p_res) {
                 eprintln!("Resonance outside of the searched region, returning threshold bound-state estimate");
 
-                return Ok(ResonancesData::new_res(res.parameter))
+                return Ok(ResonancesData::new_res(res.parameter));
             }
             if modified.calc_input.eps * p_err > width.abs() || !width.is_finite() {
-                return Ok(ResonancesData::new_res(p_res))
+                return Ok(ResonancesData::new_res(p_res));
             }
 
-            eprintln!("Could not obtain resonance characterization in {} iterations, returning threshold bound-state estimate", modified.calc_input.max_iter);
+            eprintln!(
+                "Could not obtain resonance characterization in {} iterations, returning threshold bound-state estimate",
+                modified.calc_input.max_iter
+            );
             Ok(ResonancesData::new_res(p_res))
         })
     }

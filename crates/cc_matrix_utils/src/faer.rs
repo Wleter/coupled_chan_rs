@@ -1,13 +1,29 @@
 use std::slice;
 
 use faer::{
-    Mat, MatMut, MatRef, Par, diag::DiagMut, dyn_stack::{
+    Mat,
+    MatMut,
+    MatRef,
+    Par,
+    diag::DiagMut,
+    dyn_stack::{
         MemBuffer,
         MemStack,
         StackReq,
-    }, linalg::{
-        self, cholesky, evd::self_adjoint_evd, lu, temp_mat_scratch, temp_mat_uninit, temp_mat_zeroed
-    }, mat, perm::PermRef, unzip, zip
+    },
+    linalg::{
+        self,
+        cholesky,
+        evd::self_adjoint_evd,
+        lu,
+        temp_mat_scratch,
+        temp_mat_uninit,
+        temp_mat_zeroed,
+    },
+    mat,
+    perm::PermRef,
+    unzip,
+    zip,
 };
 
 use crate::{
@@ -77,14 +93,12 @@ pub fn get_lu_inverse_buffer(size: usize) -> MemBuffer {
 }
 
 pub fn get_self_adjoint_evd_buffer(size: usize) -> MemBuffer {
-    MemBuffer::new(
-        linalg::evd::self_adjoint_evd_scratch::<f64>(
-            size,
-            linalg::evd::ComputeEigenvectors::Yes,
-            Par::Seq,
-            Default::default(),
-        ),
-    )
+    MemBuffer::new(linalg::evd::self_adjoint_evd_scratch::<f64>(
+        size,
+        linalg::evd::ComputeEigenvectors::Yes,
+        Par::Seq,
+        Default::default(),
+    ))
 }
 
 pub fn inverse_lu_inplace(mat: MatRef<f64>, mut out: MatMut<f64>, buffer: &mut MemBuffer) {
@@ -320,12 +334,7 @@ pub fn inverse_ldlt_inplace_nodes(mat: MatRef<f64>, mut out: MatMut<f64>, buffer
     negative
 }
 
-pub fn self_adjoint_evd_inplace(
-    mat: MatRef<f64>, 
-    s: DiagMut<f64>, 
-    u: Option<MatMut<f64>>, 
-    buffer: &mut MemBuffer
-) {
+pub fn self_adjoint_evd_inplace(mat: MatRef<f64>, s: DiagMut<f64>, u: Option<MatMut<f64>>, buffer: &mut MemBuffer) {
     let stack = MemStack::new(buffer);
 
     self_adjoint_evd(mat, s, u, Par::Seq, stack, Default::default()).unwrap()

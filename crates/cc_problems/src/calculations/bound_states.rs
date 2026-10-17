@@ -1,8 +1,6 @@
 use cc_math_utils::brent_root_method;
 use coupled_chan::{
-    cc_propagator::{
-        Direction,
-    },
+    cc_propagator::Direction,
     coupling::{
         Asymptote,
         CollisionParams,
@@ -32,11 +30,14 @@ use crate::{
         SingleCalc,
         dependence::NamedValue,
         modifications::{
-            FloatCalcMod, ModifyParam, ModifyRegistry, ScalarCalcMod
+            FloatCalcMod,
+            ModifyParam,
+            ModifyRegistry,
+            ScalarCalcMod,
         },
         scattering::{
-            Boundary, 
-            CoupledChanPropagator
+            Boundary,
+            CoupledChanPropagator,
         },
     },
     modify_recipe,
@@ -654,13 +655,21 @@ fn bound_wave(w_matrix: &CollisionWMatrix<impl RCoupling>, input: &BoundStateCal
 
     let init_wave = eigen.U().col((target_nodes - nodes) as usize);
 
-    let wave_in = propagator_in.get_wave_storage().as_ref().unwrap().reconstruct(init_wave, true);
+    let wave_in = propagator_in
+        .get_wave_storage()
+        .as_ref()
+        .unwrap()
+        .reconstruct(init_wave, true);
     let wave_in = WaveFunction {
         distances: wave_in.0,
         values: wave_in.1,
     };
 
-    let wave_out = propagator_out.get_wave_storage().as_ref().unwrap().reconstruct(init_wave, true);
+    let wave_out = propagator_out
+        .get_wave_storage()
+        .as_ref()
+        .unwrap()
+        .reconstruct(init_wave, true);
     let mut wave_out = WaveFunction {
         distances: wave_out.0,
         values: wave_out.1,

@@ -23,10 +23,22 @@ use cc_matrix_utils::faer::{
     inverse_ldlt_inplace_nodes,
 };
 use faer::{
-    Accum::Replace, MatMut, Par::Seq, Shape, diag::{Diag, DiagRef}, dyn_stack::MemBuffer, linalg::{
+    Accum::Replace,
+    MatMut,
+    Par::Seq,
+    Shape,
+    diag::{
+        Diag,
+        DiagRef,
+    },
+    dyn_stack::MemBuffer,
+    linalg::{
         matmul::matmul,
         solvers::DenseSolveCore,
-    }, make_guard, unzip, zip
+    },
+    make_guard,
+    unzip,
+    zip,
 };
 
 // doi: 10.1063/1.451472
@@ -160,12 +172,7 @@ impl<'a, R: LogDerivReference, W: WMatrix<f64>, S: Step> DiabaticLogDerivative<'
         }
     }
 
-    pub fn from_log_derivative(
-        w_matrix: &'a W, 
-        step_strat: S, 
-        solution: Solution<LogDeriv<Matrix>>,
-        nodes: Nodes,
-    ) -> Self {
+    pub fn from_log_derivative(w_matrix: &'a W, step_strat: S, solution: Solution<LogDeriv<Matrix>>, nodes: Nodes) -> Self {
         let mut step = LogDerivativeStep::new(w_matrix.size());
         w_matrix.value_inplace(solution.r, &mut step.w_matrix_buffer);
 
@@ -232,7 +239,7 @@ struct LogDerivativeStep<R: LogDerivReference> {
     buffer1: Matrix,
     buffer2: Matrix,
     inverse_buffer: MemBuffer,
-    
+
     z_matrix: Matrix,
     w_ref: Matrix,
     imbedding_buffer: Diag<f64>,
@@ -377,18 +384,15 @@ impl<R: LogDerivReference> LogDerivativeStep<R> {
     }
 }
 
-pub(crate) fn diag_mat_mul_inplace<N: Shape, K: Shape>(
-    a: DiagRef<f64, N>, 
-    b: MatMut<f64, N, K>
-) {
+pub(crate) fn diag_mat_mul_inplace<N: Shape, K: Shape>(a: DiagRef<f64, N>, b: MatMut<f64, N, K>) {
     let a_shape = a.dim();
     let (b_rows, b_cols) = b.shape();
     assert_eq!(a_shape, b_rows);
 
-	make_guard!(n);
-	make_guard!(k);
-	let n = b_rows.bind(n);
-	let k = b_cols.bind(k);
+    make_guard!(n);
+    make_guard!(k);
+    let n = b_rows.bind(n);
+    let k = b_cols.bind(k);
 
     let a = a.as_shape(n);
     let mut b = b.as_shape_mut(n, k);
@@ -400,18 +404,15 @@ pub(crate) fn diag_mat_mul_inplace<N: Shape, K: Shape>(
     }
 }
 
-pub(crate) fn mat_diag_mul_inplace<N: Shape, K: Shape>(
-    a: MatMut<f64, N, K>,
-    b: DiagRef<f64, K>, 
-) {
+pub(crate) fn mat_diag_mul_inplace<N: Shape, K: Shape>(a: MatMut<f64, N, K>, b: DiagRef<f64, K>) {
     let (a_rows, a_cols) = a.shape();
     let b_shape = b.dim();
     assert_eq!(a_cols, b_shape);
 
-	make_guard!(n);
-	make_guard!(k);
-	let n = a_rows.bind(n);
-	let k = a_cols.bind(k);
+    make_guard!(n);
+    make_guard!(k);
+    let n = a_rows.bind(n);
+    let k = a_cols.bind(k);
 
     let mut a = a.as_shape_mut(n, k);
     let b = b.as_shape(k);

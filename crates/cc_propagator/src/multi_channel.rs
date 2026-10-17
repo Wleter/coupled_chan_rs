@@ -1,6 +1,6 @@
+pub mod airy;
 pub mod diabatic_log_derivative;
 pub mod numerov;
-pub mod airy;
 
 use std::f64::consts::PI;
 
@@ -10,7 +10,13 @@ use faer::{
     linalg::solvers::DenseSolveCore,
 };
 
-use crate::{LogDeriv, Propagator, WaveStorage, WithNodeCount, WithWaveStorage};
+use crate::{
+    LogDeriv,
+    Propagator,
+    WaveStorage,
+    WithNodeCount,
+    WithWaveStorage,
+};
 
 // todo! make everything generic on matrix backend
 pub type Matrix = Mat<f64>;
@@ -80,12 +86,17 @@ mod tests {
         Propagator,
         WithWaveStorage,
         multi_channel::{
-            airy::AiryLogDerivative, diabatic_log_derivative::{
+            airy::AiryLogDerivative,
+            diabatic_log_derivative::{
                 JohnsonLogDerivative,
                 ManolopoulosLogDerivative,
-            }, numerov::RatioNumerov
+            },
+            numerov::RatioNumerov,
         },
-        step_strategy::{LinearRefStepStrat, SingleStep},
+        step_strategy::{
+            LinearRefStepStrat,
+            SingleStep,
+        },
     };
 
     use super::*;

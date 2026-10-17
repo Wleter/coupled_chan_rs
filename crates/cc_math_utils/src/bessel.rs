@@ -140,7 +140,7 @@ fn backwards_bessel_recurrence_deriv(n: u32, x: f64, f_0: f64, f_1: f64) -> (f64
         f_k = f_new;
     }
     if !f_k.is_finite() {
-        return (0., 0.)
+        return (0., 0.);
     }
 
     let scale = f_0 / f_k;

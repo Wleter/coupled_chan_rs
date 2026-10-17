@@ -2,9 +2,18 @@ use std::marker::PhantomData;
 
 use coupled_chan::{
     cc_propagator::{
-        self, Direction, LogDeriv, Nodes, Solution, step_strategy::{
-            DynStep, LinearRefStepStrat, LocalWavelengthStep, SingleStep, TransitionStep
-        }
+        self,
+        Direction,
+        LogDeriv,
+        Nodes,
+        Solution,
+        step_strategy::{
+            DynStep,
+            LinearRefStepStrat,
+            LocalWavelengthStep,
+            SingleStep,
+            TransitionStep,
+        },
     },
     coupling::{
         Asymptote,
@@ -13,10 +22,14 @@ use coupled_chan::{
         RCoupling,
     },
     multi_channel::{
-        LogDerivativePropagator, Matrix, WMatrix, airy::AiryLogDerivative, diabatic_log_derivative::{
+        LogDerivativePropagator,
+        Matrix,
+        WMatrix,
+        airy::AiryLogDerivative,
+        diabatic_log_derivative::{
             JohnsonLogDerivative,
             ManolopoulosLogDerivative,
-        }
+        },
     },
     s_matrix::SMatrix,
 };
@@ -44,9 +57,9 @@ use crate::{
         Modified,
         SingleCalc,
         modifications::{
-            FloatCalcMod, 
-            ModifyRegistry, 
-            ScalarCalcMod
+            FloatCalcMod,
+            ModifyRegistry,
+            ScalarCalcMod,
         },
     },
     modify_recipe,
@@ -147,52 +160,52 @@ impl SMatrixData {
 #[serde(rename_all = "snake_case")]
 #[serde(tag = "type")]
 pub enum CoupledChanPropagator {
-    JohnsonLogDeriv {
-        step: Step
-    },
-    ManolopoulosLogDeriv {
-        step: Step
-    },
-    AiryLogDeriv {
-        step: LinearRefStep
-    },
+    JohnsonLogDeriv { step: Step },
+    ManolopoulosLogDeriv { step: Step },
+    AiryLogDeriv { step: LinearRefStep },
 }
 
 impl CoupledChanPropagator {
     pub fn get_propagator<'a, W: WMatrix<f64>>(
-        &self, 
-        boundary: cc_propagator::Boundary<Matrix>, 
-        w_matrix: &'a W
+        &self,
+        boundary: cc_propagator::Boundary<Matrix>,
+        w_matrix: &'a W,
     ) -> Box<dyn LogDerivativePropagator + 'a> {
         match self {
             CoupledChanPropagator::JohnsonLogDeriv { step } => {
                 Box::new(JohnsonLogDerivative::new(w_matrix, step.get_step(), boundary))
-            },
+            }
             CoupledChanPropagator::ManolopoulosLogDeriv { step } => {
                 Box::new(ManolopoulosLogDerivative::new(w_matrix, step.get_step(), boundary))
-            },
+            }
             CoupledChanPropagator::AiryLogDeriv { step } => {
                 Box::new(AiryLogDerivative::new(w_matrix, step.get_step(), boundary))
-            },
+            }
         }
     }
 
     pub fn transfer_propagator<'a, W: WMatrix<f64>>(
-        &self, 
+        &self,
         solution: Solution<LogDeriv<Matrix>>,
         nodes: Nodes,
-        w_matrix: &'a W
+        w_matrix: &'a W,
     ) -> Box<dyn LogDerivativePropagator + 'a> {
         match self {
-            CoupledChanPropagator::JohnsonLogDeriv { step } => {
-                Box::new(JohnsonLogDerivative::from_log_derivative(w_matrix, step.get_step(), solution, nodes))
-            },
-            CoupledChanPropagator::ManolopoulosLogDeriv { step } => {
-                Box::new(ManolopoulosLogDerivative::from_log_derivative(w_matrix, step.get_step(), solution, nodes))
-            },
-            CoupledChanPropagator::AiryLogDeriv { step } => {
-                Box::new(AiryLogDerivative::from_log_derivative(w_matrix, step.get_step(), solution, nodes))
-            },
+            CoupledChanPropagator::JohnsonLogDeriv { step } => Box::new(JohnsonLogDerivative::from_log_derivative(
+                w_matrix,
+                step.get_step(),
+                solution,
+                nodes,
+            )),
+            CoupledChanPropagator::ManolopoulosLogDeriv { step } => Box::new(
+                ManolopoulosLogDerivative::from_log_derivative(w_matrix, step.get_step(), solution, nodes),
+            ),
+            CoupledChanPropagator::AiryLogDeriv { step } => Box::new(AiryLogDerivative::from_log_derivative(
+                w_matrix,
+                step.get_step(),
+                solution,
+                nodes,
+            )),
         }
     }
 
@@ -218,7 +231,12 @@ pub struct TwoSegmentPropagator {
 }
 
 impl TwoSegmentPropagator {
-    pub fn propagate_to(&self, r: &Scalar<Length>, boundary: cc_propagator::Boundary<Matrix>, w_matrix: &impl WMatrix<f64>) -> Solution<LogDeriv<Matrix>> {
+    pub fn propagate_to(
+        &self,
+        r: &Scalar<Length>,
+        boundary: cc_propagator::Boundary<Matrix>,
+        w_matrix: &impl WMatrix<f64>,
+    ) -> Solution<LogDeriv<Matrix>> {
         let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
         let r = converter.scalar_value(r);
 
@@ -230,11 +248,12 @@ impl TwoSegmentPropagator {
                 let nodes = propagator.nodes();
                 let solution = propagator.propagate_to(r_change).to_owned();
 
-                lr_propagator.transfer_propagator(solution.to_owned(), nodes, w_matrix).propagate_to(r).to_owned()
-            },
-            _ => {
-                self.propagator.get_propagator(boundary, w_matrix).propagate_to(r).to_owned()
+                lr_propagator
+                    .transfer_propagator(solution.to_owned(), nodes, w_matrix)
+                    .propagate_to(r)
+                    .to_owned()
             }
+            _ => self.propagator.get_propagator(boundary, w_matrix).propagate_to(r).to_owned(),
         }
     }
 
@@ -347,8 +366,12 @@ pub enum LinearRefStep {
     },
 }
 
-fn default_tolerance_linear_ref() -> f64 { 1e-9 }
-fn default_change_power_linear_ref() -> f64 { 3.0 }
+fn default_tolerance_linear_ref() -> f64 {
+    1e-9
+}
+fn default_change_power_linear_ref() -> f64 {
+    3.0
+}
 
 impl LinearRefStep {
     pub fn get_step(&self) -> LinearRefStepStrat {
@@ -356,7 +379,9 @@ impl LinearRefStep {
             LinearRefStep::Fixed { dr } => {
                 let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
 
-                LinearRefStepStrat::Fixed { dr: converter.scalar_value(dr) }
+                LinearRefStepStrat::Fixed {
+                    dr: converter.scalar_value(dr),
+                }
             }
             LinearRefStep::ErrorEstimated {
                 dr_min,
@@ -368,11 +393,11 @@ impl LinearRefStep {
                 let dr_min = converter.scalar_value(dr_min);
                 let dr_max = converter.scalar_value(dr_max);
 
-                LinearRefStepStrat::ErrorEstimated { 
-                    tolerance: *tolerance, 
-                    change_power: *change_power, 
-                    dr_min, 
-                    dr_max 
+                LinearRefStepStrat::ErrorEstimated {
+                    tolerance: *tolerance,
+                    change_power: *change_power,
+                    dr_min,
+                    dr_max,
                 }
             }
             LinearRefStep::Transitioned {
@@ -383,10 +408,10 @@ impl LinearRefStep {
                 let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
                 let transition_point = converter.scalar_value(transition_point);
 
-                LinearRefStepStrat::Transitioned { 
-                    transition_point, 
-                    before: Box::new(before.get_step()), 
-                    after: Box::new(after.get_step())
+                LinearRefStepStrat::Transitioned {
+                    transition_point,
+                    before: Box::new(before.get_step()),
+                    after: Box::new(after.get_step()),
                 }
             }
         }
@@ -403,7 +428,7 @@ impl LinearRefStep {
             } => {
                 dr_min.scale(scaling);
                 dr_max.scale(scaling);
-                
+
                 *tolerance *= scaling.powf(*change_power)
             }
             Self::Transitioned {
