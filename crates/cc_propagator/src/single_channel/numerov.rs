@@ -10,13 +10,13 @@ use crate::{
         WFunction,
         local_wavelength,
     },
-    step_strategy::Step,
+    step_strategy::ConstRefStepStrat,
 };
 
 /// doi: 10.1063/1.435384
-pub struct RatioNumerov<'a, W: WFunction, S: Step> {
+pub struct RatioNumerov<'a, W: WFunction> {
     w_function: &'a W,
-    step: S,
+    step: ConstRefStepStrat,
 
     solution: Solution<Ratio<f64>>,
     wave_storage: Option<WaveStorage<f64>>,
@@ -29,17 +29,15 @@ pub struct RatioNumerov<'a, W: WFunction, S: Step> {
     w_function_buffer: f64,
 }
 
-impl<'a, W: WFunction, S: Step> RatioNumerov<'a, W, S> {
-    pub fn new(w_function: &'a W, step: S, boundary: Boundary<f64>) -> Self {
+impl<'a, W: WFunction> RatioNumerov<'a, W> {
+    pub fn new(w_function: &'a W, step: ConstRefStepStrat, boundary: Boundary<f64>) -> Self {
         let r = boundary.r_start;
+        let dr = match boundary.direction {
+            Direction::Inwards => -(step.init_step(r).abs()),
+            Direction::Outwards => step.init_step(r).abs(),
+        };
 
         let red_pot = w_function.value(r);
-        let local_wavelength = local_wavelength(red_pot);
-
-        let dr = match boundary.direction {
-            Direction::Inwards => -(step.get_step(r, local_wavelength).abs()),
-            Direction::Outwards => step.get_step(r, local_wavelength).abs(),
-        };
 
         let f_prev_last = 1. + dr * dr / 12. * w_function.value(r - 2. * dr);
         let f_last = 1. + dr * dr / 12. * w_function.value(r - dr);
@@ -115,10 +113,10 @@ impl<'a, W: WFunction, S: Step> RatioNumerov<'a, W, S> {
     }
 }
 
-impl<W: WFunction, S: Step> Propagator<Ratio<f64>> for RatioNumerov<'_, W, S> {
+impl<W: WFunction> Propagator<Ratio<f64>> for RatioNumerov<'_, W> {
     fn step(&mut self) -> &Solution<Ratio<f64>> {
         let wavelength = local_wavelength(self.w_function_buffer);
-        let dr = self.step.get_step(self.solution.r, wavelength);
+        let dr = self.step.get_step(self.solution.r, self.solution.dr, wavelength);
 
         if dr > 2.0 * self.solution.dr.abs() {
             self.double_the_step()
@@ -143,7 +141,7 @@ impl<W: WFunction, S: Step> Propagator<Ratio<f64>> for RatioNumerov<'_, W, S> {
     }
 }
 
-impl<W: WFunction, S: Step> WithWaveStorage<f64> for RatioNumerov<'_, W, S> {
+impl<W: WFunction> WithWaveStorage<f64> for RatioNumerov<'_, W> {
     fn init_wave_storage(&mut self) {
         self.wave_storage = Some(WaveStorage::default())
     }

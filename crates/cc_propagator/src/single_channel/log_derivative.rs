@@ -11,14 +11,13 @@ use crate::{
     single_channel::{
         WFunction,
         local_wavelength,
-    },
-    step_strategy::Step,
+    }, step_strategy::ConstRefStepStrat,
 };
 
 /// based on multi-channel log_derivative with manolopoulos imbedding
-pub struct LogDerivative<'a, W: WFunction, S: Step> {
+pub struct LogDerivative<'a, W: WFunction> {
     w_function: &'a W,
-    step: S,
+    step: ConstRefStepStrat,
     nodes: Nodes,
     wave_storage: Option<WaveStorage<f64>>,
 
@@ -26,17 +25,15 @@ pub struct LogDerivative<'a, W: WFunction, S: Step> {
     w_function_value: f64,
 }
 
-impl<'a, W: WFunction, S: Step> LogDerivative<'a, W, S> {
-    pub fn new(w_function: &'a W, step: S, boundary: Boundary<f64>) -> Self {
+impl<'a, W: WFunction> LogDerivative<'a, W> {
+    pub fn new(w_function: &'a W, step: ConstRefStepStrat, boundary: Boundary<f64>) -> Self {
         let r = boundary.r_start;
+        let dr = match boundary.direction {
+            Direction::Inwards => -(step.init_step(r).abs()),
+            Direction::Outwards => step.init_step(r).abs(),
+        };
 
         let w_function_value = w_function.value(r);
-        let local_wavelength = local_wavelength(w_function_value);
-
-        let dr = match boundary.direction {
-            Direction::Inwards => -(step.get_step(r, local_wavelength).abs()),
-            Direction::Outwards => step.get_step(r, local_wavelength).abs(),
-        };
 
         let sol = LogDeriv(boundary.derivative / boundary.value);
 
@@ -54,7 +51,7 @@ impl<'a, W: WFunction, S: Step> LogDerivative<'a, W, S> {
     fn step_r_target(&mut self, r: Option<f64>) {
         let wavelength = local_wavelength(self.w_function_value);
 
-        let dr_new = self.step.get_step(self.solution.r, wavelength);
+        let dr_new = self.step.get_step(self.solution.r, self.solution.dr, wavelength);
         self.solution.dr = dr_new.clamp(0., 2. * self.solution.dr.abs()) * self.solution.dr.signum();
 
         if let Some(r) = r
@@ -108,7 +105,7 @@ impl<'a, W: WFunction, S: Step> LogDerivative<'a, W, S> {
     }
 }
 
-impl<W: WFunction, S: Step> Propagator<LogDeriv<f64>> for LogDerivative<'_, W, S> {
+impl<W: WFunction> Propagator<LogDeriv<f64>> for LogDerivative<'_, W> {
     fn step(&mut self) -> &Solution<LogDeriv<f64>> {
         self.step_r_target(None);
         &self.solution
@@ -123,13 +120,13 @@ impl<W: WFunction, S: Step> Propagator<LogDeriv<f64>> for LogDerivative<'_, W, S
     }
 }
 
-impl<W: WFunction, S: Step> WithNodeCount for LogDerivative<'_, W, S> {
+impl<W: WFunction> WithNodeCount for LogDerivative<'_, W> {
     fn nodes(&self) -> crate::Nodes {
         self.nodes
     }
 }
 
-impl<W: WFunction, S: Step> WithWaveStorage<f64> for LogDerivative<'_, W, S> {
+impl<W: WFunction> WithWaveStorage<f64> for LogDerivative<'_, W> {
     fn init_wave_storage(&mut self) {
         self.wave_storage = Some(WaveStorage::default())
     }

@@ -57,8 +57,7 @@ mod tests {
             numerov::RatioNumerov,
         },
         step_strategy::{
-            LinearRefStepStrat,
-            SingleStep,
+            ConstRefStepStrat, LinearRefStepStrat
         },
     };
 
@@ -84,7 +83,7 @@ mod tests {
             derivative: 0.,
         };
 
-        let mut numerov = RatioNumerov::new(&w_function, SingleStep::new(1e-4), boundary);
+        let mut numerov = RatioNumerov::new(&w_function, ConstRefStepStrat::Fixed { dr: 1e-4 }, boundary);
         numerov.init_wave_storage();
         let analytic = |x: f64, dx: f64| f64::cos(k * (x)) / f64::cos(k * (x - dx));
         let analytic_val = |x: f64| f64::cos(k * x);
@@ -112,7 +111,7 @@ mod tests {
             derivative: 0.,
         };
 
-        let mut log_deriv = LogDerivative::new(&w_function, SingleStep::new(1e-3), boundary);
+        let mut log_deriv = LogDerivative::new(&w_function, ConstRefStepStrat::Fixed { dr: 1e-3 }, boundary);
         log_deriv.init_wave_storage();
         let analytic = |x: f64| -k * f64::tan(k * x);
         let analytic_val = |x: f64| f64::cos(k * x);

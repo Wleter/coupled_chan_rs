@@ -13,7 +13,7 @@ use crate::{
         WMatrix,
         local_wavelength,
     },
-    step_strategy::Step,
+    step_strategy::ConstRefStepStrat,
 };
 use cc_matrix_utils::faer::{
     get_ldlt_inverse_buffer,
@@ -34,9 +34,9 @@ use faer::{
 // todo! look whether V(r) is evaluated at correct values
 
 /// 10.1063/1.436421
-pub struct RatioNumerov<'a, W: WMatrix<f64>, S: Step> {
+pub struct RatioNumerov<'a, W: WMatrix<f64>> {
     w_matrix: &'a W,
-    step: S,
+    step: ConstRefStepStrat,
 
     solution: Solution<Ratio<Matrix>>,
 
@@ -56,20 +56,17 @@ pub struct RatioNumerov<'a, W: WMatrix<f64>, S: Step> {
     wave_storage: Option<WaveStorage<Matrix>>,
 }
 
-impl<'a, W: WMatrix<f64>, S: Step> RatioNumerov<'a, W, S> {
-    pub fn new(w_matrix: &'a W, step: S, boundary: Boundary<Matrix>) -> Self {
+impl<'a, W: WMatrix<f64>> RatioNumerov<'a, W> {
+    pub fn new(w_matrix: &'a W, step: ConstRefStepStrat, boundary: Boundary<Matrix>) -> Self {
         let size = w_matrix.size();
         let r = boundary.r_start;
+        let dr = match boundary.direction {
+            Direction::Inwards => -(step.init_step(r).abs()),
+            Direction::Outwards => step.init_step(r).abs(),
+        };
 
         let mut w_matrix_buffer = Matrix::zeros(size, size);
-
         w_matrix.value_inplace(r, &mut w_matrix_buffer);
-        let local_wavelength = local_wavelength(&w_matrix_buffer);
-
-        let dr = match boundary.direction {
-            Direction::Inwards => -(step.get_step(r, local_wavelength).abs()),
-            Direction::Outwards => step.get_step(r, local_wavelength).abs(),
-        };
 
         let mut f_last = Matrix::zeros(size, size);
         w_matrix.value_inplace(r - dr, &mut f_last);
@@ -314,10 +311,10 @@ impl<'a, W: WMatrix<f64>, S: Step> RatioNumerov<'a, W, S> {
     }
 }
 
-impl<W: WMatrix<f64>, S: Step> Propagator<Ratio<Matrix>> for RatioNumerov<'_, W, S> {
+impl<W: WMatrix<f64>> Propagator<Ratio<Matrix>> for RatioNumerov<'_, W> {
     fn step(&mut self) -> &Solution<Ratio<Matrix>> {
         let wavelength = local_wavelength(&self.w_matrix_buffer);
-        let dr = self.step.get_step(self.solution.r, wavelength);
+        let dr = self.step.get_step(self.solution.r, self.solution.dr, wavelength);
 
         if dr > 2.0 * self.solution.dr.abs() {
             self.double_the_step()
@@ -343,7 +340,7 @@ impl<W: WMatrix<f64>, S: Step> Propagator<Ratio<Matrix>> for RatioNumerov<'_, W,
     }
 }
 
-impl<W: WMatrix<f64>, S: Step> WithWaveStorage<Matrix> for RatioNumerov<'_, W, S> {
+impl<W: WMatrix<f64>> WithWaveStorage<Matrix> for RatioNumerov<'_, W> {
     fn init_wave_storage(&mut self) {
         self.wave_storage = Some(WaveStorage::default())
     }

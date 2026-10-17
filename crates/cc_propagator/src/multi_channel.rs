@@ -95,7 +95,7 @@ mod tests {
             numerov::RatioNumerov, quasiadiabatic_log_derivative::QuasiAdiabaticLogDerivative,
         },
         step_strategy::{
-            ConstRefStepStrat, LinearRefStepStrat, SingleStep
+            ConstRefStepStrat, LinearRefStepStrat
         },
     };
 
@@ -146,7 +146,7 @@ mod tests {
         };
         let analytic_val = |x: f64| (&u * col![f64::cos(k1 * x), 0.,]).iter().copied().collect::<Vec<f64>>();
 
-        let mut numerov = RatioNumerov::new(&w_matrix, SingleStep::new(1e-4), boundary);
+        let mut numerov = RatioNumerov::new(&w_matrix, ConstRefStepStrat::Fixed { dr: 1e-4 }, boundary);
         numerov.init_wave_storage();
 
         let sol = numerov.propagate_to(1. / 3. * PI / k1);
