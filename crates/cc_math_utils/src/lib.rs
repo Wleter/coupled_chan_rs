@@ -162,7 +162,7 @@ macro_rules! assert_approx_eq {
 /// - `approx_eq!(x, y, err)`
 macro_rules! approx_eq {
     ($x:expr, $y:expr, $err:expr) => {
-        ($x - $y).abs() <= $x.abs() * $err
+        $x == $y || (($x - $y).abs() <= $x.abs() * $err && $x == $x && $y == $y)
     };
 }
 
