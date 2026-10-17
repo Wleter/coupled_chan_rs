@@ -91,13 +91,69 @@ pub enum ConstRefStepStrat {
     LocalWavelength {
         dr_min: f64,
         dr_max: f64,
-        wave_length_ratio: f64,
+        wave_ratio: f64,
     },
     Transitioned {
         transition_point: f64,
         before: Box<ConstRefStepStrat>,
         after: Box<ConstRefStepStrat>,
     },
+}
+
+impl ConstRefStepStrat {
+    pub fn init_step(&self, r: f64) -> f64 {
+        match self {
+            ConstRefStepStrat::Fixed { dr } => *dr,
+            ConstRefStepStrat::LocalWavelength {
+                dr_min,
+                dr_max: _,
+                wave_ratio: _,
+            } => *dr_min,
+            ConstRefStepStrat::Transitioned {
+                transition_point,
+                before,
+                after,
+            } => {
+                if r < *transition_point {
+                    before.init_step(r)
+                } else {
+                    after.init_step(r)
+                }
+            }
+        }
+    }
+
+    pub fn get_step(
+        &self,
+        r: f64,
+        dr_prev: f64,
+        local_wavelength: f64,
+    ) -> f64 {
+        match self {
+            ConstRefStepStrat::Fixed { dr } => *dr * dr_prev.signum(),
+            ConstRefStepStrat::LocalWavelength {
+                dr_min,
+                dr_max,
+                wave_ratio,
+            } => {
+                let dr_new = local_wavelength / wave_ratio;
+                let dr_new = dr_new.min(2.0 * dr_prev.abs());
+
+                f64::clamp(dr_new, *dr_min, *dr_max) * dr_prev.signum()
+            }
+            ConstRefStepStrat::Transitioned {
+                transition_point,
+                before,
+                after,
+            } => {
+                if r < *transition_point {
+                    before.get_step(r, dr_prev, local_wavelength)
+                } else {
+                    after.get_step(r, dr_prev, local_wavelength)
+                }
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

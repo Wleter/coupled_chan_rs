@@ -1,6 +1,7 @@
 pub mod airy;
 pub mod diabatic_log_derivative;
 pub mod numerov;
+pub mod quasiadiabatic_log_derivative;
 
 use std::f64::consts::PI;
 
@@ -91,11 +92,10 @@ mod tests {
                 JohnsonLogDerivative,
                 ManolopoulosLogDerivative,
             },
-            numerov::RatioNumerov,
+            numerov::RatioNumerov, quasiadiabatic_log_derivative::QuasiAdiabaticLogDerivative,
         },
         step_strategy::{
-            LinearRefStepStrat,
-            SingleStep,
+            ConstRefStepStrat, LinearRefStepStrat, SingleStep
         },
     };
 
@@ -185,7 +185,7 @@ mod tests {
         let analytic = |x: f64| &u * mat![[-k1 * f64::tan(k1 * x), 0.], [0., -k2 * f64::tan(k2 * x)],] * u.transpose();
         let analytic_val = |x: f64| (&u * col![f64::cos(k1 * x), 0.,]).iter().copied().collect::<Vec<f64>>();
 
-        let mut log_deriv = JohnsonLogDerivative::new(&w_matrix, SingleStep::new(1e-3), boundary);
+        let mut log_deriv = JohnsonLogDerivative::new(&w_matrix, ConstRefStepStrat::Fixed { dr: 1e-3 }, boundary);
         log_deriv.init_wave_storage();
 
         let sol = log_deriv.propagate_to(1. / 3. * PI / k1);
@@ -221,7 +221,43 @@ mod tests {
         let analytic = |x: f64| &u * mat![[-k1 * f64::tan(k1 * x), 0.], [0., -k2 * f64::tan(k2 * x)],] * u.transpose();
         let analytic_val = |x: f64| (&u * col![f64::cos(k1 * x), 0.,]).iter().copied().collect::<Vec<f64>>();
 
-        let mut log_deriv = ManolopoulosLogDerivative::new(&w_matrix, SingleStep::new(1e-3), boundary);
+        let mut log_deriv = ManolopoulosLogDerivative::new(&w_matrix, ConstRefStepStrat::Fixed { dr: 1e-3 }, boundary);
+        log_deriv.init_wave_storage();
+
+        let sol = log_deriv.propagate_to(1. / 3. * PI / k1);
+        assert_approx_eq!(mat => analytic(sol.r), sol.sol.0, 1e-4);
+        let (rs, wave) = log_deriv.get_wave_storage().unwrap().reconstruct(start.as_ref(), false);
+        assert_approx_eq!(iter => wave.last().unwrap(), analytic_val(*rs.last().unwrap()), 1e-4);
+
+        let sol = log_deriv.propagate_to(2. / 3. * PI / k1);
+        assert_approx_eq!(mat => analytic(sol.r), sol.sol.0, 1e-4);
+        let (rs, wave) = log_deriv.get_wave_storage().unwrap().reconstruct(start.as_ref(), false);
+        assert_approx_eq!(iter => wave.last().unwrap(), analytic_val(*rs.last().unwrap()), 1e-4);
+    }
+
+    #[test]
+    pub fn test_multi_chan_quasi_adiabatic_log_derivative() {
+        let k1 = 5.;
+        let k2 = 9.;
+
+        let k2_mid = (k1 * k1 + k2 * k2) / 2.;
+        let k2_diff = (k2 * k2 - k1 * k1) / 2.;
+        let w_matrix = SingleValue(mat![[k2_mid, k2_diff], [k2_diff, k2_mid]]);
+
+        let u = mat![[1., 1.], [-1., 1.]] / f64::sqrt(2.);
+        let start = &u * mat![[1.], [0.]].col(0);
+
+        let boundary = Boundary {
+            r_start: 0.,
+            direction: Direction::Outwards,
+            value: mat![[1., 0.], [0., 1.]],
+            derivative: mat![[0., 0.], [0., 0.]],
+        };
+
+        let analytic = |x: f64| &u * mat![[-k1 * f64::tan(k1 * x), 0.], [0., -k2 * f64::tan(k2 * x)],] * u.transpose();
+        let analytic_val = |x: f64| (&u * col![f64::cos(k1 * x), 0.,]).iter().copied().collect::<Vec<f64>>();
+
+        let mut log_deriv = QuasiAdiabaticLogDerivative::new(&w_matrix, ConstRefStepStrat::Fixed { dr: 1e-3 }, boundary);
         log_deriv.init_wave_storage();
 
         let sol = log_deriv.propagate_to(1. / 3. * PI / k1);

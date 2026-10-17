@@ -8,11 +8,8 @@ use coupled_chan::{
         Nodes,
         Solution,
         step_strategy::{
-            DynStep,
-            LinearRefStepStrat,
-            LocalWavelengthStep,
-            SingleStep,
-            TransitionStep,
+            ConstRefStepStrat, 
+            LinearRefStepStrat, 
         },
     },
     coupling::{
@@ -29,7 +26,7 @@ use coupled_chan::{
         diabatic_log_derivative::{
             JohnsonLogDerivative,
             ManolopoulosLogDerivative,
-        },
+        }, quasiadiabatic_log_derivative::QuasiAdiabaticLogDerivative,
     },
     s_matrix::SMatrix,
 };
@@ -160,8 +157,9 @@ impl SMatrixData {
 #[serde(rename_all = "snake_case")]
 #[serde(tag = "type")]
 pub enum CoupledChanPropagator {
-    JohnsonLogDeriv { step: Step },
-    ManolopoulosLogDeriv { step: Step },
+    JohnsonLogDeriv { step: ConstRefStep },
+    ManolopoulosLogDeriv { step: ConstRefStep },
+    QuasiAdiabaticLogDeriv { step: ConstRefStep },
     AiryLogDeriv { step: LinearRefStep },
 }
 
@@ -181,6 +179,9 @@ impl CoupledChanPropagator {
             CoupledChanPropagator::AiryLogDeriv { step } => {
                 Box::new(AiryLogDerivative::new(w_matrix, step.get_step(), boundary))
             }
+            CoupledChanPropagator::QuasiAdiabaticLogDeriv { step } => {
+                Box::new(QuasiAdiabaticLogDerivative::new(w_matrix, step.get_step(), boundary))
+            },
         }
     }
 
@@ -206,6 +207,9 @@ impl CoupledChanPropagator {
                 solution,
                 nodes,
             )),
+            CoupledChanPropagator::QuasiAdiabaticLogDeriv { step } => Box::new(
+                QuasiAdiabaticLogDerivative::from_log_derivative(w_matrix, step.get_step(), solution, nodes),
+            ),
         }
     }
 
@@ -214,6 +218,7 @@ impl CoupledChanPropagator {
             CoupledChanPropagator::JohnsonLogDeriv { step } => step.scale_step(scaling),
             CoupledChanPropagator::ManolopoulosLogDeriv { step } => step.scale_step(scaling),
             CoupledChanPropagator::AiryLogDeriv { step } => step.scale_step(scaling),
+            CoupledChanPropagator::QuasiAdiabaticLogDeriv { step } => step.scale_step(scaling),
         }
     }
 }
@@ -268,7 +273,7 @@ impl TwoSegmentPropagator {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type")]
 #[serde(rename_all = "snake_case")]
-pub enum Step {
+pub enum ConstRefStep {
     Fixed {
         dr: Scalar<Length>,
     },
@@ -279,20 +284,20 @@ pub enum Step {
     },
     Transitioned {
         transition_point: Scalar<Length>,
-        before: Box<Step>,
-        after: Box<Step>,
+        before: Box<ConstRefStep>,
+        after: Box<ConstRefStep>,
     },
 }
 
-impl Step {
-    pub fn get_step(&self) -> DynStep {
+impl ConstRefStep {
+    pub fn get_step(&self) -> ConstRefStepStrat {
         match self {
-            Step::Fixed { dr } => {
+            ConstRefStep::Fixed { dr } => {
                 let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
 
-                DynStep::new(SingleStep::new(converter.scalar_value(dr)))
+                ConstRefStepStrat::Fixed { dr: converter.scalar_value(dr) }
             }
-            Step::LocalWavelength {
+            ConstRefStep::LocalWavelength {
                 dr_min,
                 dr_max,
                 wave_ratio,
@@ -301,9 +306,9 @@ impl Step {
                 let dr_min = converter.scalar_value(dr_min);
                 let dr_max = converter.scalar_value(dr_max);
 
-                DynStep::new(LocalWavelengthStep::new(dr_min, dr_max, *wave_ratio))
+                ConstRefStepStrat::LocalWavelength { dr_min, dr_max, wave_ratio: *wave_ratio }
             }
-            Step::Transitioned {
+            ConstRefStep::Transitioned {
                 transition_point,
                 before,
                 after,
@@ -311,19 +316,19 @@ impl Step {
                 let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
                 let transition_point = converter.scalar_value(transition_point);
 
-                DynStep::new(TransitionStep {
-                    r_switch: transition_point,
-                    step_short: before.get_step(),
-                    step_long: after.get_step(),
-                })
+                ConstRefStepStrat::Transitioned { 
+                    transition_point,
+                    before: Box::new(before.get_step()), 
+                    after: Box::new(after.get_step()) 
+                }
             }
         }
     }
 
     pub fn scale_step(&mut self, scaling: f64) {
         match self {
-            Step::Fixed { dr } => dr.scale(scaling),
-            Step::LocalWavelength {
+            ConstRefStep::Fixed { dr } => dr.scale(scaling),
+            ConstRefStep::LocalWavelength {
                 dr_min,
                 dr_max,
                 wave_ratio,
@@ -332,7 +337,7 @@ impl Step {
                 dr_max.scale(scaling);
                 *wave_ratio /= scaling
             }
-            Step::Transitioned {
+            ConstRefStep::Transitioned {
                 transition_point: _,
                 before,
                 after,
