@@ -77,8 +77,13 @@ pub struct BoundStateCalcInput {
     pub r_match: Scalar<Length>,
     pub r_max: Scalar<Length>,
 
-    pub propagator_out: CoupledChanPropagator,
-    pub propagator_in: CoupledChanPropagator,
+    /// Coupled channel propagator to use, 
+    /// inwards propagation can be overridden by
+    /// optional `propagator_in` field.
+    pub propagator: CoupledChanPropagator,
+    #[serde(default)]
+    /// Optional overwrite of coupled channel propagator for inwards propagation
+    pub propagator_in: Option<CoupledChanPropagator>,
 
     #[serde(default)]
     pub get_occupations: bool,
@@ -114,8 +119,10 @@ pub fn bound_states_calc_mods<P: Problem + 'static>() -> ModifyRegistry<P, Bound
         (
             "step_scaling",
             modify_recipe!(|x| FloatCalcMod::new(x, |r: &mut BoundStateCalcInput, v| {
-                r.propagator_out.scale_step(v);
-                r.propagator_in.scale_step(v);
+                r.propagator.scale_step(v);
+                if let Some(prop) = &mut r.propagator_in {
+                    prop.scale_step(v);
+                }
             })),
         ),
     ])
@@ -607,10 +614,15 @@ pub fn bound_mismatch(
     let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
     let r_match = converter.scalar_value(&input.r_match);
 
-    let mut propagator_in = input.propagator_in.get_propagator(boundary_in, w_matrix);
+    let mut propagator_in = if let Some(prop_in) = &input.propagator_in {
+        prop_in.get_propagator(boundary_in, w_matrix)
+    } else {
+        input.propagator.get_propagator(boundary_in, w_matrix)
+    };
+    
     let sol_in = propagator_in.propagate_to(r_match);
 
-    let mut propagator_out = input.propagator_out.get_propagator(boundary_out, w_matrix);
+    let mut propagator_out = input.propagator.get_propagator(boundary_out, w_matrix);
     let sol_out = propagator_out.propagate_to(r_match);
 
     let matching_matrix = &sol_out.sol.0 - &sol_in.sol.0;
@@ -638,11 +650,15 @@ fn bound_wave(w_matrix: &CollisionWMatrix<impl RCoupling>, input: &BoundStateCal
     let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
     let r_match = converter.scalar_value(&input.r_match);
 
-    let mut propagator_in = input.propagator_in.get_propagator(boundary_in, w_matrix);
+    let mut propagator_in = if let Some(prop_in) = &input.propagator_in {
+        prop_in.get_propagator(boundary_in, w_matrix)
+    } else {
+        input.propagator.get_propagator(boundary_in, w_matrix)
+    };
     propagator_in.init_wave_storage();
     let sol_in = propagator_in.propagate_to(r_match);
 
-    let mut propagator_out = input.propagator_out.get_propagator(boundary_out, w_matrix);
+    let mut propagator_out = input.propagator.get_propagator(boundary_out, w_matrix);
     propagator_out.init_wave_storage();
     let sol_out = propagator_out.propagate_to(r_match);
 
