@@ -60,10 +60,12 @@ use crate::{
     diatom_operators::SpinRotationSpec,
     interactions::{
         Interactions,
-        PecPolarizationScalingMod,
-        PecPolarizationScalings,
-        PecPolarizationSpec,
-        PecPolarizations,
+        pec::{
+            PecPolarizationScalingMod,
+            PecPolarizationScalings,
+            PecPolarizationSpec,
+            PecPolarizations,
+        },
     },
     modify_recipe,
     operator_mel::spin_projection_term_coupled,

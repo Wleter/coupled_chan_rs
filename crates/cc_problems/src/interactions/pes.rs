@@ -30,10 +30,12 @@ use crate::{
     },
     interactions::{
         Interactions,
-        PecScaling,
-        PecScalingType,
         SpinConfiguration,
         SwitchingRegion,
+        pec::{
+            PecScaling,
+            PecScalingType,
+        },
     },
     param_ids,
     parameters::{
