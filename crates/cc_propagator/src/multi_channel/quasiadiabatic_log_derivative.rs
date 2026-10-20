@@ -1,4 +1,6 @@
 
+use std::f64::consts::PI;
+
 use crate::{
     Boundary,
     Direction,
@@ -10,7 +12,7 @@ use crate::{
     WithNodeCount,
     WithWaveStorage,
     multi_channel::{
-        Matrix, WMatrix, diabatic_log_derivative::{diag_mat_mul_inplace, mat_diag_add_inplace, mat_diag_mul_inplace, mat_diag_sub_inplace}, local_wavelength
+        Matrix, WMatrix, diabatic_log_derivative::{diag_mat_mul_inplace, mat_diag_add_inplace, mat_diag_mul_inplace, mat_diag_sub_inplace}
     },
     step_strategy::ConstRefStepStrat,
 };
@@ -57,6 +59,7 @@ impl<'a, W: WMatrix<f64>> QuasiAdiabaticLogDerivative<'a, W> {
 
         let mut step = LogDerivativeStep::new(w_matrix.size());
         w_matrix.value_inplace(r, &mut step.w_matrix_buffer);
+        self_adjoint_evd_inplace(step.w_matrix_buffer.as_ref(), step.w_ref.as_mut(), None, &mut step.diagonalisation_buffer);
 
         Self {
             step,
@@ -72,6 +75,7 @@ impl<'a, W: WMatrix<f64>> QuasiAdiabaticLogDerivative<'a, W> {
     pub fn from_log_derivative(w_matrix: &'a W, step_strat: ConstRefStepStrat, solution: Solution<LogDeriv<Matrix>>, nodes: Nodes) -> Self {
         let mut step = LogDerivativeStep::new(w_matrix.size());
         w_matrix.value_inplace(solution.r, &mut step.w_matrix_buffer);
+        self_adjoint_evd_inplace(step.w_matrix_buffer.as_ref(), step.w_ref.as_mut(), None, &mut step.diagonalisation_buffer);
 
         Self {
             step,
@@ -85,7 +89,15 @@ impl<'a, W: WMatrix<f64>> QuasiAdiabaticLogDerivative<'a, W> {
     }
 
     fn step_r_target(&mut self, r: Option<f64>) {
-        let wavelength = local_wavelength(&self.step.w_matrix_buffer);
+        let wavelength = {
+            let max_g_val = self.step.w_ref
+                .column_vector()
+                .iter()
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+
+            2. * PI / max_g_val.abs().sqrt()
+        };
         self.solution_local.dr = self.step_strat.get_step(self.solution_local.r, self.solution_local.dr, wavelength);
 
         if let Some(r) = r
