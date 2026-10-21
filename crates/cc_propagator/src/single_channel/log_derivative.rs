@@ -11,7 +11,8 @@ use crate::{
     single_channel::{
         WFunction,
         local_wavelength,
-    }, step_strategy::ConstRefStepStrat,
+    },
+    step_strategy::ConstRefStepStrat,
 };
 
 /// based on multi-channel log_derivative with manolopoulos imbedding

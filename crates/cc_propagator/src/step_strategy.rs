@@ -1,4 +1,3 @@
-
 #[derive(Debug, Clone)]
 pub enum ConstRefStepStrat {
     Fixed {
@@ -39,12 +38,7 @@ impl ConstRefStepStrat {
         }
     }
 
-    pub fn get_step(
-        &self,
-        r: f64,
-        dr_prev: f64,
-        local_wavelength: f64,
-    ) -> f64 {
+    pub fn get_step(&self, r: f64, dr_prev: f64, local_wavelength: f64) -> f64 {
         match self {
             ConstRefStepStrat::Fixed { dr } => *dr * dr_prev.signum(),
             ConstRefStepStrat::LocalWavelength {

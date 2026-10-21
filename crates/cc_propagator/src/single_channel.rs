@@ -57,7 +57,8 @@ mod tests {
             numerov::RatioNumerov,
         },
         step_strategy::{
-            ConstRefStepStrat, LinearRefStepStrat
+            ConstRefStepStrat,
+            LinearRefStepStrat,
         },
     };
 

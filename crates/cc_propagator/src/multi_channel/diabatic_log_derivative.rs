@@ -70,8 +70,7 @@ impl LogDerivReference for Johnson {
 pub struct DiabaticManolopoulos;
 impl LogDerivReference for DiabaticManolopoulos {
     fn w_ref(w_c: &Matrix, w_ref: &mut Diag<f64>) {
-        zip!(w_ref.as_mut(), w_c.diagonal())
-            .for_each(|unzip!(w, w_c)| *w = *w_c);
+        zip!(w_ref.as_mut(), w_c.diagonal()).for_each(|unzip!(w, w_c)| *w = *w_c);
     }
 
     fn imbedding14(h: f64, w_ref: &Diag<f64>, out: &mut Diag<f64>) {
@@ -140,7 +139,12 @@ impl<'a, R: LogDerivReference, W: WMatrix<f64>> DiabaticLogDerivative<'a, R, W> 
         }
     }
 
-    pub fn from_log_derivative(w_matrix: &'a W, step_strat: ConstRefStepStrat, solution: Solution<LogDeriv<Matrix>>, nodes: Nodes) -> Self {
+    pub fn from_log_derivative(
+        w_matrix: &'a W,
+        step_strat: ConstRefStepStrat,
+        solution: Solution<LogDeriv<Matrix>>,
+        nodes: Nodes,
+    ) -> Self {
         let mut step = LogDerivativeStep::new(w_matrix.size());
         w_matrix.value_inplace(solution.r, &mut step.w_matrix_buffer);
 

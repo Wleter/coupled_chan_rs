@@ -92,10 +92,12 @@ mod tests {
                 JohnsonLogDerivative,
                 ManolopoulosLogDerivative,
             },
-            numerov::RatioNumerov, quasiadiabatic_log_derivative::QuasiAdiabaticLogDerivative,
+            numerov::RatioNumerov,
+            quasiadiabatic_log_derivative::QuasiAdiabaticLogDerivative,
         },
         step_strategy::{
-            ConstRefStepStrat, LinearRefStepStrat
+            ConstRefStepStrat,
+            LinearRefStepStrat,
         },
     };
 

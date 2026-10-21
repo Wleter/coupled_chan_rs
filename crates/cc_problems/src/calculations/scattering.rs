@@ -8,8 +8,8 @@ use coupled_chan::{
         Nodes,
         Solution,
         step_strategy::{
-            ConstRefStepStrat, 
-            LinearRefStepStrat, 
+            ConstRefStepStrat,
+            LinearRefStepStrat,
         },
     },
     coupling::{
@@ -26,7 +26,8 @@ use coupled_chan::{
         diabatic_log_derivative::{
             JohnsonLogDerivative,
             ManolopoulosLogDerivative,
-        }, quasiadiabatic_log_derivative::QuasiAdiabaticLogDerivative,
+        },
+        quasiadiabatic_log_derivative::QuasiAdiabaticLogDerivative,
     },
     s_matrix::SMatrix,
 };
@@ -181,7 +182,7 @@ impl CoupledChanPropagator {
             }
             CoupledChanPropagator::QuasiAdiabaticLogDeriv { step } => {
                 Box::new(QuasiAdiabaticLogDerivative::new(w_matrix, step.get_step(), boundary))
-            },
+            }
         }
     }
 
@@ -295,7 +296,9 @@ impl ConstRefStep {
             ConstRefStep::Fixed { dr } => {
                 let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
 
-                ConstRefStepStrat::Fixed { dr: converter.scalar_value(dr) }
+                ConstRefStepStrat::Fixed {
+                    dr: converter.scalar_value(dr),
+                }
             }
             ConstRefStep::LocalWavelength {
                 dr_min,
@@ -306,7 +309,11 @@ impl ConstRefStep {
                 let dr_min = converter.scalar_value(dr_min);
                 let dr_max = converter.scalar_value(dr_max);
 
-                ConstRefStepStrat::LocalWavelength { dr_min, dr_max, wave_ratio: *wave_ratio }
+                ConstRefStepStrat::LocalWavelength {
+                    dr_min,
+                    dr_max,
+                    wave_ratio: *wave_ratio,
+                }
             }
             ConstRefStep::Transitioned {
                 transition_point,
@@ -316,10 +323,10 @@ impl ConstRefStep {
                 let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
                 let transition_point = converter.scalar_value(transition_point);
 
-                ConstRefStepStrat::Transitioned { 
+                ConstRefStepStrat::Transitioned {
                     transition_point,
-                    before: Box::new(before.get_step()), 
-                    after: Box::new(after.get_step()) 
+                    before: Box::new(before.get_step()),
+                    after: Box::new(after.get_step()),
                 }
             }
         }
