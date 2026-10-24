@@ -144,7 +144,6 @@ fn merge_inplace(default: &mut Value, overrides: Value) {
 }
 
 #[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
 struct ProgramInput {
     problem_name: Box<str>,
     basis_recipe: Value,

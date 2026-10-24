@@ -56,7 +56,6 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct RotorRecipe {
     pub name: Box<str>,
     pub s: HalfU32,
@@ -65,7 +64,6 @@ pub struct RotorRecipe {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct TRAMRotorAtomBasisRecipe {
     pub rotor: RotorRecipe,
     pub atom: AtomRecipe,

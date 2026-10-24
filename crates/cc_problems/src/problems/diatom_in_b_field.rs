@@ -79,7 +79,6 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct DiatomInBFieldBasis {
     #[serde(flatten)]
     pub recipe: DiatomRecipe,
@@ -110,7 +109,6 @@ pub enum OrbitalParity {
 }
 
 #[derive(Debug, Clone, Deserialize, cc_derive::Parameters)]
-#[serde(deny_unknown_fields)]
 pub struct DiatomInBFieldParams {
     #[serde(default)]
     pub b_field: Scalar<MagneticField>,

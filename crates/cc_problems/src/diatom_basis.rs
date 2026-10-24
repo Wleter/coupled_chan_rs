@@ -35,7 +35,6 @@ pub type SpinITot = SpinPairMag<HalfU32, HalfU32>;
 pub type SpinFTot = SpinPairMag<SpinSTot, SpinITot>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct DiatomRecipe {
     pub atom_a: AtomRecipe,
     pub atom_b: AtomRecipe,

@@ -110,7 +110,6 @@ impl PesInteractions {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub enum LegendreComponents {
     #[default]
     All,
@@ -120,7 +119,7 @@ pub enum LegendreComponents {
 }
 
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
-#[serde(default, deny_unknown_fields)]
+#[serde(default)]
 pub struct PesScaling {
     scaling: PecScaling,
     legendre_components: LegendreComponents,
@@ -154,7 +153,6 @@ pub struct PesPolarizations(pub HashMap<SpinConfiguration, PesInteractions>);
 pub struct PesPolarizationScalings(pub HashMap<SpinConfiguration, PesScalings>);
 
 #[derive(Clone, Copy, Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct PesPolarizationScaling {
     scaling: f64,
     #[serde(default)]

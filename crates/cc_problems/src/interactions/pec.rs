@@ -85,7 +85,6 @@ where
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
-#[serde(deny_unknown_fields)]
 pub struct PecPolarizationScalings(pub HashMap<SpinConfiguration, PecScaling>);
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
@@ -104,7 +103,7 @@ impl Default for ScalingValue {
 }
 
 #[derive(Clone, Copy, Default, Debug, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "snake_case", deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
 pub enum PecScalingType {
     #[default]
     Full,
@@ -113,7 +112,7 @@ pub enum PecScalingType {
 }
 
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
-#[serde(default, deny_unknown_fields)]
+#[serde(default)]
 pub struct PecScaling {
     pub(super) short_range: ScalingValue,
     pub(super) long_range: ScalingValue,
@@ -154,7 +153,6 @@ impl PecScaling {
 }
 
 #[derive(Clone, Copy, Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct PecPolarizationScaling {
     scaling: f64,
     #[serde(default)]

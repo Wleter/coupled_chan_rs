@@ -83,7 +83,12 @@ impl SValue {
         }
 
         let (j, j_deriv) = riccati_j_deriv(l, momentum * r);
+        let j = j / momentum.sqrt();
+        let j_deriv = j_deriv * momentum.sqrt();
+        
         let (n, n_deriv) = riccati_n_deriv(l, momentum * r);
+        let n_deriv = n_deriv * momentum.sqrt();
+        let n = n / momentum.sqrt();
 
         let k_matrix = -(log_deriv * j - j_deriv) / (log_deriv * n - n_deriv);
         let s_matrix = Complex64::new(1.0, k_matrix) / Complex64::new(1.0, -k_matrix);

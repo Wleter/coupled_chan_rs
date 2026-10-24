@@ -83,7 +83,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Parameters, Serialize, Deserialize)]
-#[serde(deny_unknown_fields, default)]
+#[serde(default)]
 pub struct RotorSpinParams {
     pub a_hifi_a: Scalar<Energy>,
     pub a_hifi_b: Scalar<Energy>,
@@ -110,7 +110,6 @@ impl Default for RotorSpinParams {
 }
 
 #[derive(Debug, Clone, Parameters, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct RotorParams {
     pub rot_const: Scalar<Energy>,
     #[serde(default)]
@@ -127,7 +126,6 @@ pub struct RotorParams {
 }
 
 #[derive(Debug, Clone, Deserialize, cc_derive::Parameters)]
-#[serde(deny_unknown_fields)]
 pub struct RotorAtomInBFieldParams {
     #[serde(default)]
     pub b_field: Scalar<MagneticField>,

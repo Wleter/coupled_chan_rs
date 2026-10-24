@@ -57,7 +57,7 @@ pub fn electron_g_e() -> Scalar<MagneticDipole> {
 }
 
 #[derive(Debug, Clone, Parameters, Serialize, Deserialize)]
-#[serde(default, deny_unknown_fields)]
+#[serde(default)]
 pub struct AtomParams {
     pub a_hifi: Scalar<Energy>,
     pub g_e: Scalar<MagneticDipole>,

@@ -23,7 +23,6 @@ use spin_algebra::{
 pub type TwiceSpin = SpinPair<HalfU32, HalfU32>;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct WithProjection<R> {
     #[serde(flatten)]
     pub recipe: R,
@@ -32,7 +31,6 @@ pub struct WithProjection<R> {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct AtomRecipe {
     pub name: Box<str>,
     pub s: HalfU32,
