@@ -14,7 +14,6 @@ dist/
 .direnv
 
 /pyproject.toml
-/test.jsonc
-/test.toml
 /uv.lock
 inputs
+rsync.sh
