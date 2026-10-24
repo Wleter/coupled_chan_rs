@@ -1,47 +1,46 @@
 use cc_qol_utils::Pair;
-use cc_system::{hamiltonian_spec::PotentialSpec, param_ids, parameters::{ParameterRegistry, TypedParamId}};
-use coupled_chan::{
-    DynInteraction,
-    dispersion::PowerLaw,
+use cc_system::hamiltonian_spec::PotentialSpec;
+use cc_system::param_ids;
+use cc_system::parameters::{
+    ParameterRegistry,
+    TypedParamId,
 };
-use hilbert_space::{
-    operator_mel,
-    space::BasisElementsRef,
+use coupled_chan::DynInteraction;
+use coupled_chan::dispersion::PowerLaw;
+use hilbert_space::operator_mel;
+use hilbert_space::space::BasisElementsRef;
+use spin_algebra::ops::{
+    dot_product_separation,
+    red_dot_product_factor,
+    red_first_subsystem_mel_factor,
+    red_reduced_harmonics_mel,
+    red_second_subsystem_mel_factor,
+    red_spin_mel,
+    red_tensor_product_factor,
+    wigner_eckart_dot_product_factor,
+    wigner_eckart_factor,
 };
 use spin_algebra::{
     SpinLike,
     SpinMagLike,
-    ops::{
-        dot_product_separation,
-        red_dot_product_factor,
-        red_first_subsystem_mel_factor,
-        red_reduced_harmonics_mel,
-        red_second_subsystem_mel_factor,
-        red_spin_mel,
-        red_tensor_product_factor,
-        wigner_eckart_dot_product_factor,
-        wigner_eckart_factor,
-    },
     spin,
 };
 use unit_systems::CODATA_2022;
 
-use crate::{
-    Operator,
-    atom_operators::{
-        BFieldId,
-        CouplingId,
-        CouplingSpec,
-        GFactorId,
-        ZeemanSpec,
-    },
-    diatom_basis::{
-        CoupledDiatomBasis,
-        CoupledFTotDiatomBasis,
-        CoupledSIDiatomBasis,
-    },
-    interactions::Interactions,
+use crate::Operator;
+use crate::atom_operators::{
+    BFieldId,
+    CouplingId,
+    CouplingSpec,
+    GFactorId,
+    ZeemanSpec,
 };
+use crate::diatom_basis::{
+    CoupledDiatomBasis,
+    CoupledFTotDiatomBasis,
+    CoupledSIDiatomBasis,
+};
+use crate::interactions::Interactions;
 
 pub struct SpinRotationSpec<Mask>
 where
@@ -618,8 +617,17 @@ impl CoupledDiatomBasis {
 #[cfg(test)]
 mod tests {
     use cc_math_utils::assert_approx_eq;
-    use cc_system::{System, hamiltonian_spec::{DynOperatorSpec, HamiltonianSpec}, orbital_basis::{OrbitalBasisElements, OrbitalRecipe}, parameters::Parameters};
-use hilbert_space::space::SpaceBasis;
+    use cc_system::System;
+    use cc_system::hamiltonian_spec::{
+        DynOperatorSpec,
+        HamiltonianSpec,
+    };
+    use cc_system::orbital_basis::{
+        OrbitalBasisElements,
+        OrbitalRecipe,
+    };
+    use cc_system::parameters::Parameters;
+    use hilbert_space::space::SpaceBasis;
     use serde::{
         Deserialize,
         Serialize,
@@ -628,23 +636,19 @@ use hilbert_space::space::SpaceBasis;
         hi32,
         hu32,
     };
-    use unit_systems::quantities::{
-        Scalar,
-        phys_quantities::{
-            Energy,
-            MagneticDipole,
-            MagneticField,
-        },
+    use unit_systems::quantities::Scalar;
+    use unit_systems::quantities::phys_quantities::{
+        Energy,
+        MagneticDipole,
+        MagneticField,
     };
 
-    use crate::{
-        atom_basis::AtomRecipe,
-        atom_operators::AtomParams,
-        diatom_basis::{
-            CoupledFDiatomBasis,
-            DiatomRecipe,
-            UncoupledDiatomBasis,
-        },
+    use crate::atom_basis::AtomRecipe;
+    use crate::atom_operators::AtomParams;
+    use crate::diatom_basis::{
+        CoupledFDiatomBasis,
+        DiatomRecipe,
+        UncoupledDiatomBasis,
     };
 
     use super::*;

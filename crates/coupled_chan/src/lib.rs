@@ -6,9 +6,9 @@ pub use cc_propagator::{
     self,
     multi_channel,
 };
+pub use single_chan::interaction::*;
 pub use single_chan::{
     self,
-    interaction::*,
 };
 
 /// Perform U O U^T

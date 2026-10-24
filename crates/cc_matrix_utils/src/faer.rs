@@ -1,27 +1,27 @@
 use std::slice;
 
+use faer::diag::DiagMut;
+use faer::dyn_stack::{
+    MemBuffer,
+    MemStack,
+    StackReq,
+};
+use faer::linalg::evd::self_adjoint_evd;
+use faer::linalg::{
+    self,
+    cholesky,
+    lu,
+    temp_mat_scratch,
+    temp_mat_uninit,
+    temp_mat_zeroed,
+};
+use faer::perm::PermRef;
 use faer::{
     Mat,
     MatMut,
     MatRef,
     Par,
-    diag::DiagMut,
-    dyn_stack::{
-        MemBuffer,
-        MemStack,
-        StackReq,
-    },
-    linalg::{
-        self,
-        cholesky,
-        evd::self_adjoint_evd,
-        lu,
-        temp_mat_scratch,
-        temp_mat_uninit,
-        temp_mat_zeroed,
-    },
     mat,
-    perm::PermRef,
     unzip,
     zip,
 };

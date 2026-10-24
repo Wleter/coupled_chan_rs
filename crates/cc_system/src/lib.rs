@@ -1,30 +1,22 @@
 use std::collections::HashSet;
 
-use cc_qol_utils::{
-    Composite,
-    hash_vec::HashVec,
-};
-use coupled_chan::{
-    DynInteraction,
-    coupling::{
-        AngularBlocks,
-        masked::Masked,
-    },
-};
+use cc_qol_utils::Composite;
+use cc_qol_utils::hash_vec::HashVec;
+use coupled_chan::DynInteraction;
+use coupled_chan::coupling::AngularBlocks;
+use coupled_chan::coupling::masked::Masked;
 
-use crate::{
-    hamiltonian_spec::{
-        DynOperatorSpec,
-        DynPotentialSpec,
-        HamiltonianSpec,
-    },
-    orbital_basis::OrbitalBasisElements,
-    param_modifications::ParamModifications,
-    parameters::{
-        ParamId,
-        ParamIds,
-        ParameterRegistry,
-    },
+use crate::hamiltonian_spec::{
+    DynOperatorSpec,
+    DynPotentialSpec,
+    HamiltonianSpec,
+};
+use crate::orbital_basis::OrbitalBasisElements;
+use crate::param_modifications::ParamModifications;
+use crate::parameters::{
+    ParamId,
+    ParamIds,
+    ParameterRegistry,
 };
 
 pub mod hamiltonian_spec;
@@ -32,8 +24,8 @@ pub mod orbital_basis;
 pub mod param_modifications;
 pub mod parameters;
 
-pub use smallvec;
 pub use cc_derive::Parameters;
+pub use smallvec;
 pub type Operator = hilbert_space::operator::Operator<coupled_chan::multi_channel::Matrix>;
 
 pub type CouplingPotential = Masked<DynInteraction>;
@@ -57,12 +49,8 @@ impl System {
         let operator_specs = HashVec::from_hashmap(hamiltonian_spec.operators);
         let potential_specs = HashVec::from_hashmap(hamiltonian_spec.potentials);
 
-        let operators =operator_specs.mapped(|x| 
-            (
-                x.coupling(&registry), 
-                basis.get_angular_blocks(|_, b| x.matrix(b, &registry)
-            )
-        ));
+        let operators =
+            operator_specs.mapped(|x| (x.coupling(&registry), basis.get_angular_blocks(|_, b| x.matrix(b, &registry))));
 
         let potentials = potential_specs.mapped(|x| {
             let masking = x.coupling_masking(basis.full_basis.as_ref(), &registry);

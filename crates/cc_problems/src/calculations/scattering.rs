@@ -1,71 +1,67 @@
 use std::marker::PhantomData;
 
 use cc_system::parameters::TypedParamId;
-use coupled_chan::{
-    cc_propagator::{
-        self,
-        Direction,
-        LogDeriv,
-        Nodes,
-        Solution,
-        step_strategy::{
-            ConstRefStepStrat,
-            LinearRefStepStrat,
-        },
-    },
-    coupling::{
-        Asymptote,
-        CollisionParams,
-        CollisionWMatrix,
-        RCoupling,
-    },
-    multi_channel::{
-        LogDerivativePropagator,
-        Matrix,
-        WMatrix,
-        airy::AiryLogDerivative,
-        diabatic_log_derivative::{
-            JohnsonLogDerivative,
-            ManolopoulosLogDerivative,
-        },
-        quasiadiabatic_log_derivative::QuasiAdiabaticLogDerivative,
-    },
-    s_matrix::SMatrix,
+use coupled_chan::cc_propagator::step_strategy::{
+    ConstRefStepStrat,
+    LinearRefStepStrat,
 };
-use hilbert_space::faer::{
-    Col,
-    complex::Complex64,
+use coupled_chan::cc_propagator::{
+    self,
+    Direction,
+    LogDeriv,
+    Nodes,
+    Solution,
 };
+use coupled_chan::coupling::{
+    Asymptote,
+    CollisionParams,
+    CollisionWMatrix,
+    RCoupling,
+};
+use coupled_chan::multi_channel::airy::AiryLogDerivative;
+use coupled_chan::multi_channel::diabatic_log_derivative::{
+    JohnsonLogDerivative,
+    ManolopoulosLogDerivative,
+};
+use coupled_chan::multi_channel::quasiadiabatic_log_derivative::QuasiAdiabaticLogDerivative;
+use coupled_chan::multi_channel::{
+    LogDerivativePropagator,
+    Matrix,
+    WMatrix,
+};
+use coupled_chan::s_matrix::SMatrix;
+use hilbert_space::faer::Col;
+use hilbert_space::faer::complex::Complex64;
 use serde::{
     Deserialize,
     Serialize,
 };
+use unit_systems::quantities::phys_quantities::{
+    Energy,
+    Length,
+    Mass,
+};
 use unit_systems::quantities::{
     Power,
     Scalar,
-    phys_quantities::{
-        Energy,
-        Length,
-        Mass,
-    },
 };
 
+use crate::calculations::modifications::{
+    FloatCalcMod,
+    ModifyRegistry,
+    ScalarCalcMod,
+};
+use crate::calculations::{
+    Modified,
+    SingleCalc,
+};
+use crate::problems::{
+    Problem,
+    mat_as_nested_vec,
+};
 use crate::{
     UNITS_CONVERTER,
-    calculations::{
-        Modified,
-        SingleCalc,
-        modifications::{
-            FloatCalcMod,
-            ModifyRegistry,
-            ScalarCalcMod,
-        },
-    },
     modify_recipe,
-    problems::{
-        Problem,
-        mat_as_nested_vec,
-    },
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

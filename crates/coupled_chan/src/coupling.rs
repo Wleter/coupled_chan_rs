@@ -3,14 +3,12 @@ pub mod diagonal;
 pub mod masked;
 pub mod pair;
 
-use std::{
-    iter::Sum,
-    ops::{
-        Add,
-        AddAssign,
-    },
-    sync::Arc,
+use std::iter::Sum;
+use std::ops::{
+    Add,
+    AddAssign,
 };
+use std::sync::Arc;
 
 use cc_matrix_utils::faer::diagonalize;
 use cc_propagator::multi_channel::{

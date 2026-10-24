@@ -10,20 +10,20 @@ use cc_math_utils::bessel::{
     riccati_n,
     riccati_n_deriv,
 };
+use cc_propagator::multi_channel::{
+    Matrix,
+    WMatrix,
+};
 use cc_propagator::{
     LogDeriv,
     Ratio,
     Solution,
-    multi_channel::{
-        Matrix,
-        WMatrix,
-    },
 };
+use faer::linalg::solvers::DenseSolveCore;
 use faer::{
     Mat,
     MatRef,
     c64,
-    linalg::solvers::DenseSolveCore,
 };
 use num_complex::Complex64;
 

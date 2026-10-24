@@ -124,12 +124,10 @@ pub fn normalization(l: u32, m: i32) -> f64 {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        assert_approx_eq,
-        legendre::{
-            associated_legendre_polynomials,
-            legendre_polynomials,
-        },
+    use crate::assert_approx_eq;
+    use crate::legendre::{
+        associated_legendre_polynomials,
+        legendre_polynomials,
     };
 
     #[test]

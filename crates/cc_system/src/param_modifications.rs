@@ -1,12 +1,10 @@
 use cc_qol_utils::params::CloneAny;
 
-use crate::{
-    param_ids,
-    parameters::{
-        ParamIds,
-        ParameterRegistry,
-        TypedParamId,
-    },
+use crate::param_ids;
+use crate::parameters::{
+    ParamIds,
+    ParameterRegistry,
+    TypedParamId,
 };
 
 pub type DynParamModifications = ParamModifications<Box<dyn FnOnce(&mut ParameterRegistry) -> ParamIds>>;

@@ -1,3 +1,8 @@
+use crate::single_channel::{
+    WFunction,
+    local_wavelength,
+};
+use crate::step_strategy::ConstRefStepStrat;
 use crate::{
     Boundary,
     Direction,
@@ -8,11 +13,6 @@ use crate::{
     WaveStorage,
     WithNodeCount,
     WithWaveStorage,
-    single_channel::{
-        WFunction,
-        local_wavelength,
-    },
-    step_strategy::ConstRefStepStrat,
 };
 
 /// based on multi-channel log_derivative with manolopoulos imbedding

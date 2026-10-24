@@ -9,9 +9,11 @@ use hilbert_space::space::{
     SubspaceBasisOf,
 };
 use serde::Deserialize;
-use spin_algebra::{
-    angular::{Angular, angular_range}, get_spin_basis
+use spin_algebra::angular::{
+    Angular,
+    angular_range,
 };
+use spin_algebra::get_spin_basis;
 
 use crate::Operator;
 

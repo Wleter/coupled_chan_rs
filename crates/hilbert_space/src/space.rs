@@ -3,16 +3,14 @@ use downcast_rs::{
     impl_downcast,
 };
 use dyn_clone::DynClone;
-use std::{
-    fmt::{
-        Debug,
-        Display,
-    },
-    marker::PhantomData,
-    ops::{
-        Deref,
-        Index,
-    },
+use std::fmt::{
+    Debug,
+    Display,
+};
+use std::marker::PhantomData;
+use std::ops::{
+    Deref,
+    Index,
 };
 
 use crate::cast_variant;

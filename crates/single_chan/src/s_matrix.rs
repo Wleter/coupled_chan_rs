@@ -6,11 +6,11 @@ use cc_math_utils::bessel::{
     riccati_n,
     riccati_n_deriv,
 };
+use cc_propagator::single_channel::WFunction;
 use cc_propagator::{
     LogDeriv,
     Ratio,
     Solution,
-    single_channel::WFunction,
 };
 use num_complex::Complex64;
 

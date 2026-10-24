@@ -1,10 +1,8 @@
-use hilbert_space::{
-    Parity,
-    space::{
-        BasisId,
-        SpaceBasis,
-        SubspaceBasisOf,
-    },
+use hilbert_space::Parity;
+use hilbert_space::space::{
+    BasisId,
+    SpaceBasis,
+    SubspaceBasisOf,
 };
 use serde::{
     Deserialize,

@@ -1,76 +1,72 @@
 use std::collections::HashMap;
 
-use cc_system::{hamiltonian_spec::{DynOperatorSpec, DynPotentialSpec, HamiltonianSpec}, orbital_basis::OrbitalBasisElements, parameters::Parameters};
-use hilbert_space::{
-    operator_diag_mel,
-    space::{
-        SpaceBasis,
-        SpaceElement,
-    },
+use cc_system::hamiltonian_spec::{
+    DynOperatorSpec,
+    DynPotentialSpec,
+    HamiltonianSpec,
+};
+use cc_system::orbital_basis::OrbitalBasisElements;
+use cc_system::parameters::Parameters;
+use hilbert_space::operator_diag_mel;
+use hilbert_space::space::{
+    SpaceBasis,
+    SpaceElement,
 };
 use serde::{
     Deserialize,
     Serialize,
 };
+use spin_algebra::half_integer::HalfI32;
 use spin_algebra::{
     SpinLike,
     SpinMagLike,
     get_spin_pair_magnitudes,
-    half_integer::HalfI32,
 };
-use unit_systems::quantities::{
-    Scalar,
-    phys_quantities::{
-        MagneticField,
-        Mass,
-    },
+use unit_systems::quantities::Scalar;
+use unit_systems::quantities::phys_quantities::{
+    MagneticField,
+    Mass,
 };
 
-use crate::{
-    atom_operators::AtomParams,
-    calculations::{
-        DynCalc,
-        adiabats::{
-            AdiabatsCalc,
-            adiabats_calc_mods,
-        },
-        bound_states::{
-            BoundStateCalc,
-            bound_states_calc_mods,
-            bound_states_calc_search_mods,
-        },
-        dependence::DependenceCalc,
-        hamiltonian_terms::hamiltonian_terms_calc,
-        levels::EnergyLevelsCalc,
-        modifications::{
-            ModifyRegistry,
-            OrbitalRecipeMod,
-            ScalarParamMod,
-        },
-        resonances::ResonancesCalc,
-        scattering::{
-            ScatteringCalc,
-            scattering_calc_mods,
-        },
-    },
-    diatom_basis::{
-        CoupledSIDiatomBasis,
-        DiatomRecipe,
-    },
-    diatom_operators::SpinRotationSpec,
-    interactions::{
-        Interactions,
-        pec::{
-            PecPolarizationScalingMod,
-            PecPolarizationScalings,
-            PecPolarizationSpec,
-            PecPolarizations,
-        },
-    },
-    modify_recipe,
-    operator_mel::spin_projection_term_coupled,
-    problems::Problem,
+use crate::atom_operators::AtomParams;
+use crate::calculations::DynCalc;
+use crate::calculations::adiabats::{
+    AdiabatsCalc,
+    adiabats_calc_mods,
 };
+use crate::calculations::bound_states::{
+    BoundStateCalc,
+    bound_states_calc_mods,
+    bound_states_calc_search_mods,
+};
+use crate::calculations::dependence::DependenceCalc;
+use crate::calculations::hamiltonian_terms::hamiltonian_terms_calc;
+use crate::calculations::levels::EnergyLevelsCalc;
+use crate::calculations::modifications::{
+    ModifyRegistry,
+    OrbitalRecipeMod,
+    ScalarParamMod,
+};
+use crate::calculations::resonances::ResonancesCalc;
+use crate::calculations::scattering::{
+    ScatteringCalc,
+    scattering_calc_mods,
+};
+use crate::diatom_basis::{
+    CoupledSIDiatomBasis,
+    DiatomRecipe,
+};
+use crate::diatom_operators::SpinRotationSpec;
+use crate::interactions::Interactions;
+use crate::interactions::pec::{
+    PecPolarizationScalingMod,
+    PecPolarizationScalings,
+    PecPolarizationSpec,
+    PecPolarizations,
+};
+use crate::modify_recipe;
+use crate::operator_mel::spin_projection_term_coupled;
+use crate::problems::Problem;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct DiatomInBFieldBasis {

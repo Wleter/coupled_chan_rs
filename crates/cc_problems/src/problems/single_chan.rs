@@ -1,75 +1,72 @@
-use std::{
-    collections::HashMap,
-    marker::PhantomData,
-};
+use std::collections::HashMap;
+use std::marker::PhantomData;
 
+use crate::calculations::dependence::DependenceCalc;
+use crate::calculations::levels::EnergyLevelsData;
+use crate::calculations::modifications::{
+    FloatCalcMod,
+    ModificationAction,
+    ModifyParam,
+    ModifyRegistry,
+    NumberCalcMod,
+    ScalarCalcMod,
+    ScalarParamMod,
+};
+use crate::calculations::{
+    Modified,
+    SingleCalc,
+};
+use crate::interactions::pec::PecScalingType;
 use crate::{
     UNITS_CONVERTER,
-    calculations::{
-        Modified,
-        SingleCalc,
-        dependence::DependenceCalc,
-        levels::EnergyLevelsData,
-        modifications::{
-            FloatCalcMod,
-            ModificationAction,
-            ModifyParam,
-            ModifyRegistry,
-            NumberCalcMod,
-            ScalarCalcMod,
-            ScalarParamMod,
-        },
-    },
-    interactions::pec::PecScalingType,
     modify_recipe,
 };
-use cc_system::{hamiltonian_spec::HamiltonianSpec, orbital_basis::{OrbitalBasis, OrbitalBasisElements, OrbitalRecipe}, param_ids, param_modifications::ParamModifications, parameters::{Parameters, TypedParamId}};
-use coupled_chan::{
-    CollisionWFunction,
-    cc_propagator::{
-        Direction,
-        Propagator,
-    },
-    single_chan::{
-        WFunction,
-        airy::AiryLogDerivative,
-        log_derivative::LogDerivative,
-        s_matrix::SValue,
-    },
+use cc_system::hamiltonian_spec::HamiltonianSpec;
+use cc_system::orbital_basis::{
+    OrbitalBasis,
+    OrbitalBasisElements,
+    OrbitalRecipe,
 };
-use hilbert_space::{
-    faer::complex::Complex64,
-    space::SpaceBasis,
+use cc_system::param_ids;
+use cc_system::param_modifications::ParamModifications;
+use cc_system::parameters::{
+    Parameters,
+    TypedParamId,
 };
+use coupled_chan::CollisionWFunction;
+use coupled_chan::cc_propagator::{
+    Direction,
+    Propagator,
+};
+use coupled_chan::single_chan::WFunction;
+use coupled_chan::single_chan::airy::AiryLogDerivative;
+use coupled_chan::single_chan::log_derivative::LogDerivative;
+use coupled_chan::single_chan::s_matrix::SValue;
+use hilbert_space::faer::complex::Complex64;
+use hilbert_space::space::SpaceBasis;
 use serde::{
     Deserialize,
     Serialize,
 };
 use serde_json::Number;
+use unit_systems::quantities::phys_quantities::{
+    Energy,
+    Length,
+    Mass,
+};
 use unit_systems::quantities::{
     Power,
     Scalar,
-    phys_quantities::{
-        Energy,
-        Length,
-        Mass,
-    },
 };
 
-use crate::{
-    calculations::{
-        DynCalc,
-        scattering::{
-            ConstRefStep,
-            LinearRefStep,
-        },
-    },
-    interactions::{
-        Interactions,
-        pec::PecScaling,
-    },
-    problems::Problem,
+use crate::calculations::DynCalc;
+use crate::calculations::scattering::{
+    ConstRefStep,
+    LinearRefStep,
 };
+use crate::interactions::Interactions;
+use crate::interactions::pec::PecScaling;
+use crate::problems::Problem;
 
 #[derive(Default)]
 pub struct SingleChanProblem {

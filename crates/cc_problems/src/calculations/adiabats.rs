@@ -1,35 +1,31 @@
 use std::marker::PhantomData;
 
-use coupled_chan::{
-    coupling::{
-        Asymptote,
-        CollisionParams,
-        CollisionWMatrix,
-    },
-    multi_channel::WMatrix,
+use coupled_chan::coupling::{
+    Asymptote,
+    CollisionParams,
+    CollisionWMatrix,
 };
+use coupled_chan::multi_channel::WMatrix;
 use serde::Deserialize;
-use unit_systems::quantities::{
-    Scalar,
-    phys_quantities::{
-        Length,
-        Mass,
-    },
+use unit_systems::quantities::Scalar;
+use unit_systems::quantities::phys_quantities::{
+    Length,
+    Mass,
 };
 
+use crate::calculations::levels::EnergyLevelsData;
+use crate::calculations::modifications::{
+    ModifyRegistry,
+    ScalarCalcMod,
+};
+use crate::calculations::{
+    Modified,
+    SingleCalc,
+};
+use crate::problems::Problem;
 use crate::{
     UNITS_CONVERTER,
-    calculations::{
-        Modified,
-        SingleCalc,
-        levels::EnergyLevelsData,
-        modifications::{
-            ModifyRegistry,
-            ScalarCalcMod,
-        },
-    },
     modify_recipe,
-    problems::Problem,
 };
 use cc_system::parameters::TypedParamId;
 

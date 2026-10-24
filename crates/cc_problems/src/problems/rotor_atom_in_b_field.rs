@@ -1,6 +1,12 @@
 use std::collections::HashMap;
 
-use cc_system::{hamiltonian_spec::{DynOperatorSpec, DynPotentialSpec, HamiltonianSpec}, orbital_basis::OrbitalBasisElements, parameters::Parameters};
+use cc_system::hamiltonian_spec::{
+    DynOperatorSpec,
+    DynPotentialSpec,
+    HamiltonianSpec,
+};
+use cc_system::orbital_basis::OrbitalBasisElements;
+use cc_system::parameters::Parameters;
 use hilbert_space::space::{
     SpaceBasis,
     SpaceElement,
@@ -14,66 +20,58 @@ use spin_algebra::{
     SpinMagLike,
     get_spin_pair_magnitudes,
 };
-use unit_systems::quantities::{
-    Scalar,
-    phys_quantities::{
-        Energy,
-        MagneticDipole,
-        MagneticField,
-        Mass,
-    },
+use unit_systems::quantities::Scalar;
+use unit_systems::quantities::phys_quantities::{
+    Energy,
+    MagneticDipole,
+    MagneticField,
+    Mass,
 };
 
-use crate::{
-    atom_operators::{
-        AtomParams,
-        electron_g_e,
-    },
-    calculations::{
-        DynCalc,
-        adiabats::{
-            AdiabatsCalc,
-            adiabats_calc_mods,
-        },
-        bound_states::{
-            BoundStateCalc,
-            bound_states_calc_mods,
-            bound_states_calc_search_mods,
-        },
-        dependence::DependenceCalc,
-        hamiltonian_terms::hamiltonian_terms_calc,
-        levels::EnergyLevelsCalc,
-        modifications::{
-            ModifyRegistry,
-            NumberCalcMod,
-            ScalarParamMod,
-        },
-        resonances::ResonancesCalc,
-        scattering::{
-            ScatteringCalc,
-            scattering_calc_mods,
-        },
-    },
-    diatom_operators::SpinRotationSpec,
-    interactions::{
-        Interactions,
-        SpinConfiguration,
-        pes::{
-            PesPolarizationScalingMod,
-            PesPolarizationScalings,
-            PesPolarizationSpec,
-            PesPolarizations,
-        },
-    },
-    modify_recipe,
-    problems::{
-        Problem,
-        diatom_in_b_field::OrbitalParity,
-    },
-    rotor_atom_basis::{
-        TRAMRotorAtomBasis,
-        TRAMRotorAtomBasisRecipe,
-    },
+use crate::atom_operators::{
+    AtomParams,
+    electron_g_e,
+};
+use crate::calculations::DynCalc;
+use crate::calculations::adiabats::{
+    AdiabatsCalc,
+    adiabats_calc_mods,
+};
+use crate::calculations::bound_states::{
+    BoundStateCalc,
+    bound_states_calc_mods,
+    bound_states_calc_search_mods,
+};
+use crate::calculations::dependence::DependenceCalc;
+use crate::calculations::hamiltonian_terms::hamiltonian_terms_calc;
+use crate::calculations::levels::EnergyLevelsCalc;
+use crate::calculations::modifications::{
+    ModifyRegistry,
+    NumberCalcMod,
+    ScalarParamMod,
+};
+use crate::calculations::resonances::ResonancesCalc;
+use crate::calculations::scattering::{
+    ScatteringCalc,
+    scattering_calc_mods,
+};
+use crate::diatom_operators::SpinRotationSpec;
+use crate::interactions::pes::{
+    PesPolarizationScalingMod,
+    PesPolarizationScalings,
+    PesPolarizationSpec,
+    PesPolarizations,
+};
+use crate::interactions::{
+    Interactions,
+    SpinConfiguration,
+};
+use crate::modify_recipe;
+use crate::problems::Problem;
+use crate::problems::diatom_in_b_field::OrbitalParity;
+use crate::rotor_atom_basis::{
+    TRAMRotorAtomBasis,
+    TRAMRotorAtomBasisRecipe,
 };
 
 #[derive(Debug, Clone, Parameters, Serialize, Deserialize)]

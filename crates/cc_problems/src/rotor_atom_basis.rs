@@ -1,52 +1,56 @@
+use hilbert_space::operator::Braket;
+use hilbert_space::space::{
+    BasisElementsRef,
+    BasisId,
+    SpaceBasis,
+    SpaceElement,
+    SubspaceBasisOf,
+};
 use hilbert_space::{
-    operator::Braket,
     operator_diag_mel,
     operator_mel,
-    space::{
-        BasisElementsRef,
-        BasisId,
-        SpaceBasis,
-        SpaceElement,
-        SubspaceBasisOf,
-    },
 };
 use serde::{
     Deserialize,
     Serialize,
 };
+use spin_algebra::angular::Angular;
+use spin_algebra::half_integer::{
+    HalfI32,
+    HalfU32,
+};
+use spin_algebra::ops::{
+    dot_product_separation,
+    red_first_subsystem_mel_factor,
+    red_reduced_harmonics_mel,
+    red_second_subsystem_mel_factor,
+    red_spin_mel,
+    tensor_product_separation,
+    wigner_eckart_dot_product_factor,
+    wigner_eckart_factor,
+};
 use spin_algebra::{
-    Spin, SpinMagLike, angular::Angular, get_spin_basis, half_integer::{
-        HalfI32,
-        HalfU32,
-    }, ops::{
-        dot_product_separation,
-        red_first_subsystem_mel_factor,
-        red_reduced_harmonics_mel,
-        red_second_subsystem_mel_factor,
-        red_spin_mel,
-        tensor_product_separation,
-        wigner_eckart_dot_product_factor,
-        wigner_eckart_factor,
-    }, spin
+    Spin,
+    SpinMagLike,
+    get_spin_basis,
+    spin,
 };
 
-use crate::{
-    Operator,
-    atom_basis::{
-        AtomRecipe,
-        UncoupledAtomBasis,
-    },
-    atom_operators::{
-        CouplingId,
-        CouplingSpec,
-    },
-    operator_mel::spin_sum_projection_uncoupled,
-    problems::diatom_in_b_field::OrbitalParity,
-    tram_basis::{
-        AngularCoupled,
-        TRAMBasis,
-        TRAMRecipe,
-    },
+use crate::Operator;
+use crate::atom_basis::{
+    AtomRecipe,
+    UncoupledAtomBasis,
+};
+use crate::atom_operators::{
+    CouplingId,
+    CouplingSpec,
+};
+use crate::operator_mel::spin_sum_projection_uncoupled;
+use crate::problems::diatom_in_b_field::OrbitalParity;
+use crate::tram_basis::{
+    AngularCoupled,
+    TRAMBasis,
+    TRAMRecipe,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

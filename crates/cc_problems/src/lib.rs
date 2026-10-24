@@ -16,16 +16,14 @@ use std::sync::{
 
 pub use cc_qol_utils;
 pub use hilbert_space;
-use hilbert_space::{
-    faer::Mat,
-};
+use hilbert_space::faer::Mat;
 
 pub use smallvec;
 pub use spin_algebra;
 pub use unit_systems;
+use unit_systems::quantities::UnitsConverter;
 use unit_systems::{
     ATOMIC_UNITS_TABLE,
-    quantities::UnitsConverter,
     unit_registry,
 };
 

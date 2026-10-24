@@ -1,7 +1,7 @@
+use crate::interaction::dispersion::PowerLaw;
 use crate::interaction::{
     AsymptoteDep,
     Interaction,
-    dispersion::PowerLaw,
 };
 
 #[derive(Clone, Debug)]

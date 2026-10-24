@@ -1,24 +1,30 @@
-use cc_system::orbital_basis::{OrbitalBasis, OrbitalRecipe};
+use cc_system::orbital_basis::{
+    OrbitalBasis,
+    OrbitalRecipe,
+};
 use hilbert_space::space::{
     BasisId,
     SpaceBasis,
     SpaceElement,
     SubspaceBasisOf,
 };
-use serde::{
-    Deserialize,
-};
+use serde::Deserialize;
+use spin_algebra::angular::Angular;
+use spin_algebra::half_integer::HalfU32;
 use spin_algebra::{
-    Spin, SpinMagLike, SpinPair, SpinPairMag, angular::Angular, get_spin_pair_basis, get_spin_pair_magnitudes, half_integer::HalfU32
+    Spin,
+    SpinMagLike,
+    SpinPair,
+    SpinPairMag,
+    get_spin_pair_basis,
+    get_spin_pair_magnitudes,
 };
 
-use crate::{
-    atom_basis::{
-        AtomRecipe,
-        CoupledAtomBasis,
-        TwiceSpin,
-        UncoupledAtomBasis,
-    },
+use crate::atom_basis::{
+    AtomRecipe,
+    CoupledAtomBasis,
+    TwiceSpin,
+    UncoupledAtomBasis,
 };
 
 pub type SpinSTot = SpinPairMag<HalfU32, HalfU32>;

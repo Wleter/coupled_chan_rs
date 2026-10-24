@@ -1,9 +1,14 @@
-use std::{
-    collections::HashMap,
-    marker::PhantomData,
-};
+use std::collections::HashMap;
+use std::marker::PhantomData;
 
-use cc_system::{hamiltonian_spec::PotentialSpec, param_ids, param_modifications::ParamModifications, parameters::{ParamIds, ParameterRegistry, TypedParamId}};
+use cc_system::hamiltonian_spec::PotentialSpec;
+use cc_system::param_ids;
+use cc_system::param_modifications::ParamModifications;
+use cc_system::parameters::{
+    ParamIds,
+    ParameterRegistry,
+    TypedParamId,
+};
 use coupled_chan::DynInteraction;
 use hilbert_space::space::BasisElementsRef;
 use serde::{
@@ -12,21 +17,17 @@ use serde::{
 };
 use spin_algebra::half_integer::HalfU32;
 
-use crate::{
-    Operator,
-    calculations::{
-        Modified,
-        modifications::{
-            ModificationAction,
-            ModifyParam,
-        },
-    },
-    interactions::{
-        Interactions,
-        SpinConfiguration,
-    },
-    problems::Problem,
+use crate::Operator;
+use crate::calculations::Modified;
+use crate::calculations::modifications::{
+    ModificationAction,
+    ModifyParam,
 };
+use crate::interactions::{
+    Interactions,
+    SpinConfiguration,
+};
+use crate::problems::Problem;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PecPolarizations(pub HashMap<SpinConfiguration, Interactions>);

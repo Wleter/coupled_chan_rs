@@ -4,6 +4,8 @@ use std::f64::consts::{
     TAU,
 };
 
+use crate::single_channel::WFunction;
+use crate::step_strategy::LinearRefStepStrat;
 use crate::{
     Boundary,
     Direction,
@@ -14,8 +16,6 @@ use crate::{
     WaveStorage,
     WithNodeCount,
     WithWaveStorage,
-    single_channel::WFunction,
-    step_strategy::LinearRefStepStrat,
 };
 
 const ROOT_3: f64 = 1.732050807;

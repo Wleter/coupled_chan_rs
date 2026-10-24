@@ -46,20 +46,18 @@ mod tests {
 
     use cc_math_utils::assert_approx_eq;
 
+    use crate::single_channel::airy::AiryLogDerivative;
+    use crate::single_channel::log_derivative::LogDerivative;
+    use crate::single_channel::numerov::RatioNumerov;
+    use crate::step_strategy::{
+        ConstRefStepStrat,
+        LinearRefStepStrat,
+    };
     use crate::{
         Boundary,
         Direction,
         Propagator,
         WithWaveStorage,
-        single_channel::{
-            airy::AiryLogDerivative,
-            log_derivative::LogDerivative,
-            numerov::RatioNumerov,
-        },
-        step_strategy::{
-            ConstRefStepStrat,
-            LinearRefStepStrat,
-        },
     };
 
     use super::*;

@@ -95,10 +95,8 @@ macro_rules! problems_impl {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        collections::VecDeque,
-        sync::Mutex,
-    };
+    use std::collections::VecDeque;
+    use std::sync::Mutex;
 
     use crate::problem_selector::ProblemSelector;
 

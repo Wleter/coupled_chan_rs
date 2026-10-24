@@ -1,56 +1,50 @@
 pub mod pec;
 pub mod pes;
 
-use std::{
-    fmt::Display,
-    fs::File,
-    path::PathBuf,
-};
+use std::fmt::Display;
+use std::fs::File;
+use std::path::PathBuf;
 
 use cc_qol_utils::Composite;
 use cc_system::Parameters;
+use coupled_chan::dispersion::{
+    AnalyticInteraction,
+    ExpLaw,
+    PowerLaw,
+    lenard_jones,
+};
+use coupled_chan::interpolated::spline_interpolation::SplineBuilder;
+use coupled_chan::interpolated::{
+    InterpolatedPotential,
+    Transitioned,
+    sin_transition,
+};
+use coupled_chan::scaled::Scaled;
 use coupled_chan::{
     DynInteraction,
     NullInteraction,
-    dispersion::{
-        AnalyticInteraction,
-        ExpLaw,
-        PowerLaw,
-        lenard_jones,
-    },
-    interpolated::{
-        InterpolatedPotential,
-        Transitioned,
-        sin_transition,
-        spline_interpolation::SplineBuilder,
-    },
     morse_long_range,
-    scaled::Scaled,
 };
 use serde::{
     Deserialize,
     Serialize,
 };
-use spin_algebra::{
-    half_integer::HalfU32,
-    hu32,
+use spin_algebra::half_integer::HalfU32;
+use spin_algebra::hu32;
+use unit_systems::quantities::phys_quantities::{
+    Energy,
+    Length,
 };
 use unit_systems::quantities::{
     Inv,
     Scalar,
-    phys_quantities::{
-        Energy,
-        Length,
-    },
 };
 
-use crate::{
-    UNITS_CONVERTER,
-    interactions::pec::{
-        PecScaling,
-        PecScalingType,
-        ScalingValue,
-    },
+use crate::UNITS_CONVERTER;
+use crate::interactions::pec::{
+    PecScaling,
+    PecScalingType,
+    ScalingValue,
 };
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]

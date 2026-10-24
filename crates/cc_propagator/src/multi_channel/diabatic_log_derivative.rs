@@ -1,5 +1,11 @@
 use std::marker::PhantomData;
 
+use crate::multi_channel::{
+    Matrix,
+    WMatrix,
+    local_wavelength,
+};
+use crate::step_strategy::ConstRefStepStrat;
 use crate::{
     Boundary,
     Direction,
@@ -10,32 +16,24 @@ use crate::{
     WaveStorage,
     WithNodeCount,
     WithWaveStorage,
-    multi_channel::{
-        Matrix,
-        WMatrix,
-        local_wavelength,
-    },
-    step_strategy::ConstRefStepStrat,
 };
 use cc_matrix_utils::faer::{
     get_ldlt_inverse_buffer,
     inverse_ldlt_inplace,
     inverse_ldlt_inplace_nodes,
 };
+use faer::Accum::Replace;
+use faer::Par::Seq;
+use faer::diag::{
+    Diag,
+    DiagRef,
+};
+use faer::dyn_stack::MemBuffer;
+use faer::linalg::matmul::matmul;
+use faer::linalg::solvers::DenseSolveCore;
 use faer::{
-    Accum::Replace,
     MatMut,
-    Par::Seq,
     Shape,
-    diag::{
-        Diag,
-        DiagRef,
-    },
-    dyn_stack::MemBuffer,
-    linalg::{
-        matmul::matmul,
-        solvers::DenseSolveCore,
-    },
     make_guard,
     unzip,
     zip,

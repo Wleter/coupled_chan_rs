@@ -1,35 +1,31 @@
-use std::{
-    collections::HashMap,
-    marker::PhantomData,
-};
+use std::collections::HashMap;
+use std::marker::PhantomData;
 
 use coupled_chan::Interaction;
 use serde::{
     Deserialize,
     Serialize,
 };
-use unit_systems::quantities::{
-    Scalar,
-    phys_quantities::Length,
-};
+use unit_systems::quantities::Scalar;
+use unit_systems::quantities::phys_quantities::Length;
 
+use crate::calculations::dependence::DependenceCalc;
+use crate::calculations::modifications::{
+    ModifyRegistry,
+    ScalarCalcMod,
+};
+use crate::calculations::{
+    DynCalc,
+    Modified,
+    SingleCalc,
+};
+use crate::problems::{
+    Problem,
+    mat_as_nested_vec,
+};
 use crate::{
     UNITS_CONVERTER,
-    calculations::{
-        DynCalc,
-        Modified,
-        SingleCalc,
-        dependence::DependenceCalc,
-        modifications::{
-            ModifyRegistry,
-            ScalarCalcMod,
-        },
-    },
     modify_recipe,
-    problems::{
-        Problem,
-        mat_as_nested_vec,
-    },
 };
 
 pub struct HamiltonianTermsCalc<P> {

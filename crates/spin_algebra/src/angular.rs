@@ -1,6 +1,13 @@
-use clebsch_gordan::half_integer::{HalfI32, HalfU32};
+use clebsch_gordan::half_integer::{
+    HalfI32,
+    HalfU32,
+};
 
-use crate::{Spin, SpinLike, SpinMagLike};
+use crate::{
+    Spin,
+    SpinLike,
+    SpinMagLike,
+};
 
 #[derive(Clone, Copy, PartialEq, Default, Hash)]
 pub struct Angular {

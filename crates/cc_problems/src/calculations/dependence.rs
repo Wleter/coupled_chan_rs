@@ -18,26 +18,22 @@ use serde_json::{
 };
 use smallvec::SmallVec;
 
-use crate::{
-    calculations::{
-        Calc,
-        Modified,
-        SingleCalc,
-        modifications::{
-            ModificationAction,
-            ModifyParam,
-            ModifyRegistry,
-        },
-    },
-    problems::{
-        Problem,
-        TypedProblemInput,
-    },
+use crate::calculations::modifications::{
+    ModificationAction,
+    ModifyParam,
+    ModifyRegistry,
 };
-use cc_system::{
-    System,
-    parameters::Parameters
+use crate::calculations::{
+    Calc,
+    Modified,
+    SingleCalc,
 };
+use crate::problems::{
+    Problem,
+    TypedProblemInput,
+};
+use cc_system::System;
+use cc_system::parameters::Parameters;
 
 #[derive(Clone, Debug)]
 pub struct NamedValue {

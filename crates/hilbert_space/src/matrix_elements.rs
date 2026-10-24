@@ -1,10 +1,8 @@
-use crate::{
-    operator::Operator,
-    space::{
-        BasisElementsRef,
-        Id,
-        SubspaceElement,
-    },
+use crate::operator::Operator;
+use crate::space::{
+    BasisElementsRef,
+    Id,
+    SubspaceElement,
 };
 use cc_matrix_utils::{
     MatrixCreation,
@@ -178,14 +176,12 @@ impl<M: MatrixLike> Operator<M> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        operator_transform_mel,
-        space::{
-            BasisElements,
-            BasisId,
-            SpaceBasis,
-            SubspaceBasisOf,
-        },
+    use crate::operator_transform_mel;
+    use crate::space::{
+        BasisElements,
+        BasisId,
+        SpaceBasis,
+        SubspaceBasisOf,
     };
 
     #[derive(Clone, Copy, Debug, PartialEq)]

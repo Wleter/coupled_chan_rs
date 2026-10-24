@@ -1,3 +1,14 @@
+use crate::multi_channel::diabatic_log_derivative::{
+    diag_mat_mul_inplace,
+    mat_diag_add_inplace,
+    mat_diag_mul_inplace,
+};
+use crate::multi_channel::{
+    Matrix,
+    WMatrix,
+};
+use crate::single_channel::airy::get_imbeddings;
+use crate::step_strategy::LinearRefStepStrat;
 use crate::{
     Boundary,
     Direction,
@@ -8,17 +19,6 @@ use crate::{
     WaveStorage,
     WithNodeCount,
     WithWaveStorage,
-    multi_channel::{
-        Matrix,
-        WMatrix,
-        diabatic_log_derivative::{
-            diag_mat_mul_inplace,
-            mat_diag_add_inplace,
-            mat_diag_mul_inplace,
-        },
-    },
-    single_channel::airy::get_imbeddings,
-    step_strategy::LinearRefStepStrat,
 };
 use cc_matrix_utils::faer::{
     get_ldlt_inverse_buffer,
@@ -26,16 +26,14 @@ use cc_matrix_utils::faer::{
     inverse_ldlt_inplace_nodes,
     self_adjoint_evd_inplace,
 };
+use faer::diag::Diag;
+use faer::dyn_stack::MemBuffer;
+use faer::linalg::matmul::matmul;
+use faer::linalg::solvers::DenseSolveCore;
+use faer::matrix_free::LinOp;
 use faer::{
     Shape,
-    diag::Diag,
-    dyn_stack::MemBuffer,
-    linalg::{
-        matmul::matmul,
-        solvers::DenseSolveCore,
-    },
     make_guard,
-    matrix_free::LinOp,
     unzip,
     zip,
 };

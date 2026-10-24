@@ -1,5 +1,11 @@
 use std::mem::swap;
 
+use crate::multi_channel::{
+    Matrix,
+    WMatrix,
+    local_wavelength,
+};
+use crate::step_strategy::ConstRefStepStrat;
 use crate::{
     Boundary,
     Direction,
@@ -8,25 +14,17 @@ use crate::{
     Solution,
     WaveStorage,
     WithWaveStorage,
-    multi_channel::{
-        Matrix,
-        WMatrix,
-        local_wavelength,
-    },
-    step_strategy::ConstRefStepStrat,
 };
 use cc_matrix_utils::faer::{
     get_ldlt_inverse_buffer,
     inverse_ldlt_inplace,
 };
+use faer::dyn_stack::MemBuffer;
+use faer::linalg::matmul::matmul;
+use faer::linalg::solvers::DenseSolveCore;
 use faer::{
     Accum,
     Par,
-    dyn_stack::MemBuffer,
-    linalg::{
-        matmul::matmul,
-        solvers::DenseSolveCore,
-    },
     unzip,
     zip,
 };

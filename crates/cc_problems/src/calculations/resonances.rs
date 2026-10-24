@@ -6,24 +6,22 @@ use serde::{
     Serialize,
 };
 
-use crate::{
-    calculations::{
-        Modified,
-        SingleCalc,
-        bound_states::{
-            BoundStateCalc,
-            BoundStateCalcInput,
-            BoundStateData,
-            modify_from_f64,
-            modify_to_f64,
-        },
-        scattering::{
-            ScatteringCalc,
-            ScatteringCalcInput,
-        },
-    },
-    problems::Problem,
+use crate::calculations::bound_states::{
+    BoundStateCalc,
+    BoundStateCalcInput,
+    BoundStateData,
+    modify_from_f64,
+    modify_to_f64,
 };
+use crate::calculations::scattering::{
+    ScatteringCalc,
+    ScatteringCalcInput,
+};
+use crate::calculations::{
+    Modified,
+    SingleCalc,
+};
+use crate::problems::Problem;
 
 pub struct ResonancesCalc<P: Problem> {
     scattering: ScatteringCalc<P>,

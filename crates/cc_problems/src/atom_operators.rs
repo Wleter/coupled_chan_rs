@@ -1,40 +1,44 @@
-use cc_system::{hamiltonian_spec::OperatorSpec, param_ids, parameters::{ParamIds, ParameterRegistry, TypedParamId}};
+use cc_system::hamiltonian_spec::OperatorSpec;
+use cc_system::param_ids;
+use cc_system::parameters::{
+    ParamIds,
+    ParameterRegistry,
+    TypedParamId,
+};
+use hilbert_space::space::BasisElementsRef;
 use hilbert_space::{
     operator_diag_mel,
     operator_mel,
-    space::BasisElementsRef,
 };
 use serde::{
     Deserialize,
     Serialize,
 };
+use spin_algebra::ops::{
+    red_first_subsystem_mel_factor,
+    red_second_subsystem_mel_factor,
+    red_spin_mel,
+    wigner_eckart_factor,
+};
 use spin_algebra::{
     Spin,
     SpinLike,
-    ops::{
-        red_first_subsystem_mel_factor,
-        red_second_subsystem_mel_factor,
-        red_spin_mel,
-        wigner_eckart_factor,
-    },
 };
-use unit_systems::quantities::{
-    Scalar,
-    phys_quantities::{
-        Energy,
-        MagneticDipole,
-        MagneticField,
-    },
+use unit_systems::quantities::Scalar;
+use unit_systems::quantities::phys_quantities::{
+    Energy,
+    MagneticDipole,
+    MagneticField,
 };
 
+use crate::atom_basis::{
+    CoupledAtomBasis,
+    UncoupledAtomBasis,
+};
+use crate::operator_mel::dot_coupled;
 use crate::{
     Operator,
     UNITS_CONVERTER,
-    atom_basis::{
-        CoupledAtomBasis,
-        UncoupledAtomBasis,
-    },
-    operator_mel::dot_coupled,
 };
 
 pub(crate) type CouplingId = TypedParamId<Scalar<Energy>>;
@@ -241,16 +245,20 @@ impl CoupledAtomBasis {
 #[cfg(test)]
 mod tests {
     use cc_math_utils::assert_approx_eq;
-    use cc_system::{System, hamiltonian_spec::{DynOperatorSpec, HamiltonianSpec}, orbital_basis::OrbitalBasisElements, parameters::Parameters};
-use hilbert_space::space::SpaceBasis;
+    use cc_system::System;
+    use cc_system::hamiltonian_spec::{
+        DynOperatorSpec,
+        HamiltonianSpec,
+    };
+    use cc_system::orbital_basis::OrbitalBasisElements;
+    use cc_system::parameters::Parameters;
+    use hilbert_space::space::SpaceBasis;
     use spin_algebra::{
         hi32,
         hu32,
     };
 
-    use crate::{
-        atom_basis::AtomRecipe,
-    };
+    use crate::atom_basis::AtomRecipe;
 
     use super::*;
 

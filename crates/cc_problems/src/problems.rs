@@ -6,20 +6,14 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use hilbert_space::faer::MatRef;
-use serde::{
-    Deserialize,
-    de::DeserializeOwned,
-};
+use serde::Deserialize;
+use serde::de::DeserializeOwned;
 use serde_json::Value;
 
-use crate::{
-    calculations::DynCalc,
-    problems::{
-        diatom_in_b_field::DiatomInBFieldProblem,
-        rotor_atom_in_b_field::RotorAtomInBFieldProblem,
-        single_chan::SingleChanProblem,
-    },
-};
+use crate::calculations::DynCalc;
+use crate::problems::diatom_in_b_field::DiatomInBFieldProblem;
+use crate::problems::rotor_atom_in_b_field::RotorAtomInBFieldProblem;
+use crate::problems::single_chan::SingleChanProblem;
 use cc_system::hamiltonian_spec::HamiltonianSpec;
 use cc_system::parameters::Parameters;
 

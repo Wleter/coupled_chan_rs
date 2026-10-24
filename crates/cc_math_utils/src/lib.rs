@@ -1,7 +1,5 @@
-use std::{
-    error::Error,
-    fmt::Display,
-};
+use std::error::Error;
+use std::fmt::Display;
 
 pub mod bessel;
 pub mod legendre;

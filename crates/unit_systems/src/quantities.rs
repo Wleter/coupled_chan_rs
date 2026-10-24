@@ -1,16 +1,12 @@
-use std::{
-    any::TypeId,
-    collections::HashMap,
-};
+use std::any::TypeId;
+use std::collections::HashMap;
 
 use num_traits::Pow;
 
-use crate::{
-    UnitSystemTable,
-    dimension::{
-        Dimension,
-        Ratio8,
-    },
+use crate::UnitSystemTable;
+use crate::dimension::{
+    Dimension,
+    Ratio8,
 };
 
 pub trait PhysQuantity: std::fmt::Debug + Default + 'static {
@@ -28,17 +24,17 @@ pub trait PhysQuantity: std::fmt::Debug + Default + 'static {
     /// # Examples
     ///
     /// ```
+    /// use unit_systems::dimension::Dimension;
+    /// use unit_systems::quantities::{
+    ///     Frac,
+    ///     PhysQuantity,
+    ///     UnitRegistry,
+    ///     phys_quantities,
+    /// };
     /// use unit_systems::{
     ///     UnitSystemTable,
-    ///     dimension::Dimension,
     ///     phys_quantity,
     ///     phys_quantity_ops,
-    ///     quantities::{
-    ///         Frac,
-    ///         PhysQuantity,
-    ///         UnitRegistry,
-    ///         phys_quantities,
-    ///     },
     /// };
     ///
     /// phys_quantity!(Voltage, Dimension::VOLTAGE);
@@ -385,10 +381,8 @@ impl UnitsConverter {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        phys_quantities::*,
-        *,
-    };
+    use super::phys_quantities::*;
+    use super::*;
 
     #[test]
     pub fn test_quantities() {

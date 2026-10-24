@@ -1,7 +1,5 @@
-use std::{
-    collections::HashMap,
-    marker::PhantomData,
-};
+use std::collections::HashMap;
+use std::marker::PhantomData;
 
 use serde_json::{
     Number,
@@ -12,20 +10,16 @@ use unit_systems::quantities::{
     Scalar,
 };
 
-use crate::{
-    UNITS_CONVERTER,
-    calculations::Modified,
-    problems::Problem,
+use crate::UNITS_CONVERTER;
+use crate::calculations::Modified;
+use crate::problems::Problem;
+use cc_system::System;
+use cc_system::orbital_basis::OrbitalRecipe;
+use cc_system::param_modifications::{
+    DynParamModifications,
+    new_param_modifications,
 };
-use cc_system::{
-    System,
-    orbital_basis::OrbitalRecipe,
-    parameters::TypedParamId,
-    param_modifications::{
-        DynParamModifications,
-        new_param_modifications,
-    }
-};
+use cc_system::parameters::TypedParamId;
 
 pub struct ModifyRegistry<P: Problem, C>(pub HashMap<Box<str>, ModifyParamRecipe<P, C>>);
 

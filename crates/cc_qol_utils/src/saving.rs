@@ -6,24 +6,22 @@ use serde::{
     Deserialize,
     Serialize,
 };
-use std::{
-    fmt::LowerExp,
-    fs::{
-        File,
-        OpenOptions,
-        create_dir_all,
-    },
-    io::{
-        BufWriter,
-        Write,
-    },
-    path::Path,
-    sync::mpsc::{
-        Sender,
-        channel,
-    },
-    thread::JoinHandle,
+use std::fmt::LowerExp;
+use std::fs::{
+    File,
+    OpenOptions,
+    create_dir_all,
 };
+use std::io::{
+    BufWriter,
+    Write,
+};
+use std::path::Path;
+use std::sync::mpsc::{
+    Sender,
+    channel,
+};
+use std::thread::JoinHandle;
 
 /// Struct for saving data of type `D`.
 /// It creates a new thread dedicated for saving

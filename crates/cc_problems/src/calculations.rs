@@ -9,17 +9,13 @@ pub mod scattering;
 
 use anyhow::Result;
 use cc_system::System;
-use serde::{
-    Serialize,
-    de::DeserializeOwned,
-};
+use serde::Serialize;
+use serde::de::DeserializeOwned;
 use serde_json::Value;
 
-use crate::{
-    problems::{
-        Problem,
-        TypedProblemInput,
-    },
+use crate::problems::{
+    Problem,
+    TypedProblemInput,
 };
 
 pub trait DynCalc<P: Problem>: Send + Sync {

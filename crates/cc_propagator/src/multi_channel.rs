@@ -5,10 +5,10 @@ pub mod quasiadiabatic_log_derivative;
 
 use std::f64::consts::PI;
 
+use faer::linalg::solvers::DenseSolveCore;
 use faer::{
     ColRef,
     Mat,
-    linalg::solvers::DenseSolveCore,
 };
 
 use crate::{
@@ -81,24 +81,22 @@ mod tests {
         mat,
     };
 
+    use crate::multi_channel::airy::AiryLogDerivative;
+    use crate::multi_channel::diabatic_log_derivative::{
+        JohnsonLogDerivative,
+        ManolopoulosLogDerivative,
+    };
+    use crate::multi_channel::numerov::RatioNumerov;
+    use crate::multi_channel::quasiadiabatic_log_derivative::QuasiAdiabaticLogDerivative;
+    use crate::step_strategy::{
+        ConstRefStepStrat,
+        LinearRefStepStrat,
+    };
     use crate::{
         Boundary,
         Direction,
         Propagator,
         WithWaveStorage,
-        multi_channel::{
-            airy::AiryLogDerivative,
-            diabatic_log_derivative::{
-                JohnsonLogDerivative,
-                ManolopoulosLogDerivative,
-            },
-            numerov::RatioNumerov,
-            quasiadiabatic_log_derivative::QuasiAdiabaticLogDerivative,
-        },
-        step_strategy::{
-            ConstRefStepStrat,
-            LinearRefStepStrat,
-        },
     };
 
     use super::*;

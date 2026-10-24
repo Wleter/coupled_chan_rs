@@ -8,16 +8,16 @@ use serde::{
     Deserialize,
     Serialize,
 };
+use spin_algebra::half_integer::{
+    HalfI32,
+    HalfU32,
+};
 use spin_algebra::{
     Spin,
     SpinPair,
     get_spin_basis,
     get_spin_pair_basis,
     get_spin_pair_magnitudes,
-    half_integer::{
-        HalfI32,
-        HalfU32,
-    },
 };
 
 pub type TwiceSpin = SpinPair<HalfU32, HalfU32>;

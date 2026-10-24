@@ -1,9 +1,20 @@
 use hilbert_space::operator::Braket;
+use spin_algebra::angular::Angular;
+use spin_algebra::half_integer::HalfU32;
+use spin_algebra::ops::{
+    clebsch_gordan_coef,
+    triangle_condition,
+};
 use spin_algebra::{
-    Spin, SpinLike, SpinMagLike, SpinPair, angular::Angular, get_spin_basis_iter, half_integer::HalfU32, hi32, hu32, ops::{
-        clebsch_gordan_coef,
-        triangle_condition,
-    }, wigner_3j, wigner_6j
+    Spin,
+    SpinLike,
+    SpinMagLike,
+    SpinPair,
+    get_spin_basis_iter,
+    hi32,
+    hu32,
+    wigner_3j,
+    wigner_6j,
 };
 
 pub fn dot_coupled(f: SpinPair<impl SpinMagLike, impl SpinMagLike>) -> f64 {

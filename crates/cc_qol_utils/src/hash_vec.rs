@@ -1,9 +1,7 @@
-use std::{
-    borrow::Borrow,
-    collections::HashMap,
-    hash::Hash,
-    ops::Index,
-};
+use std::borrow::Borrow;
+use std::collections::HashMap;
+use std::hash::Hash;
+use std::ops::Index;
 
 #[derive(Clone)]
 pub struct HashVec<Key, Val> {

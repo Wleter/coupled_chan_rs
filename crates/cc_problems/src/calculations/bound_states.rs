@@ -1,12 +1,10 @@
 use cc_math_utils::brent_root_method;
-use coupled_chan::{
-    cc_propagator::Direction,
-    coupling::{
-        Asymptote,
-        CollisionParams,
-        CollisionWMatrix,
-        RCoupling,
-    },
+use coupled_chan::cc_propagator::Direction;
+use coupled_chan::coupling::{
+    Asymptote,
+    CollisionParams,
+    CollisionWMatrix,
+    RCoupling,
 };
 use hilbert_space::faer;
 use serde::{
@@ -14,39 +12,37 @@ use serde::{
     Serialize,
 };
 use serde_json::Number;
-use unit_systems::quantities::{
-    Scalar,
-    phys_quantities::{
-        Energy,
-        Length,
-        Mass,
-    },
+use unit_systems::quantities::Scalar;
+use unit_systems::quantities::phys_quantities::{
+    Energy,
+    Length,
+    Mass,
 };
 
+use crate::calculations::dependence::NamedValue;
+use crate::calculations::modifications::{
+    FloatCalcMod,
+    ModifyParam,
+    ModifyRegistry,
+    ScalarCalcMod,
+};
+use crate::calculations::scattering::{
+    Boundary,
+    CoupledChanPropagator,
+};
+use crate::calculations::{
+    Modified,
+    SingleCalc,
+};
+use crate::problems::Problem;
 use crate::{
     UNITS_CONVERTER,
-    calculations::{
-        Modified,
-        SingleCalc,
-        dependence::NamedValue,
-        modifications::{
-            FloatCalcMod,
-            ModifyParam,
-            ModifyRegistry,
-            ScalarCalcMod,
-        },
-        scattering::{
-            Boundary,
-            CoupledChanPropagator,
-        },
-    },
     modify_recipe,
-    problems::Problem,
 };
+use cc_system::parameters::TypedParamId;
 use cc_system::{
-    parameters::TypedParamId,
-    System,
     Coupling,
+    System,
 };
 
 #[derive(Clone, Debug, Deserialize)]

@@ -1,13 +1,18 @@
-use std::{
-    collections::{
-        HashMap,
-        HashSet,
-    },
-    hash::RandomState,
-    marker::PhantomData,
+use std::collections::{
+    HashMap,
+    HashSet,
 };
+use std::hash::RandomState;
+use std::marker::PhantomData;
 
-use cc_system::{hamiltonian_spec::PotentialSpec, param_ids, param_modifications::ParamModifications, parameters::{ParamIds, ParameterRegistry, TypedParamId}};
+use cc_system::hamiltonian_spec::PotentialSpec;
+use cc_system::param_ids;
+use cc_system::param_modifications::ParamModifications;
+use cc_system::parameters::{
+    ParamIds,
+    ParameterRegistry,
+    TypedParamId,
+};
 use coupled_chan::DynInteraction;
 use hilbert_space::space::BasisElementsRef;
 use serde::{
@@ -15,31 +20,25 @@ use serde::{
     Serialize,
 };
 use spin_algebra::half_integer::HalfU32;
-use unit_systems::quantities::{
-    Scalar,
-    phys_quantities::Length,
-};
+use unit_systems::quantities::Scalar;
+use unit_systems::quantities::phys_quantities::Length;
 
-use crate::{
-    Operator,
-    calculations::{
-        Modified,
-        modifications::{
-            ModificationAction,
-            ModifyParam,
-        },
-    },
-    interactions::{
-        Interactions,
-        SpinConfiguration,
-        SwitchingRegion,
-        pec::{
-            PecScaling,
-            PecScalingType,
-        },
-    },
-    problems::Problem,
+use crate::Operator;
+use crate::calculations::Modified;
+use crate::calculations::modifications::{
+    ModificationAction,
+    ModifyParam,
 };
+use crate::interactions::pec::{
+    PecScaling,
+    PecScalingType,
+};
+use crate::interactions::{
+    Interactions,
+    SpinConfiguration,
+    SwitchingRegion,
+};
+use crate::problems::Problem;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

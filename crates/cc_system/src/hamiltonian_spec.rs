@@ -1,19 +1,15 @@
-use std::{
-    collections::HashMap,
-    ops::Deref,
-    sync::Arc,
-};
+use std::collections::HashMap;
+use std::ops::Deref;
+use std::sync::Arc;
 
 use coupled_chan::DynInteraction;
 use hilbert_space::space::BasisElementsRef;
 
-use crate::{
-    Operator,
-    orbital_basis::OrbitalBasisElements,
-    parameters::{
-        ParamIds,
-        ParameterRegistry,
-    },
+use crate::Operator;
+use crate::orbital_basis::OrbitalBasisElements;
+use crate::parameters::{
+    ParamIds,
+    ParameterRegistry,
 };
 
 pub struct HamiltonianSpec {

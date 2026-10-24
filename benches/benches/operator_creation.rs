@@ -1,13 +1,11 @@
 use diol::prelude::*;
 use hilbert_space::faer::Mat;
-use spin_algebra::{
-    get_spin_basis,
-    half_integer::{
-        HalfI32,
-        HalfU32,
-    },
-    ops::dot,
+use spin_algebra::get_spin_basis;
+use spin_algebra::half_integer::{
+    HalfI32,
+    HalfU32,
 };
+use spin_algebra::ops::dot;
 
 fn main() -> eyre::Result<()> {
     let bench = Bench::new(Config::from_args()?);
@@ -19,14 +17,12 @@ fn main() -> eyre::Result<()> {
     Ok(())
 }
 
-use hilbert_space::{
-    operator::Operator,
-    operator_mel,
-    space::{
-        BasisElements,
-        SpaceBasis,
-        SubspaceBasisOf,
-    },
+use hilbert_space::operator::Operator;
+use hilbert_space::operator_mel;
+use hilbert_space::space::{
+    BasisElements,
+    SpaceBasis,
+    SubspaceBasisOf,
 };
 
 pub fn dynamic_operator(bencher: Bencher, size: u32) {

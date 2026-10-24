@@ -3,15 +3,15 @@ use std::f64::consts::{
     TAU,
 };
 
+use crate::quantities::phys_quantities::*;
+use crate::quantities::{
+    Unit,
+    UnitRegistry,
+};
 use crate::{
     CODATA_2022,
     FundamentalConstantsSI,
     UnitSystemTable,
-    quantities::{
-        Unit,
-        UnitRegistry,
-        phys_quantities::*,
-    },
 };
 
 pub const fn atomic_units_table(constants: &FundamentalConstantsSI) -> UnitSystemTable {

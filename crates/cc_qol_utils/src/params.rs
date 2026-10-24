@@ -3,10 +3,8 @@ use downcast_rs::{
     impl_downcast,
 };
 use dyn_clone::DynClone;
-use std::{
-    any::TypeId,
-    collections::HashMap,
-};
+use std::any::TypeId;
+use std::collections::HashMap;
 
 pub trait CloneAny: DynClone + DowncastSync {}
 impl_downcast!(sync CloneAny);

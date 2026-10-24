@@ -1,5 +1,5 @@
-pub mod ops;
 pub mod angular;
+pub mod ops;
 use clebsch_gordan::half_integer::{
     HalfI32,
     HalfU32,

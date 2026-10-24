@@ -2,13 +2,11 @@ use std::marker::PhantomData;
 
 use serde::Serialize;
 
-use crate::{
-    calculations::{
-        Modified,
-        SingleCalc,
-    },
-    problems::Problem,
+use crate::calculations::{
+    Modified,
+    SingleCalc,
 };
+use crate::problems::Problem;
 
 pub struct EnergyLevelsCalc<P>(PhantomData<P>);
 
