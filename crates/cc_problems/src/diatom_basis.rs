@@ -1,3 +1,4 @@
+use cc_system::orbital_basis::{OrbitalBasis, OrbitalRecipe};
 use hilbert_space::space::{
     BasisId,
     SpaceBasis,
@@ -6,22 +7,12 @@ use hilbert_space::space::{
 };
 use serde::{
     Deserialize,
-    Serialize,
 };
 use spin_algebra::{
-    Spin,
-    SpinMagLike,
-    SpinPair,
-    SpinPairMag,
-    get_spin_pair_basis,
-    get_spin_pair_magnitudes,
-    half_integer::HalfU32,
+    Spin, SpinMagLike, SpinPair, SpinPairMag, angular::Angular, get_spin_pair_basis, get_spin_pair_magnitudes, half_integer::HalfU32
 };
 
 use crate::{
-    Angular,
-    OrbitalBasis,
-    OrbitalRecipe,
     atom_basis::{
         AtomRecipe,
         CoupledAtomBasis,
@@ -34,7 +25,7 @@ pub type SpinSTot = SpinPairMag<HalfU32, HalfU32>;
 pub type SpinITot = SpinPairMag<HalfU32, HalfU32>;
 pub type SpinFTot = SpinPairMag<SpinSTot, SpinITot>;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct DiatomRecipe {
     pub atom_a: AtomRecipe,
     pub atom_b: AtomRecipe,

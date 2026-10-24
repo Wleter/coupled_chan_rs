@@ -133,7 +133,7 @@ fn is_nested(field: &syn::Field) -> bool {
 }
 
 fn cc_problems_path() -> proc_macro2::TokenStream {
-    match crate_name("cc_problems") {
+    match crate_name("cc_system") {
         Ok(FoundCrate::Itself) => quote!(crate),
         Ok(FoundCrate::Name(name)) => {
             let ident = syn::Ident::new(&name, proc_macro2::Span::call_site());

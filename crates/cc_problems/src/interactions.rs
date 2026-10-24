@@ -7,8 +7,8 @@ use std::{
     path::PathBuf,
 };
 
-use cc_derive::Parameters;
 use cc_qol_utils::Composite;
+use cc_system::Parameters;
 use coupled_chan::{
     DynInteraction,
     NullInteraction,

@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 pub use cc_derive::Parameters;
 use cc_qol_utils::params::CloneAny;
+use smallvec::SmallVec;
 
 pub trait Parameters {
     type Ids;
@@ -84,6 +85,33 @@ impl<T> TypedParamId<T> {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ParamId(pub usize);
+
+pub struct ParamIds(SmallVec<[ParamId; 4]>);
+
+impl ParamIds {
+    pub fn new(vec: SmallVec<[ParamId; 4]>) -> Self {
+        Self(vec)
+    }
+
+    pub fn push(&mut self, value: ParamId) {
+        self.0.push(value)
+    }
+}
+
+impl std::ops::Deref for ParamIds {
+    type Target = [ParamId];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[macro_export]
+macro_rules! param_ids {
+    [$($x:expr),*$(,)?] => {
+        $crate::parameters::ParamIds::new($crate::smallvec::smallvec!($($x),*))
+    };
+}
 
 #[cfg(test)]
 mod tests {

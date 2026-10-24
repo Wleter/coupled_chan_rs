@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use cc_system::{hamiltonian_spec::{DynOperatorSpec, DynPotentialSpec, HamiltonianSpec}, orbital_basis::OrbitalBasisElements, parameters::Parameters};
 use hilbert_space::{
     operator_diag_mel,
     space::{
@@ -26,7 +27,6 @@ use unit_systems::quantities::{
 };
 
 use crate::{
-    OrbitalBasisElements,
     atom_operators::AtomParams,
     calculations::{
         DynCalc,
@@ -69,16 +69,10 @@ use crate::{
     },
     modify_recipe,
     operator_mel::spin_projection_term_coupled,
-    parameters::Parameters,
     problems::Problem,
-    system::{
-        DynOperatorSpec,
-        DynPotentialSpec,
-        HamiltonianSpec,
-    },
 };
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct DiatomInBFieldBasis {
     #[serde(flatten)]
     pub recipe: DiatomRecipe,
@@ -108,7 +102,7 @@ pub enum OrbitalParity {
     Odd,
 }
 
-#[derive(Debug, Clone, Deserialize, cc_derive::Parameters)]
+#[derive(Debug, Clone, Deserialize, cc_system::Parameters)]
 pub struct DiatomInBFieldParams {
     #[serde(default)]
     pub b_field: Scalar<MagneticField>,

@@ -1,4 +1,5 @@
 use cc_qol_utils::Pair;
+use cc_system::{hamiltonian_spec::PotentialSpec, param_ids, parameters::{ParameterRegistry, TypedParamId}};
 use coupled_chan::{
     DynInteraction,
     dispersion::PowerLaw,
@@ -40,12 +41,6 @@ use crate::{
         CoupledSIDiatomBasis,
     },
     interactions::Interactions,
-    param_ids,
-    parameters::{
-        ParameterRegistry,
-        TypedParamId,
-    },
-    system::PotentialSpec,
 };
 
 pub struct SpinRotationSpec<Mask>
@@ -60,7 +55,7 @@ impl<Mask> PotentialSpec for SpinRotationSpec<Mask>
 where
     Mask: Fn(BasisElementsRef) -> Operator + Send + Sync,
 {
-    fn build_params(&self) -> crate::system::ParamIds {
+    fn build_params(&self) -> cc_system::parameters::ParamIds {
         param_ids![]
     }
 
@@ -68,7 +63,7 @@ where
         (self.masking)(elements)
     }
 
-    fn curve_params(&self) -> crate::system::ParamIds {
+    fn curve_params(&self) -> cc_system::parameters::ParamIds {
         param_ids![self.so_curve.vanish()]
     }
 
@@ -623,7 +618,8 @@ impl CoupledDiatomBasis {
 #[cfg(test)]
 mod tests {
     use cc_math_utils::assert_approx_eq;
-    use hilbert_space::space::SpaceBasis;
+    use cc_system::{System, hamiltonian_spec::{DynOperatorSpec, HamiltonianSpec}, orbital_basis::{OrbitalBasisElements, OrbitalRecipe}, parameters::Parameters};
+use hilbert_space::space::SpaceBasis;
     use serde::{
         Deserialize,
         Serialize,
@@ -642,8 +638,6 @@ mod tests {
     };
 
     use crate::{
-        OrbitalBasisElements,
-        OrbitalRecipe,
         atom_basis::AtomRecipe,
         atom_operators::AtomParams,
         diatom_basis::{
@@ -651,17 +645,11 @@ mod tests {
             DiatomRecipe,
             UncoupledDiatomBasis,
         },
-        parameters::Parameters,
-        system::{
-            DynOperatorSpec,
-            HamiltonianSpec,
-            System,
-        },
     };
 
     use super::*;
 
-    #[derive(Clone, cc_derive::Parameters, Serialize, Deserialize)]
+    #[derive(Clone, cc_system::Parameters, Serialize, Deserialize)]
     struct Params {
         b_field: Scalar<MagneticField>,
         #[parameter(nested)]

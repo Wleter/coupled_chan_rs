@@ -22,13 +22,8 @@ use crate::{
     },
     interactions::pec::PecScalingType,
     modify_recipe,
-    param_ids,
-    parameters::{
-        Parameters,
-        TypedParamId,
-    },
-    system::ParamModifications,
 };
+use cc_system::{hamiltonian_spec::HamiltonianSpec, orbital_basis::{OrbitalBasis, OrbitalBasisElements, OrbitalRecipe}, param_ids, param_modifications::ParamModifications, parameters::{Parameters, TypedParamId}};
 use coupled_chan::{
     CollisionWFunction,
     cc_propagator::{
@@ -62,9 +57,6 @@ use unit_systems::quantities::{
 };
 
 use crate::{
-    OrbitalBasis,
-    OrbitalBasisElements,
-    OrbitalRecipe,
     calculations::{
         DynCalc,
         scattering::{
@@ -77,7 +69,6 @@ use crate::{
         pec::PecScaling,
     },
     problems::Problem,
-    system::HamiltonianSpec,
 };
 
 #[derive(Default)]
@@ -134,7 +125,7 @@ pub struct SingleChanBasis {
     pub l: u32,
 }
 
-#[derive(Debug, Clone, Deserialize, cc_derive::Parameters)]
+#[derive(Debug, Clone, Deserialize, cc_system::Parameters)]
 pub struct SingleChanParams {
     pub mass: Scalar<Mass>,
     pub pec: Interactions,

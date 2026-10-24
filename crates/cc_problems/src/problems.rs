@@ -14,14 +14,14 @@ use serde_json::Value;
 
 use crate::{
     calculations::DynCalc,
-    parameters::Parameters,
     problems::{
         diatom_in_b_field::DiatomInBFieldProblem,
         rotor_atom_in_b_field::RotorAtomInBFieldProblem,
         single_chan::SingleChanProblem,
     },
-    system::HamiltonianSpec,
 };
+use cc_system::hamiltonian_spec::HamiltonianSpec;
+use cc_system::parameters::Parameters;
 
 pub fn available_problems() -> AvailableProblems {
     let mut problems = AvailableProblems::default();

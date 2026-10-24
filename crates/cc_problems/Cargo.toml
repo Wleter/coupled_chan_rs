@@ -7,6 +7,7 @@ edition.workspace = true
 coupled_chan = {path = "../coupled_chan"}
 hilbert_space = {path = "../hilbert_space", features = ["faer"]}
 spin_algebra = {path = "../spin_algebra"}
+cc_system = { path = "../cc_system" }
 anyhow = { workspace = true }
 
 serde = { workspace = true }
@@ -22,4 +23,3 @@ indicatif = {version = "0.18", features = ["rayon"]}
 smallvec = {version = "1.15", features = ["union", "serde"]}
 
 num-rational = "0.4"
-cc_derive = {path = "../cc_derive"}

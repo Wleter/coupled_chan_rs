@@ -29,9 +29,9 @@ use crate::{
         },
     },
     modify_recipe,
-    parameters::TypedParamId,
     problems::Problem,
 };
+use cc_system::parameters::TypedParamId;
 
 pub struct AdiabatsCalc<P> {
     pub mass: TypedParamId<Scalar<Mass>>,

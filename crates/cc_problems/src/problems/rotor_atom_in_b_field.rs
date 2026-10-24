@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use cc_system::{hamiltonian_spec::{DynOperatorSpec, DynPotentialSpec, HamiltonianSpec}, orbital_basis::OrbitalBasisElements, parameters::Parameters};
 use hilbert_space::space::{
     SpaceBasis,
     SpaceElement,
@@ -24,7 +25,6 @@ use unit_systems::quantities::{
 };
 
 use crate::{
-    OrbitalBasisElements,
     atom_operators::{
         AtomParams,
         electron_g_e,
@@ -66,7 +66,6 @@ use crate::{
         },
     },
     modify_recipe,
-    parameters::Parameters,
     problems::{
         Problem,
         diatom_in_b_field::OrbitalParity,
@@ -74,11 +73,6 @@ use crate::{
     rotor_atom_basis::{
         TRAMRotorAtomBasis,
         TRAMRotorAtomBasisRecipe,
-    },
-    system::{
-        DynOperatorSpec,
-        DynPotentialSpec,
-        HamiltonianSpec,
     },
 };
 
@@ -125,7 +119,7 @@ pub struct RotorParams {
     pub spin_n_b_rot: Scalar<Energy>,
 }
 
-#[derive(Debug, Clone, Deserialize, cc_derive::Parameters)]
+#[derive(Debug, Clone, Deserialize, cc_system::Parameters)]
 pub struct RotorAtomInBFieldParams {
     #[serde(default)]
     pub b_field: Scalar<MagneticField>,

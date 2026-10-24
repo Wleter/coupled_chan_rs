@@ -1,3 +1,4 @@
+pub mod hash_vec;
 pub mod params;
 pub mod potential_loader;
 pub mod problem_selector;

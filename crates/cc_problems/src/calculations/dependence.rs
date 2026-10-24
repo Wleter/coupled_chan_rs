@@ -29,12 +29,14 @@ use crate::{
             ModifyRegistry,
         },
     },
-    parameters::Parameters,
     problems::{
         Problem,
         TypedProblemInput,
     },
-    system::System,
+};
+use cc_system::{
+    System,
+    parameters::Parameters
 };
 
 #[derive(Clone, Debug)]

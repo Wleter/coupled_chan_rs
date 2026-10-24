@@ -41,12 +41,12 @@ use crate::{
         },
     },
     modify_recipe,
-    parameters::TypedParamId,
     problems::Problem,
-    system::{
-        Coupling,
-        System,
-    },
+};
+use cc_system::{
+    parameters::TypedParamId,
+    System,
+    Coupling,
 };
 
 #[derive(Clone, Debug, Deserialize)]

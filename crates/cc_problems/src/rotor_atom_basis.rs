@@ -15,14 +15,10 @@ use serde::{
     Serialize,
 };
 use spin_algebra::{
-    Spin,
-    SpinMagLike,
-    get_spin_basis,
-    half_integer::{
+    Spin, SpinMagLike, angular::Angular, get_spin_basis, half_integer::{
         HalfI32,
         HalfU32,
-    },
-    ops::{
+    }, ops::{
         dot_product_separation,
         red_first_subsystem_mel_factor,
         red_reduced_harmonics_mel,
@@ -31,12 +27,10 @@ use spin_algebra::{
         tensor_product_separation,
         wigner_eckart_dot_product_factor,
         wigner_eckart_factor,
-    },
-    spin,
+    }, spin
 };
 
 use crate::{
-    Angular,
     Operator,
     atom_basis::{
         AtomRecipe,

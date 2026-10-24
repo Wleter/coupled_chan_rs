@@ -13,16 +13,18 @@ use unit_systems::quantities::{
 };
 
 use crate::{
-    OrbitalRecipe,
     UNITS_CONVERTER,
     calculations::Modified,
-    parameters::TypedParamId,
     problems::Problem,
-    system::{
+};
+use cc_system::{
+    System,
+    orbital_basis::OrbitalRecipe,
+    parameters::TypedParamId,
+    param_modifications::{
         DynParamModifications,
-        System,
         new_param_modifications,
-    },
+    }
 };
 
 pub struct ModifyRegistry<P: Problem, C>(pub HashMap<Box<str>, ModifyParamRecipe<P, C>>);

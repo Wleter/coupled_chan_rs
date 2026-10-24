@@ -85,7 +85,7 @@ impl SValue {
         let (j, j_deriv) = riccati_j_deriv(l, momentum * r);
         let j = j / momentum.sqrt();
         let j_deriv = j_deriv * momentum.sqrt();
-        
+
         let (n, n_deriv) = riccati_n_deriv(l, momentum * r);
         let n_deriv = n_deriv * momentum.sqrt();
         let n = n / momentum.sqrt();

@@ -1,4 +1,4 @@
-use cc_derive::Parameters;
+use cc_system::{hamiltonian_spec::OperatorSpec, param_ids, parameters::{ParamIds, ParameterRegistry, TypedParamId}};
 use hilbert_space::{
     operator_diag_mel,
     operator_mel,
@@ -35,15 +35,6 @@ use crate::{
         UncoupledAtomBasis,
     },
     operator_mel::dot_coupled,
-    param_ids,
-    parameters::{
-        ParameterRegistry,
-        TypedParamId,
-    },
-    system::{
-        OperatorSpec,
-        ParamIds,
-    },
 };
 
 pub(crate) type CouplingId = TypedParamId<Scalar<Energy>>;
@@ -56,7 +47,7 @@ pub fn electron_g_e() -> Scalar<MagneticDipole> {
     Scalar::new(ELECTRON_G_FACTOR, MagneticDipole, "mu_bohr")
 }
 
-#[derive(Debug, Clone, Parameters, Serialize, Deserialize)]
+#[derive(Debug, Clone, cc_system::Parameters, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AtomParams {
     pub a_hifi: Scalar<Energy>,
@@ -250,21 +241,15 @@ impl CoupledAtomBasis {
 #[cfg(test)]
 mod tests {
     use cc_math_utils::assert_approx_eq;
-    use hilbert_space::space::SpaceBasis;
+    use cc_system::{System, hamiltonian_spec::{DynOperatorSpec, HamiltonianSpec}, orbital_basis::OrbitalBasisElements, parameters::Parameters};
+use hilbert_space::space::SpaceBasis;
     use spin_algebra::{
         hi32,
         hu32,
     };
 
     use crate::{
-        OrbitalBasisElements,
         atom_basis::AtomRecipe,
-        parameters::Parameters,
-        system::{
-            DynOperatorSpec,
-            HamiltonianSpec,
-            System,
-        },
     };
 
     use super::*;

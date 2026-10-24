@@ -8,6 +8,7 @@ pub mod resonances;
 pub mod scattering;
 
 use anyhow::Result;
+use cc_system::System;
 use serde::{
     Serialize,
     de::DeserializeOwned,
@@ -19,7 +20,6 @@ use crate::{
         Problem,
         TypedProblemInput,
     },
-    system::System,
 };
 
 pub trait DynCalc<P: Problem>: Send + Sync {

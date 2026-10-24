@@ -7,6 +7,7 @@ use std::{
     marker::PhantomData,
 };
 
+use cc_system::{hamiltonian_spec::PotentialSpec, param_ids, param_modifications::ParamModifications, parameters::{ParamIds, ParameterRegistry, TypedParamId}};
 use coupled_chan::DynInteraction;
 use hilbert_space::space::BasisElementsRef;
 use serde::{
@@ -37,17 +38,7 @@ use crate::{
             PecScalingType,
         },
     },
-    param_ids,
-    parameters::{
-        ParameterRegistry,
-        TypedParamId,
-    },
     problems::Problem,
-    system::{
-        ParamIds,
-        ParamModifications,
-        PotentialSpec,
-    },
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
