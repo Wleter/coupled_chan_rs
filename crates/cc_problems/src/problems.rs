@@ -1,5 +1,6 @@
 pub mod diatom_in_b_field;
 pub mod rotor_atom_in_b_field;
+pub mod single_chan;
 
 use std::collections::HashMap;
 
@@ -17,6 +18,7 @@ use crate::{
     problems::{
         diatom_in_b_field::DiatomInBFieldProblem,
         rotor_atom_in_b_field::RotorAtomInBFieldProblem,
+        single_chan::SingleChanProblem,
     },
     system::HamiltonianSpec,
 };
@@ -25,12 +27,12 @@ pub fn available_problems() -> AvailableProblems {
     let mut problems = AvailableProblems::default();
     problems.insert(DiatomInBFieldProblem::new());
     problems.insert(RotorAtomInBFieldProblem::new());
+    problems.insert(SingleChanProblem::new());
 
     problems
 }
 
 #[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct ProblemInput {
     pub problem_name: Box<str>,
     pub basis_recipe: Value,
