@@ -7,7 +7,6 @@ edition.workspace = true
 anyhow = {workspace = true}
 dyn-clone = {workspace = true}
 downcast-rs = "2.0"
-spline-interpolation = { git = "https://github.com/Wleter/spline-interpolation.git" }
 
 serde = {workspace = true}
 serde_json = {workspace = true}

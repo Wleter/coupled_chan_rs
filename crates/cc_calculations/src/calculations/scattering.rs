@@ -36,6 +36,7 @@ use serde::{
     Deserialize,
     Serialize,
 };
+use unit_systems::atomic_units;
 use unit_systems::quantities::phys_quantities::{
     Energy,
     Length,
@@ -55,16 +56,13 @@ use crate::calculations::{
     Modified,
     SingleCalc,
 };
+use crate::modify_recipe;
 use crate::problems::{
     Problem,
     mat_as_nested_vec,
 };
-use crate::{
-    UNITS_CONVERTER,
-    modify_recipe,
-};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct ScatteringCalcInput {
     pub entrance: usize,
     pub energy: Scalar<Energy>,
@@ -101,7 +99,7 @@ pub fn scattering_calc_mods<P: Problem + 'static>() -> ModifyRegistry<P, Scatter
 
 impl ScatteringCalcInput {
     pub fn scattering(&self, w_matrix: &CollisionWMatrix<impl RCoupling>) -> SMatrixData {
-        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+        let converter = atomic_units::units_converter();
         let r_max = converter.scalar_value(&self.r_min);
         let r_min = converter.scalar_value(&self.r_max);
 
@@ -239,7 +237,7 @@ impl TwoSegmentPropagator {
         boundary: cc_propagator::Boundary<Matrix>,
         w_matrix: &impl WMatrix<f64>,
     ) -> Solution<LogDeriv<Matrix>> {
-        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+        let converter = atomic_units::units_converter();
         let r = converter.scalar_value(r);
 
         match (&self.segment_change, &self.long_range_propagator) {
@@ -290,7 +288,7 @@ impl ConstRefStep {
     pub fn get_step(&self) -> ConstRefStepStrat {
         match self {
             ConstRefStep::Fixed { dr } => {
-                let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+                let converter = atomic_units::units_converter();
 
                 ConstRefStepStrat::Fixed {
                     dr: converter.scalar_value(dr),
@@ -301,7 +299,7 @@ impl ConstRefStep {
                 dr_max,
                 wave_ratio,
             } => {
-                let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+                let converter = atomic_units::units_converter();
                 let dr_min = converter.scalar_value(dr_min);
                 let dr_max = converter.scalar_value(dr_max);
 
@@ -316,7 +314,7 @@ impl ConstRefStep {
                 before,
                 after,
             } => {
-                let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+                let converter = atomic_units::units_converter();
                 let transition_point = converter.scalar_value(transition_point);
 
                 ConstRefStepStrat::Transitioned {
@@ -385,7 +383,7 @@ impl LinearRefStep {
     pub fn get_step(&self) -> LinearRefStepStrat {
         match self {
             LinearRefStep::Fixed { dr } => {
-                let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+                let converter = atomic_units::units_converter();
 
                 LinearRefStepStrat::Fixed {
                     dr: converter.scalar_value(dr),
@@ -397,7 +395,7 @@ impl LinearRefStep {
                 tolerance,
                 change_power,
             } => {
-                let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+                let converter = atomic_units::units_converter();
                 let dr_min = converter.scalar_value(dr_min);
                 let dr_max = converter.scalar_value(dr_max);
 
@@ -413,7 +411,7 @@ impl LinearRefStep {
                 before,
                 after,
             } => {
-                let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+                let converter = atomic_units::units_converter();
                 let transition_point = converter.scalar_value(transition_point);
 
                 LinearRefStepStrat::Transitioned {
@@ -451,7 +449,7 @@ impl LinearRefStep {
     }
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[serde(tag = "type")]
 pub enum Boundary {
@@ -470,7 +468,7 @@ impl Boundary {
         direction: Direction,
         w_matrix: &CollisionWMatrix<impl RCoupling>,
     ) -> coupled_chan::cc_propagator::Boundary<Matrix> {
-        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+        let converter = atomic_units::units_converter();
         let r = converter.scalar_value(r_start);
 
         let (value, derivative) = match &self {
@@ -499,7 +497,6 @@ impl Boundary {
                 (w_matrix.id().to_owned(), derivative)
             }
             Boundary::Set { value, derivative } => {
-                let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
                 let value = converter.scalar_value(value);
                 let derivative = converter.scalar_value(derivative);
 
@@ -541,7 +538,7 @@ impl<P: Problem> SingleCalc for ScatteringCalc<P> {
         _problem: &P,
     ) -> impl IntoIterator<Item = anyhow::Result<SMatrixData>> {
         let registry = modified.system.param_registry();
-        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+        let converter = atomic_units::units_converter();
 
         let blocks = modified.system.angular_blocks();
         let collision_params = CollisionParams {

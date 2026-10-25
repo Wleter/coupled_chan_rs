@@ -4,10 +4,7 @@ use hilbert_space::space::{
     SpaceElement,
     SubspaceBasisOf,
 };
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::Deserialize;
 use spin_algebra::half_integer::{
     HalfI32,
     HalfU32,
@@ -22,7 +19,7 @@ use spin_algebra::{
 
 pub type TwiceSpin = SpinPair<HalfU32, HalfU32>;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct WithProjection<R> {
     #[serde(flatten)]
     pub recipe: R,
@@ -30,7 +27,7 @@ pub struct WithProjection<R> {
     pub projection: Option<HalfI32>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct AtomRecipe {
     pub name: Box<str>,
     pub s: HalfU32,

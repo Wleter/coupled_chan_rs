@@ -5,12 +5,12 @@ use serde_json::{
     Number,
     Value,
 };
+use unit_systems::atomic_units;
 use unit_systems::quantities::{
     PhysQuantity,
     Scalar,
 };
 
-use crate::UNITS_CONVERTER;
 use crate::calculations::Modified;
 use crate::problems::Problem;
 use cc_system::System;
@@ -113,7 +113,7 @@ impl<Q: PhysQuantity + Send + Sync, P: Problem, C: Send + Sync> ModifyParam for 
     }
 
     fn as_number(&self) -> Number {
-        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+        let converter = atomic_units::units_converter();
         Number::from_f64(converter.scalar_value(&self.value)).unwrap()
     }
 
@@ -156,7 +156,7 @@ where
     }
 
     fn as_number(&self) -> Number {
-        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+        let converter = atomic_units::units_converter();
         Number::from_f64(converter.scalar_value(&self.value)).unwrap()
     }
 
@@ -320,7 +320,7 @@ pub fn scalar_from_f64<Q: PhysQuantity>(value: f64) -> Scalar<Q> {
         Scalar::new(0.0, Q::default(), "");
     }
 
-    let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+    let converter = atomic_units::units_converter();
     // first unit encountered
     let unit = &converter.registry.get::<Q>()[0];
     let value_in_unit = value / Q::to_unit_system_logic(unit.name, &converter.registry, &converter.target_unit_system);

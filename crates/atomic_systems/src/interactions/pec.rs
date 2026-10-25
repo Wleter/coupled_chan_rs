@@ -1,35 +1,26 @@
 use std::collections::HashMap;
-use std::marker::PhantomData;
 
 use cc_system::hamiltonian_spec::PotentialSpec;
-use cc_system::param_ids;
-use cc_system::param_modifications::ParamModifications;
 use cc_system::parameters::{
     ParamIds,
     ParameterRegistry,
     TypedParamId,
 };
+use cc_system::{
+    Operator,
+    param_ids,
+};
 use coupled_chan::DynInteraction;
 use hilbert_space::space::BasisElementsRef;
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::Deserialize;
 use spin_algebra::half_integer::HalfU32;
 
-use crate::Operator;
-use crate::calculations::Modified;
-use crate::calculations::modifications::{
-    ModificationAction,
-    ModifyParam,
-};
 use crate::interactions::{
     Interactions,
     SpinConfiguration,
 };
-use crate::problems::Problem;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct PecPolarizations(pub HashMap<SpinConfiguration, Interactions>);
 
 pub struct PecPolarizationSpec<Mask>
@@ -76,10 +67,10 @@ where
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Deserialize, Default)]
 pub struct PecPolarizationScalings(pub HashMap<SpinConfiguration, PecScaling>);
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
 pub struct ScalingValue(pub f64);
 
 impl ScalingValue {
@@ -94,7 +85,7 @@ impl Default for ScalingValue {
     }
 }
 
-#[derive(Clone, Copy, Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Default, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum PecScalingType {
     #[default]
@@ -103,12 +94,12 @@ pub enum PecScalingType {
     LongRange,
 }
 
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq)]
 #[serde(default)]
 pub struct PecScaling {
-    pub(super) short_range: ScalingValue,
-    pub(super) long_range: ScalingValue,
-    pub(super) full: ScalingValue,
+    pub short_range: ScalingValue,
+    pub long_range: ScalingValue,
+    pub full: ScalingValue,
 }
 
 impl PecScaling {
@@ -146,71 +137,9 @@ impl PecScaling {
 
 #[derive(Clone, Copy, Debug, Deserialize)]
 pub struct PecPolarizationScaling {
-    scaling: f64,
+    pub scaling: f64,
     #[serde(default)]
-    scaling_type: PecScalingType,
+    pub scaling_type: PecScalingType,
     #[serde(default)]
-    configuration: Option<SpinConfiguration>,
-}
-
-pub struct PecPolarizationScalingMod<P: Problem, C> {
-    scaling: PecPolarizationScaling,
-    id_pec: TypedParamId<PecPolarizations>,
-    id_scalings: TypedParamId<PecPolarizationScalings>,
-    phantom: PhantomData<(P, C)>,
-}
-
-impl<P: Problem, C> PecPolarizationScalingMod<P, C> {
-    pub fn new(
-        scaling: PecPolarizationScaling,
-        id_pec: TypedParamId<PecPolarizations>,
-        id_scalings: TypedParamId<PecPolarizationScalings>,
-    ) -> Self {
-        Self {
-            scaling,
-            id_pec,
-            id_scalings,
-            phantom: PhantomData,
-        }
-    }
-}
-
-impl<P: Problem, C: Send + Sync> ModifyParam for PecPolarizationScalingMod<P, C> {
-    type P = P;
-    type C = C;
-
-    fn prep_modify(&self, _modified: &mut Modified<Self::P, Self::C>) -> ModificationAction {
-        let id_pec = self.id_pec;
-        let id_scalings = self.id_scalings;
-        let scaling = self.scaling;
-
-        ModificationAction::ParamModify(
-            ParamModifications::new(move |r| {
-                if let Some(c) = scaling.configuration {
-                    r.get_mut(id_scalings)
-                        .0
-                        .insert(c, PecScaling::new(scaling.scaling, scaling.scaling_type));
-                    let s = r.get_mut(id_scalings).0.get_mut(&c).expect("Nonexistent");
-                    s.modify(scaling.scaling, scaling.scaling_type);
-                } else {
-                    for k in r.get(id_pec).0.keys().copied().collect::<Vec<SpinConfiguration>>() {
-                        r.get_mut(id_scalings)
-                            .0
-                            .insert(k, PecScaling::new(scaling.scaling, scaling.scaling_type));
-                    }
-                }
-
-                param_ids![id_scalings.vanish()]
-            })
-            .into_dyn(),
-        )
-    }
-
-    fn as_number(&self) -> serde_json::Number {
-        serde_json::Number::from_f64(self.scaling.scaling).unwrap()
-    }
-
-    fn mut_number(&mut self, number: serde_json::Number) {
-        self.scaling.scaling = number.as_f64().unwrap()
-    }
+    pub configuration: Option<SpinConfiguration>,
 }

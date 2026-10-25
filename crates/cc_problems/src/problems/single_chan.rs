@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
-use crate::calculations::dependence::DependenceCalc;
-use crate::calculations::levels::EnergyLevelsData;
-use crate::calculations::modifications::{
+use atomic_systems::interactions::pec::PecScalingType;
+use cc_calculations::calculations::dependence::DependenceCalc;
+use cc_calculations::calculations::levels::EnergyLevelsData;
+use cc_calculations::calculations::modifications::{
     FloatCalcMod,
     ModificationAction,
     ModifyParam,
@@ -12,15 +13,11 @@ use crate::calculations::modifications::{
     ScalarCalcMod,
     ScalarParamMod,
 };
-use crate::calculations::{
+use cc_calculations::calculations::{
     Modified,
     SingleCalc,
 };
-use crate::interactions::pec::PecScalingType;
-use crate::{
-    UNITS_CONVERTER,
-    modify_recipe,
-};
+use cc_calculations::modify_recipe;
 use cc_system::hamiltonian_spec::HamiltonianSpec;
 use cc_system::orbital_basis::{
     OrbitalBasis,
@@ -49,6 +46,7 @@ use serde::{
     Serialize,
 };
 use serde_json::Number;
+use unit_systems::atomic_units;
 use unit_systems::quantities::phys_quantities::{
     Energy,
     Length,
@@ -59,14 +57,14 @@ use unit_systems::quantities::{
     Scalar,
 };
 
-use crate::calculations::DynCalc;
-use crate::calculations::scattering::{
+use crate::problems::Problem;
+use atomic_systems::interactions::Interactions;
+use atomic_systems::interactions::pec::PecScaling;
+use cc_calculations::calculations::DynCalc;
+use cc_calculations::calculations::scattering::{
     ConstRefStep,
     LinearRefStep,
 };
-use crate::interactions::Interactions;
-use crate::interactions::pec::PecScaling;
-use crate::problems::Problem;
 
 #[derive(Default)]
 pub struct SingleChanProblem {
@@ -184,7 +182,7 @@ impl SingleCalc for PecValues {
         modified: &mut Modified<Self::P, PecValuesInput>,
         _problem: &Self::P,
     ) -> impl IntoIterator<Item = anyhow::Result<Self::Data>> {
-        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+        let converter = atomic_units::units_converter();
         let ids = SingleChanParams::ids();
         let registry = modified.system.param_registry();
 
@@ -237,7 +235,7 @@ impl SingleCalc for SingleChanScattering {
         modified: &mut Modified<Self::P, SingleChanScatteringCalcInput>,
         _problem: &Self::P,
     ) -> impl IntoIterator<Item = anyhow::Result<SValueData>> {
-        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+        let converter = atomic_units::units_converter();
         let ids = SingleChanParams::ids();
         let registry = modified.system.param_registry();
 
@@ -286,7 +284,7 @@ struct SValueData {
     cross_section: f64,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[serde(tag = "type")]
 pub enum SingleBoundary {
@@ -305,7 +303,7 @@ impl SingleBoundary {
         direction: Direction,
         w_function: &impl WFunction,
     ) -> coupled_chan::cc_propagator::Boundary<f64> {
-        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+        let converter = atomic_units::units_converter();
         let r = converter.scalar_value(r_start);
 
         let (value, derivative) = match &self {

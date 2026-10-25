@@ -120,6 +120,15 @@ impl OrbitalBasisElements {
     }
 }
 
+#[derive(Clone, Debug, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum OrbitalParity {
+    #[default]
+    All,
+    Even,
+    Odd,
+}
+
 #[derive(Debug, Clone, Copy)]
 // Struct for storing |l m_l> state
 pub struct OrbitalBasis {

@@ -27,7 +27,6 @@ use spin_algebra::{
 };
 use unit_systems::CODATA_2022;
 
-use crate::Operator;
 use crate::atom_operators::{
     BFieldId,
     CouplingId,
@@ -41,6 +40,7 @@ use crate::diatom_basis::{
     CoupledSIDiatomBasis,
 };
 use crate::interactions::Interactions;
+use cc_system::Operator;
 
 pub struct SpinRotationSpec<Mask>
 where
@@ -628,10 +628,7 @@ mod tests {
     };
     use cc_system::parameters::Parameters;
     use hilbert_space::space::SpaceBasis;
-    use serde::{
-        Deserialize,
-        Serialize,
-    };
+    use serde::Deserialize;
     use spin_algebra::{
         hi32,
         hu32,
@@ -653,7 +650,7 @@ mod tests {
 
     use super::*;
 
-    #[derive(Clone, cc_system::Parameters, Serialize, Deserialize)]
+    #[derive(Clone, cc_system::Parameters, Deserialize)]
     struct Params {
         b_field: Scalar<MagneticField>,
         #[parameter(nested)]

@@ -3,10 +3,8 @@ use anyhow::{
     Result,
     bail,
 };
-use cc_problems::problems::{
-    AvailableProblems,
-    ProblemInput,
-};
+use cc_calculations::problems::ProblemInput;
+use cc_problems::problems::AvailableProblems;
 use clap::Parser;
 use json_comments::StripComments;
 use serde::Deserialize;

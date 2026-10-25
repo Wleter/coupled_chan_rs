@@ -6,6 +6,7 @@ use serde::{
     Deserialize,
     Serialize,
 };
+use unit_systems::atomic_units;
 use unit_systems::quantities::Scalar;
 use unit_systems::quantities::phys_quantities::Length;
 
@@ -19,13 +20,10 @@ use crate::calculations::{
     Modified,
     SingleCalc,
 };
+use crate::modify_recipe;
 use crate::problems::{
     Problem,
     mat_as_nested_vec,
-};
-use crate::{
-    UNITS_CONVERTER,
-    modify_recipe,
 };
 
 pub struct HamiltonianTermsCalc<P> {
@@ -63,7 +61,7 @@ impl<P: Problem> SingleCalc for HamiltonianTermsCalc<P> {
     ) -> impl IntoIterator<Item = anyhow::Result<Self::Data>> {
         if let Some(name) = &modified.calc_input.term_name {
             if let Some(distance) = &modified.calc_input.distance {
-                let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+                let converter = atomic_units::units_converter();
 
                 let potential = &modified.system.potentials[name.as_ref()];
                 let matrix = mat_as_nested_vec(potential.masking.as_ref());
@@ -81,7 +79,7 @@ impl<P: Problem> SingleCalc for HamiltonianTermsCalc<P> {
 
         if let Some(distance) = &modified.calc_input.distance {
             let mut terms = HashMap::with_capacity(modified.system.potentials.vec.len());
-            let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+            let converter = atomic_units::units_converter();
 
             for name in modified.system.potentials.map.keys() {
                 let potential = &modified.system.potentials[name.as_ref()];

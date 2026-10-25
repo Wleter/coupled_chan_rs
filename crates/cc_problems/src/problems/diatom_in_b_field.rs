@@ -1,21 +1,22 @@
 use std::collections::HashMap;
 
+use cc_calculations::potential_scalings::PecPolarizationScalingMod;
 use cc_system::hamiltonian_spec::{
     DynOperatorSpec,
     DynPotentialSpec,
     HamiltonianSpec,
 };
-use cc_system::orbital_basis::OrbitalBasisElements;
+use cc_system::orbital_basis::{
+    OrbitalBasisElements,
+    OrbitalParity,
+};
 use cc_system::parameters::Parameters;
 use hilbert_space::operator_diag_mel;
 use hilbert_space::space::{
     SpaceBasis,
     SpaceElement,
 };
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::Deserialize;
 use spin_algebra::half_integer::HalfI32;
 use spin_algebra::{
     SpinLike,
@@ -28,45 +29,44 @@ use unit_systems::quantities::phys_quantities::{
     Mass,
 };
 
-use crate::atom_operators::AtomParams;
-use crate::calculations::DynCalc;
-use crate::calculations::adiabats::{
-    AdiabatsCalc,
-    adiabats_calc_mods,
-};
-use crate::calculations::bound_states::{
-    BoundStateCalc,
-    bound_states_calc_mods,
-    bound_states_calc_search_mods,
-};
-use crate::calculations::dependence::DependenceCalc;
-use crate::calculations::hamiltonian_terms::hamiltonian_terms_calc;
-use crate::calculations::levels::EnergyLevelsCalc;
-use crate::calculations::modifications::{
-    ModifyRegistry,
-    OrbitalRecipeMod,
-    ScalarParamMod,
-};
-use crate::calculations::resonances::ResonancesCalc;
-use crate::calculations::scattering::{
-    ScatteringCalc,
-    scattering_calc_mods,
-};
-use crate::diatom_basis::{
+use crate::problems::Problem;
+use atomic_systems::atom_operators::AtomParams;
+use atomic_systems::diatom_basis::{
     CoupledSIDiatomBasis,
     DiatomRecipe,
 };
-use crate::diatom_operators::SpinRotationSpec;
-use crate::interactions::Interactions;
-use crate::interactions::pec::{
-    PecPolarizationScalingMod,
+use atomic_systems::diatom_operators::SpinRotationSpec;
+use atomic_systems::interactions::Interactions;
+use atomic_systems::interactions::pec::{
     PecPolarizationScalings,
     PecPolarizationSpec,
     PecPolarizations,
 };
-use crate::modify_recipe;
-use crate::operator_mel::spin_projection_term_coupled;
-use crate::problems::Problem;
+use atomic_systems::operator_mel::spin_projection_term_coupled;
+use cc_calculations::calculations::DynCalc;
+use cc_calculations::calculations::adiabats::{
+    AdiabatsCalc,
+    adiabats_calc_mods,
+};
+use cc_calculations::calculations::bound_states::{
+    BoundStateCalc,
+    bound_states_calc_mods,
+    bound_states_calc_search_mods,
+};
+use cc_calculations::calculations::dependence::DependenceCalc;
+use cc_calculations::calculations::hamiltonian_terms::hamiltonian_terms_calc;
+use cc_calculations::calculations::levels::EnergyLevelsCalc;
+use cc_calculations::calculations::modifications::{
+    ModifyRegistry,
+    OrbitalRecipeMod,
+    ScalarParamMod,
+};
+use cc_calculations::calculations::resonances::ResonancesCalc;
+use cc_calculations::calculations::scattering::{
+    ScatteringCalc,
+    scattering_calc_mods,
+};
+use cc_calculations::modify_recipe;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct DiatomInBFieldBasis {
@@ -87,15 +87,6 @@ where
         "l",
         modify_recipe!(|l| OrbitalRecipeMod::new(l, |r: &mut P::BasisRecipe| &mut r.recipe.l)),
     )])
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum OrbitalParity {
-    #[default]
-    All,
-    Even,
-    Odd,
 }
 
 #[derive(Debug, Clone, Deserialize, cc_system::Parameters)]

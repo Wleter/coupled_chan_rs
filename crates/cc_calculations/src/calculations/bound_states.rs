@@ -12,6 +12,7 @@ use serde::{
     Serialize,
 };
 use serde_json::Number;
+use unit_systems::atomic_units;
 use unit_systems::quantities::Scalar;
 use unit_systems::quantities::phys_quantities::{
     Energy,
@@ -34,11 +35,8 @@ use crate::calculations::{
     Modified,
     SingleCalc,
 };
+use crate::modify_recipe;
 use crate::problems::Problem;
-use crate::{
-    UNITS_CONVERTER,
-    modify_recipe,
-};
 use cc_system::parameters::TypedParamId;
 use cc_system::{
     Coupling,
@@ -245,7 +243,7 @@ where
         modified: &mut Modified<P, BoundStateCalcInput>,
         _problem: &P,
     ) -> impl IntoIterator<Item = anyhow::Result<Self::Data>> {
-        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+        let converter = atomic_units::units_converter();
         let r_start = converter.scalar_value(&modified.calc_input.r_min);
         let r_match = converter.scalar_value(&modified.calc_input.r_match);
         let r_stop = converter.scalar_value(&modified.calc_input.r_max);
@@ -353,7 +351,7 @@ where
     P: Problem,
 {
     fn get_w_matrix(&self, system: &mut System, input: &BoundStateCalcInput) -> CollisionWMatrix<Coupling> {
-        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+        let converter = atomic_units::units_converter();
 
         let blocks = system.angular_blocks();
         let collision_params = CollisionParams {
@@ -607,7 +605,7 @@ pub fn bound_mismatch(
     let boundary_out = input.boundaries.0.get_boundary(&input.r_min, Direction::Outwards, w_matrix);
     let boundary_in = input.boundaries.0.get_boundary(&input.r_max, Direction::Inwards, w_matrix);
 
-    let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+    let converter = atomic_units::units_converter();
     let r_match = converter.scalar_value(&input.r_match);
 
     let mut propagator_in = if let Some(prop_in) = &input.propagator_in {
@@ -643,7 +641,7 @@ fn bound_wave(w_matrix: &CollisionWMatrix<impl RCoupling>, input: &BoundStateCal
     let boundary_out = input.boundaries.0.get_boundary(&input.r_min, Direction::Outwards, w_matrix);
     let boundary_in = input.boundaries.0.get_boundary(&input.r_max, Direction::Inwards, w_matrix);
 
-    let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+    let converter = atomic_units::units_converter();
     let r_match = converter.scalar_value(&input.r_match);
 
     let mut propagator_in = if let Some(prop_in) = &input.propagator_in {

@@ -1,0 +1,24 @@
+[package]
+name = "cc_calculations"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+unit_systems = {path = "../unit_systems", features = ["au", "serde"]}
+cc_qol_utils = { path = "../cc_qol_utils" }
+
+coupled_chan = {path = "../coupled_chan"}
+hilbert_space = {path = "../hilbert_space", features = ["faer"]}
+spin_algebra = {path = "../spin_algebra"}
+cc_system = { path = "../cc_system" }
+atomic_systems = { path = "../atomic_systems" }
+
+anyhow = { workspace = true }
+rayon = { workspace = true }
+smallvec = {version = "1.15", features = ["union"]}
+indicatif = {version = "0.18", features = ["rayon"]}
+
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+cc_math_utils = { path = "../cc_math_utils" }

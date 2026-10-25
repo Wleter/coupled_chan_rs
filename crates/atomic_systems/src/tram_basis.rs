@@ -4,10 +4,7 @@ use hilbert_space::space::{
     SpaceBasis,
     SubspaceBasisOf,
 };
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::Deserialize;
 use spin_algebra::{
     SpinPair,
     SpinPairMag,
@@ -17,7 +14,7 @@ use spin_algebra::{
 
 pub type AngularCoupled = SpinPair<u32, u32>;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct TRAMRecipe {
     pub n_max: u32,
     pub l_max: u32,

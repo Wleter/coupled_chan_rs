@@ -10,10 +10,7 @@ use hilbert_space::{
     operator_diag_mel,
     operator_mel,
 };
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::Deserialize;
 use spin_algebra::angular::Angular;
 use spin_algebra::half_integer::{
     HalfI32,
@@ -36,7 +33,6 @@ use spin_algebra::{
     spin,
 };
 
-use crate::Operator;
 use crate::atom_basis::{
     AtomRecipe,
     UncoupledAtomBasis,
@@ -46,14 +42,15 @@ use crate::atom_operators::{
     CouplingSpec,
 };
 use crate::operator_mel::spin_sum_projection_uncoupled;
-use crate::problems::diatom_in_b_field::OrbitalParity;
 use crate::tram_basis::{
     AngularCoupled,
     TRAMBasis,
     TRAMRecipe,
 };
+use cc_system::Operator;
+use cc_system::orbital_basis::OrbitalParity;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct RotorRecipe {
     pub name: Box<str>,
     pub s: HalfU32,
@@ -61,7 +58,7 @@ pub struct RotorRecipe {
     pub i_b: HalfU32,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct TRAMRotorAtomBasisRecipe {
     pub rotor: RotorRecipe,
     pub atom: AtomRecipe,

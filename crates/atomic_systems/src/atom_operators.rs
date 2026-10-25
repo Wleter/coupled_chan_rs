@@ -1,19 +1,19 @@
 use cc_system::hamiltonian_spec::OperatorSpec;
-use cc_system::param_ids;
 use cc_system::parameters::{
     ParamIds,
     ParameterRegistry,
     TypedParamId,
+};
+use cc_system::{
+    Operator,
+    param_ids,
 };
 use hilbert_space::space::BasisElementsRef;
 use hilbert_space::{
     operator_diag_mel,
     operator_mel,
 };
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::Deserialize;
 use spin_algebra::ops::{
     red_first_subsystem_mel_factor,
     red_second_subsystem_mel_factor,
@@ -24,6 +24,7 @@ use spin_algebra::{
     Spin,
     SpinLike,
 };
+use unit_systems::atomic_units;
 use unit_systems::quantities::Scalar;
 use unit_systems::quantities::phys_quantities::{
     Energy,
@@ -36,10 +37,6 @@ use crate::atom_basis::{
     UncoupledAtomBasis,
 };
 use crate::operator_mel::dot_coupled;
-use crate::{
-    Operator,
-    UNITS_CONVERTER,
-};
 
 pub(crate) type CouplingId = TypedParamId<Scalar<Energy>>;
 pub(crate) type BFieldId = TypedParamId<Scalar<MagneticField>>;
@@ -51,7 +48,7 @@ pub fn electron_g_e() -> Scalar<MagneticDipole> {
     Scalar::new(ELECTRON_G_FACTOR, MagneticDipole, "mu_bohr")
 }
 
-#[derive(Debug, Clone, cc_system::Parameters, Serialize, Deserialize)]
+#[derive(Debug, Clone, cc_system::Parameters, Deserialize)]
 #[serde(default)]
 pub struct AtomParams {
     pub a_hifi: Scalar<Energy>,
@@ -94,7 +91,7 @@ impl<F: Fn(BasisElementsRef) -> Operator + Send + Sync> OperatorSpec for Couplin
     }
 
     fn coupling(&self, params: &ParameterRegistry) -> f64 {
-        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+        let converter = atomic_units::units_converter();
 
         converter.scalar_value(params.get(self.coupling))
     }
@@ -130,7 +127,7 @@ impl<F: Fn(BasisElementsRef) -> Operator + Send + Sync> OperatorSpec for ZeemanS
     }
 
     fn coupling(&self, params: &ParameterRegistry) -> f64 {
-        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+        let converter = atomic_units::units_converter();
 
         let b_field = converter.scalar_value(params.get(self.b_field));
         let g_factor = converter.scalar_value(params.get(self.g_factor));

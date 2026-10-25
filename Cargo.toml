@@ -14,7 +14,9 @@ members = [
     "crates/cc_problems", 
     "crates/coupled_chan_cli", 
     "crates/cc_derive", 
-    "crates/cc_system",
+    "crates/cc_system", 
+    "crates/cc_calculations", 
+    "crates/atomic_systems",
 ]
 resolver = "3"
 

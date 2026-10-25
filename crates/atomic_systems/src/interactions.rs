@@ -25,12 +25,10 @@ use coupled_chan::{
     NullInteraction,
     morse_long_range,
 };
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::Deserialize;
 use spin_algebra::half_integer::HalfU32;
 use spin_algebra::hu32;
+use unit_systems::atomic_units;
 use unit_systems::quantities::phys_quantities::{
     Energy,
     Length,
@@ -40,14 +38,13 @@ use unit_systems::quantities::{
     Scalar,
 };
 
-use crate::UNITS_CONVERTER;
 use crate::interactions::pec::{
     PecScaling,
     PecScalingType,
     ScalingValue,
 };
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct C_N {
     pub d: Scalar<Energy>,
@@ -57,7 +54,7 @@ pub struct C_N {
 
 impl C_N {
     pub fn interaction(&self) -> PowerLaw {
-        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+        let converter = atomic_units::units_converter();
         let d = converter.scalar_value(&self.d);
         let r_e = converter.scalar_value(&self.r_e);
         let n = self.n as i32;
@@ -66,7 +63,7 @@ impl C_N {
     }
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 pub struct Exp {
     d: Scalar<Energy>,
     exponent: Scalar<Inv<Length>>,
@@ -75,7 +72,7 @@ pub struct Exp {
 
 impl Exp {
     pub fn interaction(&self) -> ExpLaw {
-        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+        let converter = atomic_units::units_converter();
         let d = converter.scalar_value(&self.d);
         let exponent = converter.scalar_value(&self.exponent);
         let offset = converter.scalar_value(&self.r_offset);
@@ -84,7 +81,7 @@ impl Exp {
     }
 }
 
-#[derive(Clone, Default, Debug, Serialize, Deserialize, Parameters)]
+#[derive(Clone, Default, Debug, Deserialize, Parameters)]
 #[serde(default)]
 pub struct Analytic {
     pub power_law: Vec<C_N>,
@@ -100,7 +97,7 @@ impl Analytic {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct LenardJones {
     pub d_e: Scalar<Energy>,
     pub r_e: Scalar<Length>,
@@ -108,13 +105,13 @@ pub struct LenardJones {
 
 impl LenardJones {
     pub fn interaction(&self) -> Composite<PowerLaw> {
-        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+        let converter = atomic_units::units_converter();
 
         lenard_jones(converter.scalar_value(&self.d_e), converter.scalar_value(&self.r_e))
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct MorseLongRange {
     pub d0: Scalar<Energy>,
     pub r_e: Scalar<Length>,
@@ -130,7 +127,7 @@ pub struct MorseLongRange {
 
 impl MorseLongRange {
     pub fn interaction(&self) -> morse_long_range::MorseLongRange {
-        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+        let converter = atomic_units::units_converter();
 
         morse_long_range::MorseLongRangeBuilder {
             d0: converter.scalar_value(&self.d0),
@@ -146,7 +143,7 @@ impl MorseLongRange {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Spline(PathBuf, #[serde(default)] Option<u32>);
 
 #[derive(Deserialize)]
@@ -162,7 +159,7 @@ impl Spline {
         let file = File::open(&self.0).expect("Could not open potential data");
         let data: PotentialData = serde_json::from_reader(file).expect("Could not parse potential data");
 
-        let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+        let converter = atomic_units::units_converter();
         let distance_conversion = converter.scalar_value(&Scalar::new(1.0, Length, &data.distance_units));
         let value_conversion = converter.scalar_value(&Scalar::new(1.0, Energy, &data.value_units));
         let distances: Vec<f64> = data.distances.into_iter().map(|x| x * distance_conversion).collect();
@@ -177,13 +174,13 @@ impl Spline {
     }
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SwitchingRegion {
     SinTransition,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Interactions {
     Null,
@@ -216,7 +213,7 @@ impl Interactions {
                 r_end_switch,
                 switching,
             } => {
-                let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+                let converter = atomic_units::units_converter();
                 let r_start = converter.scalar_value(r_start_switch);
                 let r_end = converter.scalar_value(r_end_switch);
 
@@ -263,7 +260,7 @@ impl Interactions {
                 r_end_switch,
                 switching,
             } => {
-                let converter = UNITS_CONVERTER.read().expect("Could not obtain UNITS_CONVERTER");
+                let converter = atomic_units::units_converter();
                 let r_start = converter.scalar_value(r_start_switch);
                 let r_end = converter.scalar_value(r_end_switch);
 
@@ -330,7 +327,7 @@ impl Interactions {
     }
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum SpinConfiguration {
     Spin(HalfU32),

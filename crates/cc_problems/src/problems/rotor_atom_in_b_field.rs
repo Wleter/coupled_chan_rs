@@ -5,7 +5,10 @@ use cc_system::hamiltonian_spec::{
     DynPotentialSpec,
     HamiltonianSpec,
 };
-use cc_system::orbital_basis::OrbitalBasisElements;
+use cc_system::orbital_basis::{
+    OrbitalBasisElements,
+    OrbitalParity,
+};
 use cc_system::parameters::Parameters;
 use hilbert_space::space::{
     SpaceBasis,
@@ -28,51 +31,50 @@ use unit_systems::quantities::phys_quantities::{
     Mass,
 };
 
-use crate::atom_operators::{
+use crate::problems::Problem;
+use atomic_systems::atom_operators::{
     AtomParams,
     electron_g_e,
 };
-use crate::calculations::DynCalc;
-use crate::calculations::adiabats::{
-    AdiabatsCalc,
-    adiabats_calc_mods,
-};
-use crate::calculations::bound_states::{
-    BoundStateCalc,
-    bound_states_calc_mods,
-    bound_states_calc_search_mods,
-};
-use crate::calculations::dependence::DependenceCalc;
-use crate::calculations::hamiltonian_terms::hamiltonian_terms_calc;
-use crate::calculations::levels::EnergyLevelsCalc;
-use crate::calculations::modifications::{
-    ModifyRegistry,
-    NumberCalcMod,
-    ScalarParamMod,
-};
-use crate::calculations::resonances::ResonancesCalc;
-use crate::calculations::scattering::{
-    ScatteringCalc,
-    scattering_calc_mods,
-};
-use crate::diatom_operators::SpinRotationSpec;
-use crate::interactions::pes::{
-    PesPolarizationScalingMod,
+use atomic_systems::diatom_operators::SpinRotationSpec;
+use atomic_systems::interactions::pes::{
     PesPolarizationScalings,
     PesPolarizationSpec,
     PesPolarizations,
 };
-use crate::interactions::{
+use atomic_systems::interactions::{
     Interactions,
     SpinConfiguration,
 };
-use crate::modify_recipe;
-use crate::problems::Problem;
-use crate::problems::diatom_in_b_field::OrbitalParity;
-use crate::rotor_atom_basis::{
+use atomic_systems::rotor_atom_basis::{
     TRAMRotorAtomBasis,
     TRAMRotorAtomBasisRecipe,
 };
+use cc_calculations::calculations::DynCalc;
+use cc_calculations::calculations::adiabats::{
+    AdiabatsCalc,
+    adiabats_calc_mods,
+};
+use cc_calculations::calculations::bound_states::{
+    BoundStateCalc,
+    bound_states_calc_mods,
+    bound_states_calc_search_mods,
+};
+use cc_calculations::calculations::dependence::DependenceCalc;
+use cc_calculations::calculations::hamiltonian_terms::hamiltonian_terms_calc;
+use cc_calculations::calculations::levels::EnergyLevelsCalc;
+use cc_calculations::calculations::modifications::{
+    ModifyRegistry,
+    NumberCalcMod,
+    ScalarParamMod,
+};
+use cc_calculations::calculations::resonances::ResonancesCalc;
+use cc_calculations::calculations::scattering::{
+    ScatteringCalc,
+    scattering_calc_mods,
+};
+use cc_calculations::modify_recipe;
+use cc_calculations::potential_scalings::PesPolarizationScalingMod;
 
 #[derive(Debug, Clone, Parameters, Serialize, Deserialize)]
 #[serde(default)]

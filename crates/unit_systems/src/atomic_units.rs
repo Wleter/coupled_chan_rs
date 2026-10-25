@@ -2,11 +2,17 @@ use std::f64::consts::{
     PI,
     TAU,
 };
+use std::sync::{
+    LazyLock,
+    RwLock,
+    RwLockReadGuard,
+};
 
 use crate::quantities::phys_quantities::*;
 use crate::quantities::{
     Unit,
     UnitRegistry,
+    UnitsConverter,
 };
 use crate::{
     CODATA_2022,
@@ -103,6 +109,19 @@ pub fn unit_registry() -> UnitRegistry {
     registry.extend(ElectricDipole, &electric_dipole_units());
 
     registry
+}
+
+pub static UNITS_CONVERTER: LazyLock<RwLock<UnitsConverter>> = LazyLock::new(|| {
+    RwLock::new(UnitsConverter {
+        registry: unit_registry(),
+        target_unit_system: ATOMIC_UNITS_TABLE,
+    })
+});
+
+pub fn units_converter<'a>() -> RwLockReadGuard<'a, UnitsConverter> {
+    UNITS_CONVERTER
+        .read()
+        .expect("Could not obtain atomic_units::UNITS_CONVERTER")
 }
 
 #[cfg(test)]
