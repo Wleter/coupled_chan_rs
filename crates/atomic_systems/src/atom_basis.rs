@@ -5,10 +5,7 @@ use hilbert_space::space::{
     SubspaceBasisOf,
 };
 use serde::Deserialize;
-use spin_algebra::half_integer::{
-    HalfI32,
-    HalfU32,
-};
+use spin_algebra::half_integer::HalfU32;
 use spin_algebra::{
     Spin,
     SpinPair,
@@ -19,31 +16,32 @@ use spin_algebra::{
 
 pub type TwiceSpin = SpinPair<HalfU32, HalfU32>;
 
-#[derive(Clone, Debug, Deserialize)]
-pub struct WithProjection<R> {
-    #[serde(flatten)]
-    pub recipe: R,
-    #[serde(default)]
-    pub projection: Option<HalfI32>,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+/// Recipe for defining atom
+/// atoms with exactly the same AtomRecipe are treated as undistinguishable.
+#[derive(Debug, Clone, PartialEq, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct AtomRecipe {
+    /// atom name
+    #[schemars(length(min = 1))]
     pub name: Box<str>,
+    /// atom electronic spin
+    #[schemars(with = "crate::HalfU32Scheme")]
     pub s: HalfU32,
+    /// atom nuclear spin
+    #[schemars(with = "crate::HalfU32Scheme")]
     pub i: HalfU32,
 }
 
 #[derive(Debug, Clone, Copy)]
-// Struct for storing id of |s m_s>|i m_i> state
+/// Atom basis in uncoupled spin representation, containing identifiers to |s m_s>|i m_i> state
 pub struct UncoupledAtomBasis {
     pub s: BasisId<Spin>,
     pub i: BasisId<Spin>,
 }
 
 impl UncoupledAtomBasis {
-    /// Adds |s m_s>|i m_i>
-    /// to the basis.
+    /// Inserts |s m_s>|i m_i> to the space basis,
+    /// and returns uncoupled spin identifiers of an atom
     pub fn new(recipe: &AtomRecipe, basis: &mut SpaceBasis) -> Self {
         let s = get_spin_basis(recipe.s);
         let i = get_spin_basis(recipe.i);
@@ -60,14 +58,14 @@ impl UncoupledAtomBasis {
 }
 
 #[derive(Debug, Clone, Copy)]
-// Struct for storing id of |(s i) f m_f> state
+/// Atom basis in coupled spin representation, containing identifier to |(s i) f m_f> state
 pub struct CoupledAtomBasis {
     pub f: BasisId<TwiceSpin>,
 }
 
 impl CoupledAtomBasis {
-    /// Adds |(s i) f m_f>
-    /// to the basis.
+    /// Inserts |(s i) f m_f> to the space basis,
+    /// and returns coupled spin identifier of an atom
     pub fn new(recipe: &AtomRecipe, basis: &mut SpaceBasis) -> Self {
         let f = get_spin_pair_magnitudes([recipe.s], [recipe.i]);
         let f = get_spin_pair_basis(f);
@@ -84,6 +82,8 @@ impl CoupledAtomBasis {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use spin_algebra::{
         SpinLike,
         hi32,
@@ -131,5 +131,7 @@ mod tests {
 
         assert_eq!(elements[(0, atom.f)], element1);
         assert_eq!(elements[(1, atom.f)], element2);
+
+        println!("{:#?}", schemars::schema_for!(HashMap<Box<str>, serde_json::Value>))
     }
 }

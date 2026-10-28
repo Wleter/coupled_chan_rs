@@ -55,7 +55,8 @@ impl ResonancesData {
     }
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct ResonancesInput {
     pub scattering_input: ScatteringCalcInput,
     pub bound_input: BoundStateCalcInput,

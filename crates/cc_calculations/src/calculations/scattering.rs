@@ -62,7 +62,8 @@ use crate::problems::{
     mat_as_nested_vec,
 };
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct ScatteringCalcInput {
     pub entrance: usize,
     pub energy: Scalar<Energy>,
@@ -148,9 +149,10 @@ impl SMatrixData {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[serde(tag = "type")]
+#[schemars(deny_unknown_fields)]
 pub enum CoupledChanPropagator {
     JohnsonLogDeriv { step: ConstRefStep },
     ManolopoulosLogDeriv { step: ConstRefStep },
@@ -218,9 +220,10 @@ impl CoupledChanPropagator {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[serde(tag = "type")]
+#[schemars(deny_unknown_fields)]
 pub struct TwoSegmentPropagator {
     propagator: CoupledChanPropagator,
 
@@ -265,9 +268,10 @@ impl TwoSegmentPropagator {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, schemars::JsonSchema)]
 #[serde(tag = "type")]
 #[serde(rename_all = "snake_case")]
+#[schemars(deny_unknown_fields)]
 pub enum ConstRefStep {
     Fixed {
         dr: Scalar<Length>,
@@ -350,9 +354,10 @@ impl ConstRefStep {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, schemars::JsonSchema)]
 #[serde(tag = "type")]
 #[serde(rename_all = "snake_case")]
+#[schemars(deny_unknown_fields)]
 pub enum LinearRefStep {
     Fixed {
         dr: Scalar<Length>,
@@ -449,9 +454,10 @@ impl LinearRefStep {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[serde(tag = "type")]
+#[schemars(deny_unknown_fields)]
 pub enum Boundary {
     #[default]
     VanishingWkb,

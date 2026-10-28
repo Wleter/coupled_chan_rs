@@ -317,6 +317,10 @@ impl<Q: PhysQuantity> Scalar<Q> {
     pub fn is_zero(&self) -> bool {
         self.0 == 0.0
     }
+
+    pub fn unit_name(&self) -> &str {
+        &self.1
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -357,6 +361,10 @@ impl UnitRegistry {
         self.0
             .get(&TypeId::of::<Q>())
             .expect("No units defined for physical quantity")
+    }
+
+    pub fn get_checked<Q: PhysQuantity + 'static>(&self) -> Option<&[Unit]> {
+        self.0.get(&TypeId::of::<Q>()).map(|x| x.as_ref())
     }
 
     pub fn get_unit<Q: PhysQuantity + 'static>(&self, name: &str) -> Unit {

@@ -50,21 +50,36 @@ use crate::tram_basis::{
 use cc_system::Operator;
 use cc_system::orbital_basis::OrbitalParity;
 
-#[derive(Clone, Debug, Deserialize)]
+/// Two-atom rotor internal parameters data struct
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct RotorRecipe {
+    /// name of the rotor
+    #[schemars(length(min = 1))]
     pub name: Box<str>,
+
+    /// spin of the rotor
+    #[schemars(with = "crate::HalfU32Scheme")]
     pub s: HalfU32,
+
+    /// nuclear spin of the first atom
+    #[schemars(with = "crate::HalfU32Scheme")]
     pub i_a: HalfU32,
+
+    /// nuclear spin of the second atom
+    #[schemars(with = "crate::HalfU32Scheme")]
     pub i_b: HalfU32,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct TRAMRotorAtomBasisRecipe {
     pub rotor: RotorRecipe,
     pub atom: AtomRecipe,
     pub tram: TRAMRecipe,
 
     #[serde(default)]
+    #[schemars(with = "crate::HalfI32Scheme")]
     pub projection: Option<HalfI32>,
     #[serde(default)]
     pub l_parity: OrbitalParity,

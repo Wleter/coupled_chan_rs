@@ -36,8 +36,9 @@ impl<P> HamiltonianTermsCalc<P> {
     }
 }
 
-#[derive(Clone, Default, Deserialize)]
+#[derive(Clone, Default, Deserialize, schemars::JsonSchema)]
 #[serde(default)]
+#[schemars(deny_unknown_fields)]
 pub struct HamiltonianTermsInput {
     pub term_name: Option<Box<str>>,
     pub distance: Option<Scalar<Length>>,

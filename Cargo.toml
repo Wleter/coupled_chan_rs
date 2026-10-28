@@ -39,9 +39,10 @@ dyn-clone = "1.0"
 faer = "0.24"
 nalgebra = "0.34"
 ndarray = "0.16.1"
+schemars = "1.2"
 
 clebsch-gordan = { git = "https://github.com/Wleter/clebsch-gordan", features = ["serde"]}
-cc_problems = { path = "crates/cc_problems" }
+unit_systems = { path = "crates/unit_systems", features = ["au", "serde", "schemars"] }
 
 [profile.dev.package.faer]
 opt-level = 3

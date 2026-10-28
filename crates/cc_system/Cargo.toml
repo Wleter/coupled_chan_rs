@@ -10,6 +10,8 @@ spin_algebra = {path = "../spin_algebra"}
 
 anyhow = { workspace = true }
 serde = { workspace = true }
+schemars = { workspace = true }
+
 cc_derive = { path = "../cc_derive" }
 
 cc_qol_utils = { path = "../cc_qol_utils" }

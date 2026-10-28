@@ -10,6 +10,7 @@ use cc_calculations::problems::{
     Problem,
     ProblemInput,
 };
+use serde_json::Value;
 
 use crate::problems::diatom_in_b_field::DiatomInBFieldProblem;
 use crate::problems::rotor_atom_in_b_field::RotorAtomInBFieldProblem;
@@ -43,5 +44,16 @@ impl AvailableProblems {
                 self.0.keys()
             ))
             .and_then(|s| s.run(problem_input))
+    }
+
+    pub fn problems(&self) -> impl Iterator<Item = &str> {
+        self.0.keys().map(|x| x.as_ref())
+    }
+
+    pub fn scheme_for(&self, problem: &str) -> Result<Value> {
+        self.0
+            .get(problem)
+            .ok_or(anyhow::anyhow!("problem {problem} not found in {:?}", self.0.keys()))
+            .and_then(|s| Ok(s.schema().to_value()))
     }
 }

@@ -20,7 +20,8 @@ use crate::interactions::{
     SpinConfiguration,
 };
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct PecPolarizations(pub HashMap<SpinConfiguration, Interactions>);
 
 pub struct PecPolarizationSpec<Mask>
@@ -67,10 +68,12 @@ where
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Default)]
+#[derive(Clone, Debug, Default, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct PecPolarizationScalings(pub HashMap<SpinConfiguration, PecScaling>);
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct ScalingValue(pub f64);
 
 impl ScalingValue {
@@ -85,7 +88,8 @@ impl Default for ScalingValue {
     }
 }
 
-#[derive(Clone, Copy, Default, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Default, Debug, PartialEq, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub enum PecScalingType {
     #[default]
@@ -94,7 +98,8 @@ pub enum PecScalingType {
     LongRange,
 }
 
-#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 #[serde(default)]
 pub struct PecScaling {
     pub short_range: ScalingValue,

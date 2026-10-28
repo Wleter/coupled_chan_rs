@@ -92,8 +92,9 @@ impl<D: Send> Drop for DataSaver<D> {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
+#[schemars(deny_unknown_fields)]
 pub enum FileAccess {
     Append,
     Create,

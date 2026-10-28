@@ -9,10 +9,14 @@ pub mod scattering;
 
 use anyhow::Result;
 use cc_system::System;
+use schemars::{
+    Schema,
+    SchemaGenerator,
+};
 use serde::Serialize;
-use serde::de::DeserializeOwned;
 use serde_json::Value;
 
+use crate::InputData;
 use crate::problems::{
     Problem,
     TypedProblemInput,
@@ -20,7 +24,8 @@ use crate::problems::{
 
 pub trait DynCalc<P: Problem>: Send + Sync {
     fn name(&self) -> String;
-    fn input_schema(&self) -> Value;
+    fn subschema(&self, generator: &mut SchemaGenerator) -> Schema;
+    fn schema(&self) -> Schema;
     fn run(&self, input: TypedProblemInput<P::BasisRecipe, P::Params, Value>, problem: &P) -> Result<()>;
 }
 
@@ -29,8 +34,12 @@ impl<C: Calc<P = P>, P: Problem> DynCalc<P> for C {
         C::name(self)
     }
 
-    fn input_schema(&self) -> Value {
-        C::input_schema(self)
+    fn subschema(&self, generator: &mut SchemaGenerator) -> Schema {
+        C::subschema(&self, generator)
+    }
+
+    fn schema(&self) -> Schema {
+        C::schema(self)
     }
 
     fn run(&self, input: TypedProblemInput<P::BasisRecipe, P::Params, Value>, problem: &P) -> Result<()> {
@@ -49,10 +58,18 @@ impl<C: Calc<P = P>, P: Problem> DynCalc<P> for C {
 
 pub trait Calc: Send + Sync {
     type P: Problem;
-    type CalcInput: DeserializeOwned + Clone + Send + Sync;
+    type CalcInput: InputData;
 
     fn name(&self) -> String;
-    fn input_schema(&self) -> Value;
+
+    fn subschema(&self, generator: &mut SchemaGenerator) -> Schema {
+        generator.subschema_for::<Self::CalcInput>()
+    }
+
+    fn schema(&self) -> Schema {
+        schemars::schema_for!(Self::CalcInput)
+    }
+
     fn run(
         &self,
         input: TypedProblemInput<<Self::P as Problem>::BasisRecipe, <Self::P as Problem>::Params, Self::CalcInput>,
@@ -62,8 +79,12 @@ pub trait Calc: Send + Sync {
 
 pub trait SingleCalc: Send + Sync {
     type P: Problem;
-    type CalcInput: DeserializeOwned + Clone + Send + Sync;
+    type CalcInput: InputData;
     type Data: Serialize + Send + Sync + 'static;
+
+    fn input_schema() -> serde_json::Value {
+        schemars::schema_for!(Self::CalcInput).to_value()
+    }
 
     fn calculate(
         &self,

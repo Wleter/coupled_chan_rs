@@ -1,7 +1,7 @@
 use cc_problems::problems::available_problems;
 use clap::Parser;
-use coupled_chan_cli::Args;
+use coupled_chan_cli::Cli;
 
 fn main() -> anyhow::Result<()> {
-    Args::parse().run_problems(available_problems())
+    Cli::parse().execute(available_problems())
 }

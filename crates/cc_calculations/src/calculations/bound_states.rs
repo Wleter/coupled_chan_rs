@@ -43,7 +43,8 @@ use cc_system::{
     System,
 };
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct RegionParams {
     pub min: NamedValue,
     pub max: NamedValue,
@@ -56,7 +57,8 @@ impl RegionParams {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct BoundStateCalcInput {
     #[serde(default)]
     pub entrance: usize,
@@ -129,14 +131,16 @@ pub fn bound_states_calc_search_mods<P: Problem + 'static>() -> ModifyRegistry<P
     )])
 }
 
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub enum NodeMonotony {
     Decreasing,
     #[default]
     Increasing,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub enum BoundSearchMethod {
     Brent(u32),
     Bisection,
@@ -148,7 +152,8 @@ impl Default for BoundSearchMethod {
     }
 }
 
-#[derive(Clone, Debug, Copy, Serialize, Deserialize)]
+#[derive(Clone, Debug, Copy, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub enum NodeRangeTarget {
     Range(u64, u64),
     BottomRange(u64),

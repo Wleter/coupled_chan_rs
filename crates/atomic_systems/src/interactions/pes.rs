@@ -78,7 +78,8 @@ where
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub enum PesInteractions {
     LegendreComponents(HashMap<u32, Interactions>),
@@ -137,7 +138,8 @@ impl PesInteractions {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub enum LegendreComponents {
     #[default]
     All,
@@ -146,14 +148,16 @@ pub enum LegendreComponents {
     LegendreComponent(u32),
 }
 
-#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 #[serde(default)]
 pub struct PesScaling {
     pub scaling: PecScaling,
     pub legendre_components: LegendreComponents,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct PesScalings(pub Vec<PesScaling>);
 
 impl PesScalings {
@@ -174,13 +178,16 @@ impl PesScalings {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct PesPolarizations(pub HashMap<SpinConfiguration, PesInteractions>);
 
-#[derive(Clone, Debug, Deserialize, Default)]
+#[derive(Clone, Debug, Deserialize, Default, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct PesPolarizationScalings(pub HashMap<SpinConfiguration, PesScalings>);
 
-#[derive(Clone, Copy, Debug, Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct PesPolarizationScaling {
     pub scaling: f64,
     #[serde(default)]

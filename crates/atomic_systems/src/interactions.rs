@@ -44,8 +44,10 @@ use crate::interactions::pec::{
     ScalingValue,
 };
 
-#[derive(Clone, Debug, Default, Deserialize)]
+/// Power law interaction of the form V(r) = d * (r_e / r)^n
+#[derive(Clone, Debug, Default, Deserialize, schemars::JsonSchema)]
 #[allow(non_camel_case_types)]
+#[schemars(deny_unknown_fields)]
 pub struct C_N {
     pub d: Scalar<Energy>,
     pub n: i8,
@@ -63,7 +65,9 @@ impl C_N {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+/// Exponential interaction of the form V(r) = d * e^(-exponent * (r - r_offset))
+#[derive(Clone, Debug, Default, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct Exp {
     d: Scalar<Energy>,
     exponent: Scalar<Inv<Length>>,
@@ -81,10 +85,15 @@ impl Exp {
     }
 }
 
-#[derive(Clone, Default, Debug, Deserialize, Parameters)]
+/// Analytic interaction component containing
+/// the product of power law interactions and exponential interactions
+#[derive(Clone, Default, Debug, Deserialize, Parameters, schemars::JsonSchema)]
 #[serde(default)]
+#[schemars(deny_unknown_fields)]
 pub struct Analytic {
+    /// power law interactions components
     pub power_law: Vec<C_N>,
+    /// exponential interactions components
     pub exp_law: Vec<Exp>,
 }
 
@@ -97,9 +106,13 @@ impl Analytic {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+/// Lenard-Jones interaction V(r) = d_e ((r_e/r)^12 - 2 (r_e/r)^6)
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct LenardJones {
+    /// well depth value
     pub d_e: Scalar<Energy>,
+    /// well equilibrium position
     pub r_e: Scalar<Length>,
 }
 
@@ -111,7 +124,10 @@ impl LenardJones {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+/// Morse long-range potential form with
+/// optional short-range Douketis damping functions
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct MorseLongRange {
     pub d0: Scalar<Energy>,
     pub r_e: Scalar<Length>,
@@ -143,8 +159,18 @@ impl MorseLongRange {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
-pub struct Spline(PathBuf, #[serde(default)] Option<u32>);
+/// Spline interpolated data-points
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct Spline {
+    /// path to the data-points, containing json file
+    /// with distance_units, value_units,
+    /// distances, values
+    path: PathBuf,
+    /// degree of the spline interpolation, default = 3
+    #[serde(default)]
+    k: Option<u32>,
+}
 
 #[derive(Deserialize)]
 pub struct PotentialData {
@@ -156,7 +182,7 @@ pub struct PotentialData {
 
 impl Spline {
     pub fn interaction(&self) -> InterpolatedPotential {
-        let file = File::open(&self.0).expect("Could not open potential data");
+        let file = File::open(&self.path).expect("Could not open potential data");
         let data: PotentialData = serde_json::from_reader(file).expect("Could not parse potential data");
 
         let converter = atomic_units::units_converter();
@@ -166,7 +192,7 @@ impl Spline {
         let values: Vec<f64> = data.values.into_iter().map(|x| x * value_conversion).collect();
 
         let mut builder = SplineBuilder::new(&distances, &values);
-        if let Some(k) = self.1 {
+        if let Some(k) = self.k {
             builder = builder.with_degree(k)
         }
 
@@ -174,14 +200,17 @@ impl Spline {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize)]
+/// Switching function to use between short-range and long-range regions
+#[derive(Clone, Copy, Debug, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
+#[schemars(deny_unknown_fields)]
 pub enum SwitchingRegion {
     SinTransition,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
+#[schemars(deny_unknown_fields)]
 pub enum Interactions {
     Null,
     LenardJones(LenardJones),
@@ -327,10 +356,11 @@ impl Interactions {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq)]
+#[derive(Clone, Copy, Debug, Eq, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
+#[schemars(deny_unknown_fields)]
 pub enum SpinConfiguration {
-    Spin(HalfU32),
+    Spin(#[schemars(with = "crate::HalfU32Scheme")] HalfU32),
     Singlet,
     Doublet,
     Triplet,

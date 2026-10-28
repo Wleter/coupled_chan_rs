@@ -48,11 +48,17 @@ pub fn electron_g_e() -> Scalar<MagneticDipole> {
     Scalar::new(ELECTRON_G_FACTOR, MagneticDipole, "mu_bohr")
 }
 
-#[derive(Debug, Clone, cc_system::Parameters, Deserialize)]
+#[derive(Debug, Clone, cc_system::Parameters, Deserialize, schemars::JsonSchema)]
 #[serde(default)]
+#[schemars(deny_unknown_fields)]
+/// Atom's internal structure parameters data struct
 pub struct AtomParams {
+    /// hyperfine structure of an atom
     pub a_hifi: Scalar<Energy>,
+    /// electron g-factor of an atom in magnetic dipole units,
+    /// defaults to free electron g-factor
     pub g_e: Scalar<MagneticDipole>,
+    /// nuclear g-factor of an atom in magnetic dipole units,
     pub g_n: Scalar<MagneticDipole>,
 }
 

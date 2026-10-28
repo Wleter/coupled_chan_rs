@@ -120,8 +120,10 @@ impl OrbitalBasisElements {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Default)]
+#[derive(Clone, Debug, Default, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
+#[schemars(deny_unknown_fields)]
+/// Options of orbital parity (-1)^l
 pub enum OrbitalParity {
     #[default]
     All,
@@ -130,7 +132,7 @@ pub enum OrbitalParity {
 }
 
 #[derive(Debug, Clone, Copy)]
-// Struct for storing |l m_l> state
+/// Struct containing identifier to orbital |l m_l> state
 pub struct OrbitalBasis {
     pub l: BasisId<Angular>,
 }
@@ -144,10 +146,12 @@ impl OrbitalBasis {
     }
 }
 
-#[derive(Debug, Clone, Copy, Deserialize)]
+/// Recipe of orbital angular momentum l of a system
+#[derive(Debug, Clone, Copy, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
+#[schemars(deny_unknown_fields)]
 pub enum OrbitalRecipe {
-    /// Single l is still inserted into the basis
+    /// Single l is inserted into the basis
     /// as |l 0>
     Single(u32),
     /// l = 0..=l_max is inserted into the basis

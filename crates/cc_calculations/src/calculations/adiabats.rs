@@ -41,8 +41,9 @@ impl<P> AdiabatsCalc<P> {
     }
 }
 
-#[derive(Clone, Default, Deserialize)]
+#[derive(Clone, Default, Deserialize, schemars::JsonSchema)]
 #[serde(default)]
+#[schemars(deny_unknown_fields)]
 pub struct AdiabatsInput {
     pub distance: Scalar<Length>,
 }

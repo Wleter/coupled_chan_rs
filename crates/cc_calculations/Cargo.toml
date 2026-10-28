@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-unit_systems = {path = "../unit_systems", features = ["au", "serde"]}
+unit_systems = {workspace = true}
 cc_qol_utils = { path = "../cc_qol_utils" }
 
 coupled_chan = {path = "../coupled_chan"}
@@ -20,5 +20,7 @@ indicatif = {version = "0.18", features = ["rayon"]}
 
 serde = { workspace = true }
 serde_json = { workspace = true }
+schemars = { workspace = true }
+jsonschema = "0.60"
 
 cc_math_utils = { path = "../cc_math_utils" }

@@ -76,7 +76,8 @@ use cc_calculations::calculations::scattering::{
 use cc_calculations::modify_recipe;
 use cc_calculations::potential_scalings::PesPolarizationScalingMod;
 
-#[derive(Debug, Clone, Parameters, Serialize, Deserialize)]
+#[derive(Debug, Clone, Parameters, Serialize, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 #[serde(default)]
 pub struct RotorSpinParams {
     pub a_hifi_a: Scalar<Energy>,
@@ -103,7 +104,8 @@ impl Default for RotorSpinParams {
     }
 }
 
-#[derive(Debug, Clone, Parameters, Serialize, Deserialize)]
+#[derive(Debug, Clone, Parameters, Serialize, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct RotorParams {
     pub rot_const: Scalar<Energy>,
     #[serde(default)]
@@ -119,7 +121,8 @@ pub struct RotorParams {
     pub spin_n_b_rot: Scalar<Energy>,
 }
 
-#[derive(Debug, Clone, Deserialize, cc_system::Parameters)]
+#[derive(Debug, Clone, Deserialize, cc_system::Parameters, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct RotorAtomInBFieldParams {
     #[serde(default)]
     pub b_field: Scalar<MagneticField>,
@@ -274,10 +277,6 @@ impl Problem for RotorAtomInBFieldProblem {
     const NAME: &str = "rotor + atom in B field";
 
     const DESCRIPTION: &str = "Rotor + Atom in external magnetic field";
-
-    fn schema(&self) -> serde_json::Value {
-        todo!()
-    }
 
     fn build(basis_recipe: &Self::BasisRecipe, params: &Self::Params) -> HamiltonianSpec {
         let param_ids = Self::Params::ids();

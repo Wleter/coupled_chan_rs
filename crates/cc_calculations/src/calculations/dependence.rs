@@ -35,39 +35,159 @@ use crate::problems::{
 use cc_system::System;
 use cc_system::parameters::Parameters;
 
-#[derive(Clone, Debug)]
-pub struct NamedValue {
-    pub name: Box<str>,
-    pub value: Value,
+pub struct DependenceCalc<C: SingleCalc> {
+    single_calc: C,
+    registry: ModifyRegistry<C::P, C::CalcInput>,
 }
 
-impl<'de> Deserialize<'de> for NamedValue {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let map = serde_json::Value::deserialize(deserializer)?;
-
-        let obj = map
-            .as_object()
-            .ok_or_else(|| serde::de::Error::custom("expected an object"))?;
-
-        if obj.len() != 1 {
-            return Err(serde::de::Error::custom("expected exactly one field"));
-        }
-
-        let (name, value) = obj.iter().next().unwrap();
-
-        Ok(NamedValue {
-            name: name.as_str().into(),
-            value: value.to_owned(),
-        })
+impl<C: SingleCalc> DependenceCalc<C> {
+    pub fn new(single_calc: C, registry: ModifyRegistry<C::P, C::CalcInput>) -> Self {
+        Self { single_calc, registry }
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields, rename = "DependenceCalcInput<{C}>")]
+pub struct DependenceCalcInput<C> {
+    pub save_filepath: PathBuf,
+    #[serde(default = "default_file_access")]
+    pub save_option: FileAccess,
+
+    #[serde(flatten)]
+    pub calc: C,
+    #[serde(default)]
+    pub grid: Option<GridParams>,
+
+    #[serde(default)]
+    pub parallelism: Parallelism,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct DependenceData<P, D> {
+    pub index: usize,
+    pub parameter: P,
+    pub data: D,
+}
+
+fn default_file_access() -> FileAccess {
+    FileAccess::Append
+}
+
+impl<C> Calc for DependenceCalc<C>
+where
+    C: SingleCalc,
+{
+    type P = C::P;
+    type CalcInput = DependenceCalcInput<C::CalcInput>;
+
+    fn name(&self) -> String {
+        format!("Dependence calc for problem {}", Self::P::NAME)
+    }
+
+    fn run(
+        &self,
+        input: TypedProblemInput<<Self::P as Problem>::BasisRecipe, <Self::P as Problem>::Params, Self::CalcInput>,
+        problem: &Self::P,
+    ) -> Result<()> {
+        let hamiltonian_spec = Self::P::build(&input.basis_recipe, &input.parameters);
+        let system = System::new(hamiltonian_spec, input.parameters.registry());
+        let save_filepath = &input.calc_parameters.save_filepath.to_string_lossy();
+        let save_option = input.calc_parameters.save_option;
+        let parallel_no = input.calc_parameters.parallelism;
+        println!("{:?}", system.basis());
+
+        if let Some(grid) = &input.calc_parameters.grid {
+            let saver = DataSaver::new(save_filepath, JsonFormat, save_option)?;
+            let n = grid.len();
+            let indices: Vec<usize> = (0..n).skip(input.worker).step_by(input.workers).collect();
+
+            ParallelExecutor::new(system)
+                .with_parallelism(parallel_no)
+                .par_execute(indices, |s, i| {
+                    let mut input = input.clone();
+                    let (numbers, modifiers) = grid.get(i, &self.registry);
+
+                    let mut modified = Modified {
+                        system: s,
+                        basis: &mut input.basis_recipe,
+                        params: &mut input.parameters,
+                        calc_input: &mut input.calc_parameters.calc,
+                    };
+
+                    let mut prep: Vec<ModificationAction> =
+                        modifiers.as_ref().iter().map(|x| x.prep_modify(&mut modified)).collect();
+
+                    prep.sort_by(|a, b| match (a, b) {
+                        (ModificationAction::BasisChange, _) => std::cmp::Ordering::Less,
+                        (_, ModificationAction::BasisChange) => std::cmp::Ordering::Greater,
+                        (ModificationAction::ParamModify(_), _) => std::cmp::Ordering::Less,
+                        (_, ModificationAction::ParamModify(_)) => std::cmp::Ordering::Greater,
+                        _ => std::cmp::Ordering::Greater,
+                    });
+
+                    let mut last_basis_change = false;
+                    for p in prep {
+                        if matches!(p, ModificationAction::BasisChange) {
+                            last_basis_change = true
+                        } else if last_basis_change {
+                            let spec = Self::P::build(modified.basis, modified.params);
+                            *modified.system = System::new(spec, modified.system.param_registry().to_owned())
+                        }
+                        if let ModificationAction::ParamModify(modify) = p {
+                            modified.system.modify_params(modify);
+                        }
+                    }
+
+                    let mut result = Ok(());
+                    for data in self.single_calc.calculate(&mut modified, problem) {
+                        if let Ok(data) = data {
+                            saver.send(DependenceData {
+                                index: i,
+                                parameter: numbers.clone(),
+                                data,
+                            });
+                        } else if let Err(err) = data {
+                            eprintln!("{}", err);
+                            result = Err(err);
+                        }
+                    }
+
+                    result
+                })?;
+        } else {
+            let saver = DataSaver::new(save_filepath, JsonFormat, save_option)?;
+
+            let mut input = input;
+            let mut system = system;
+            let mut modified = &mut Modified {
+                system: &mut system,
+                basis: &mut input.basis_recipe,
+                params: &mut input.parameters,
+                calc_input: &mut input.calc_parameters.calc,
+            };
+            let calc = self.single_calc.calculate(&mut modified, problem);
+
+            let mut result = Ok(());
+            for data in calc {
+                if let Ok(data) = data {
+                    saver.send(data);
+                } else if let Err(err) = data {
+                    eprintln!("{}", err);
+                    result = Err(err);
+                }
+            }
+
+            result?;
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "type")]
 #[serde(rename_all = "snake_case")]
+#[schemars(deny_unknown_fields)]
 pub enum GridParams {
     Cartesian { components: Vec<GridParams> },
     Line { components: Vec<GridParams> },
@@ -187,158 +307,6 @@ impl GridParams {
         }
 
         (numbers, modifiers)
-    }
-}
-
-pub struct DependenceCalc<C: SingleCalc> {
-    single_calc: C,
-    registry: ModifyRegistry<C::P, C::CalcInput>,
-}
-
-impl<C: SingleCalc> DependenceCalc<C> {
-    pub fn new(single_calc: C, registry: ModifyRegistry<C::P, C::CalcInput>) -> Self {
-        Self { single_calc, registry }
-    }
-}
-
-#[derive(Clone, Debug, Deserialize)]
-pub struct DependenceCalcInput<C> {
-    pub save_filepath: PathBuf,
-    #[serde(default = "default_file_access")]
-    pub save_option: FileAccess,
-
-    #[serde(flatten)]
-    pub calc: C,
-    #[serde(default)]
-    pub grid: Option<GridParams>,
-
-    #[serde(default)]
-    pub parallelism: Parallelism,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct DependenceData<P, D> {
-    pub index: usize,
-    pub parameter: P,
-    pub data: D,
-}
-
-fn default_file_access() -> FileAccess {
-    FileAccess::Append
-}
-
-impl<C> Calc for DependenceCalc<C>
-where
-    C: SingleCalc,
-{
-    type P = C::P;
-    type CalcInput = DependenceCalcInput<C::CalcInput>;
-
-    fn name(&self) -> String {
-        format!("Dependence calc for problem {}", Self::P::NAME)
-    }
-
-    fn input_schema(&self) -> Value {
-        todo!()
-    }
-
-    fn run(
-        &self,
-        input: TypedProblemInput<<Self::P as Problem>::BasisRecipe, <Self::P as Problem>::Params, Self::CalcInput>,
-        problem: &Self::P,
-    ) -> Result<()> {
-        let hamiltonian_spec = Self::P::build(&input.basis_recipe, &input.parameters);
-        let system = System::new(hamiltonian_spec, input.parameters.registry());
-        let save_filepath = &input.calc_parameters.save_filepath.to_string_lossy();
-        let save_option = input.calc_parameters.save_option;
-        let parallel_no = input.calc_parameters.parallelism;
-        println!("{:?}", system.basis());
-
-        if let Some(grid) = &input.calc_parameters.grid {
-            let saver = DataSaver::new(save_filepath, JsonFormat, save_option)?;
-            let n = grid.len();
-            let indices: Vec<usize> = (0..n).skip(input.worker).step_by(input.workers).collect();
-
-            ParallelExecutor::new(system)
-                .with_parallelism(parallel_no)
-                .par_execute(indices, |s, i| {
-                    let mut input = input.clone();
-                    let (numbers, modifiers) = grid.get(i, &self.registry);
-
-                    let mut modified = Modified {
-                        system: s,
-                        basis: &mut input.basis_recipe,
-                        params: &mut input.parameters,
-                        calc_input: &mut input.calc_parameters.calc,
-                    };
-
-                    let mut prep: Vec<ModificationAction> =
-                        modifiers.as_ref().iter().map(|x| x.prep_modify(&mut modified)).collect();
-
-                    prep.sort_by(|a, b| match (a, b) {
-                        (ModificationAction::BasisChange, _) => std::cmp::Ordering::Less,
-                        (_, ModificationAction::BasisChange) => std::cmp::Ordering::Greater,
-                        (ModificationAction::ParamModify(_), _) => std::cmp::Ordering::Less,
-                        (_, ModificationAction::ParamModify(_)) => std::cmp::Ordering::Greater,
-                        _ => std::cmp::Ordering::Greater,
-                    });
-
-                    let mut last_basis_change = false;
-                    for p in prep {
-                        if matches!(p, ModificationAction::BasisChange) {
-                            last_basis_change = true
-                        } else if last_basis_change {
-                            let spec = Self::P::build(modified.basis, modified.params);
-                            *modified.system = System::new(spec, modified.system.param_registry().to_owned())
-                        }
-                        if let ModificationAction::ParamModify(modify) = p {
-                            modified.system.modify_params(modify);
-                        }
-                    }
-
-                    let mut result = Ok(());
-                    for data in self.single_calc.calculate(&mut modified, problem) {
-                        if let Ok(data) = data {
-                            saver.send(DependenceData {
-                                index: i,
-                                parameter: numbers.clone(),
-                                data,
-                            });
-                        } else if let Err(err) = data {
-                            eprintln!("{}", err);
-                            result = Err(err);
-                        }
-                    }
-
-                    result
-                })?;
-        } else {
-            let saver = DataSaver::new(save_filepath, JsonFormat, save_option)?;
-
-            let mut input = input;
-            let mut system = system;
-            let mut modified = &mut Modified {
-                system: &mut system,
-                basis: &mut input.basis_recipe,
-                params: &mut input.parameters,
-                calc_input: &mut input.calc_parameters.calc,
-            };
-            let calc = self.single_calc.calculate(&mut modified, problem);
-
-            let mut result = Ok(());
-            for data in calc {
-                if let Ok(data) = data {
-                    saver.send(data);
-                } else if let Err(err) = data {
-                    eprintln!("{}", err);
-                    result = Err(err);
-                }
-            }
-
-            result?;
-        }
-
-        Ok(())
     }
 }
 
@@ -476,8 +444,9 @@ impl<T: Send + Clone> ParallelExecutor<T> {
     }
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
+#[schemars(deny_unknown_fields)]
 pub enum Parallelism {
     Rayon(usize),
     Seq,
@@ -505,4 +474,47 @@ pub fn default_progress_style() -> ProgressStyle {
     ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos:>7}/{len:7} ({eta})")
         .unwrap()
         .progress_chars("#>-")
+}
+
+#[derive(Clone, Debug)]
+pub struct NamedValue {
+    pub name: Box<str>,
+    pub value: Value,
+}
+
+impl schemars::JsonSchema for NamedValue {
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        "NamedValue".into()
+    }
+
+    fn json_schema(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        schemars::json_schema!({
+            "additionalProperties": true,
+            "type": "object",
+        })
+    }
+}
+
+impl<'de> Deserialize<'de> for NamedValue {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let map = serde_json::Value::deserialize(deserializer)?;
+
+        let obj = map
+            .as_object()
+            .ok_or_else(|| serde::de::Error::custom("expected an object"))?;
+
+        if obj.len() != 1 {
+            return Err(serde::de::Error::custom("expected exactly one field"));
+        }
+
+        let (name, value) = obj.iter().next().unwrap();
+
+        Ok(NamedValue {
+            name: name.as_str().into(),
+            value: value.to_owned(),
+        })
+    }
 }

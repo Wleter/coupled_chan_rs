@@ -92,10 +92,6 @@ impl Problem for SingleChanProblem {
 
     const DESCRIPTION: &str = "Single channel problem";
 
-    fn schema(&self) -> serde_json::Value {
-        todo!()
-    }
-
     fn build(basis_recipe: &Self::BasisRecipe, _params: &Self::Params) -> HamiltonianSpec {
         let mut basis = SpaceBasis::default();
 
@@ -115,12 +111,14 @@ impl Problem for SingleChanProblem {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct SingleChanBasis {
     pub l: u32,
 }
 
-#[derive(Debug, Clone, Deserialize, cc_system::Parameters)]
+#[derive(Debug, Clone, Deserialize, cc_system::Parameters, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct SingleChanParams {
     pub mass: Scalar<Mass>,
     pub pec: Interactions,
@@ -142,7 +140,8 @@ fn params_calc_mods() -> ModifyRegistry<SingleChanProblem, SingleChanScatteringC
     ])
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct SingleChanScatteringCalcInput {
     pub energy: Scalar<Energy>,
 
@@ -164,7 +163,8 @@ fn pec_values_calc() -> Box<dyn DynCalc<SingleChanProblem>> {
     Box::new(DependenceCalc::new(scattering, registry))
 }
 
-#[derive(Clone, Default, Deserialize)]
+#[derive(Clone, Default, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 #[serde(default)]
 pub struct PecValuesInput {
     pub distance: Scalar<Length>,
@@ -284,7 +284,8 @@ struct SValueData {
     cross_section: f64,
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 #[serde(tag = "type")]
 pub enum SingleBoundary {
@@ -333,7 +334,8 @@ impl SingleBoundary {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 #[serde(tag = "type")]
 pub enum SingleChanPropagator {
@@ -350,7 +352,8 @@ impl SingleChanPropagator {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct PecScalingInput {
     pub scaling: f64,
     #[serde(default)]

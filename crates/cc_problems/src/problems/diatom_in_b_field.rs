@@ -68,11 +68,13 @@ use cc_calculations::calculations::scattering::{
 };
 use cc_calculations::modify_recipe;
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct DiatomInBFieldBasis {
     #[serde(flatten)]
     pub recipe: DiatomRecipe,
     #[serde(default)]
+    #[schemars(with = "atomic_systems::HalfI32Scheme")]
     pub projection: Option<HalfI32>,
     #[serde(default)]
     pub l_parity: OrbitalParity,
@@ -89,7 +91,8 @@ where
     )])
 }
 
-#[derive(Debug, Clone, Deserialize, cc_system::Parameters)]
+#[derive(Debug, Clone, Deserialize, cc_system::Parameters, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct DiatomInBFieldParams {
     #[serde(default)]
     pub b_field: Scalar<MagneticField>,
@@ -219,10 +222,6 @@ impl Problem for DiatomInBFieldProblem {
     const NAME: &str = "diatom in B field";
 
     const DESCRIPTION: &str = "Atom + Atom in external magnetic field";
-
-    fn schema(&self) -> serde_json::Value {
-        todo!()
-    }
 
     fn build(basis_recipe: &Self::BasisRecipe, _params: &Self::Params) -> HamiltonianSpec {
         let param_ids = Self::Params::ids();

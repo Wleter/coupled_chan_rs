@@ -119,7 +119,7 @@ impl<Q: PhysQuantity + Send + Sync, P: Problem, C: Send + Sync> ModifyParam for 
 
     fn mut_number(&mut self, number: Number) {
         let value = number.as_f64().unwrap();
-        self.value = scalar_from_f64(value);
+        scalar_from_f64_inplace(&mut self.value, value)
     }
 }
 
@@ -162,7 +162,7 @@ where
 
     fn mut_number(&mut self, number: Number) {
         let value = number.as_f64().unwrap();
-        self.value = scalar_from_f64(value);
+        scalar_from_f64_inplace(&mut self.value, value)
     }
 }
 
@@ -315,15 +315,16 @@ where
     }
 }
 
-pub fn scalar_from_f64<Q: PhysQuantity>(value: f64) -> Scalar<Q> {
+pub fn scalar_from_f64_inplace<Q: PhysQuantity>(out: &mut Scalar<Q>, value: f64) {
     if value == 0.0 {
         Scalar::new(0.0, Q::default(), "");
     }
 
     let converter = atomic_units::units_converter();
     // first unit encountered
-    let unit = &converter.registry.get::<Q>()[0];
-    let value_in_unit = value / Q::to_unit_system_logic(unit.name, &converter.registry, &converter.target_unit_system);
 
-    Scalar::new(value_in_unit, Q::default(), unit.name)
+    let unit = out.unit_name();
+    let value_in_unit = value / Q::to_unit_system_logic(unit, &converter.registry, &converter.target_unit_system);
+
+    *out = Scalar::new(value_in_unit, Q::default(), unit);
 }

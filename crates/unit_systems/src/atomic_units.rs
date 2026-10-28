@@ -124,6 +124,65 @@ pub fn units_converter<'a>() -> RwLockReadGuard<'a, UnitsConverter> {
         .expect("Could not obtain atomic_units::UNITS_CONVERTER")
 }
 
+#[cfg(feature = "schemars")]
+pub mod schemars {
+    use crate::quantities::{
+        PhysQuantity,
+        Scalar,
+    };
+
+    impl<Q: PhysQuantity> schemars::JsonSchema for Scalar<Q> {
+        fn schema_name() -> std::borrow::Cow<'static, str> {
+            format!("Scalar<{:?}>", Q::default()).into()
+        }
+
+        fn schema_id() -> std::borrow::Cow<'static, str> {
+            format!("{} Scalar<{:?}>", module_path!(), Q::default()).into()
+        }
+
+        fn json_schema(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
+            let converter = super::units_converter();
+            let units: Option<Vec<String>> = converter
+                .registry
+                .get_checked::<Q>()
+                .map(|u| u.iter().map(|x| x.name.to_lowercase()).collect());
+
+            if let Some(units) = units {
+                schemars::json_schema!({
+                    "maxItems": 2,
+                    "minItems": 2,
+                    "prefixItems": [
+                        {
+                            "format": "double",
+                            "type": "number"
+                        },
+                        {
+                            "enum": units,
+                            "type": "string"
+                        }
+                    ],
+                    "type": "array"
+                })
+            } else {
+                schemars::json_schema!({
+                    "maxItems": 2,
+                    "minItems": 2,
+                    "prefixItems": [
+                        {
+                            "format": "double",
+                            "type": "number"
+                        },
+                        {
+                            "type": "string"
+                        }
+                    ],
+                    "type": "array"
+                })
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use cc_math_utils::assert_approx_eq;

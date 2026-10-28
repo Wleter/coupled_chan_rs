@@ -31,10 +31,15 @@ pub type SpinSTot = SpinPairMag<HalfU32, HalfU32>;
 pub type SpinITot = SpinPairMag<HalfU32, HalfU32>;
 pub type SpinFTot = SpinPairMag<SpinSTot, SpinITot>;
 
-#[derive(Debug, Clone, Deserialize)]
+/// Diatom parameters data struct
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct DiatomRecipe {
+    /// internal structure of atom_a
     pub atom_a: AtomRecipe,
+    /// internal structure of atom_b
     pub atom_b: AtomRecipe,
+    /// angular momentum between atoms
     #[serde(default)]
     pub l: OrbitalRecipe,
 }

@@ -1,4 +1,4 @@
-use hilbert_space::Parity;
+use crate::Parity;
 use hilbert_space::space::{
     BasisId,
     SpaceBasis,
@@ -14,10 +14,16 @@ use spin_algebra::{
 
 pub type AngularCoupled = SpinPair<u32, u32>;
 
-#[derive(Clone, Debug, Deserialize)]
+/// Recipe for the total rotational angular momentum basis
+/// for the molecule
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct TRAMRecipe {
+    /// maximal value of molecule rotation
     pub n_max: u32,
+    /// maximal value of angular momentum
     pub l_max: u32,
+    /// maximal value of total rotational angular momentum
     pub n_tot_max: u32,
     #[serde(default)]
     pub parity: Parity,
