@@ -560,6 +560,12 @@ pub struct NamedValue {
     pub value: Value,
 }
 
+impl NamedValue {
+    pub fn new(name: &str, value: Value) -> Self {
+        Self { name: name.into(), value }
+    }
+}
+
 impl schemars::JsonSchema for NamedValue {
     fn schema_name() -> std::borrow::Cow<'static, str> {
         "NamedValue".into()
@@ -599,8 +605,158 @@ impl<'de> Deserialize<'de> for NamedValue {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use std::marker::PhantomData;
+    use schemars::JsonSchema;
+
+    use crate::{calculations::modifications::ModifyRegistry, modify_recipe};
+
+    #[derive(Deserialize, Parameters, Clone, Debug, JsonSchema)]
+    pub struct MockParameters {
+
+    }
+
+    pub struct MockProblem;
+
+    impl Problem for MockProblem {
+        type BasisRecipe = ();
+        type Params = MockParameters;
+    
+        const NAME: &str = "";
+    
+        const DESCRIPTION: &str = "";
+    
+        fn build(_basis_recipe: &Self::BasisRecipe, _params: &Self::Params) -> cc_system::hamiltonian_spec::HamiltonianSpec {
+            unimplemented!()
+        }
+    
+        fn calculations(&self) -> &std::collections::HashMap<Box<str>, Box<dyn crate::calculations::DynCalc<Self>>> {
+            unimplemented!()
+        }
+    }
+
+    pub struct MockModify<P: Problem, C> {
+        value: f64,
+        phantom: PhantomData<(P, C)>,
+    }
+
+    impl<P: Problem, C> MockModify<P, C> {
+        pub fn new(value: f64) -> Self {
+            Self { value, phantom: PhantomData }
+        }
+    }
+    
+    impl<P, C> ModifyParam for MockModify<P, C>
+    where
+        P: Problem,
+        C: Send + Sync,
+    {
+        type P = P;
+        type C = C;
+
+        fn prep_modify(&self, _modified: &mut Modified<Self::P, Self::C>) -> ModificationAction {
+            unimplemented!()
+        }
+
+        fn as_number(&self) -> Number {
+            Number::from_f64(self.value).unwrap()
+        }
+
+        fn mut_number(&mut self, number: Number) {
+            self.value = number.as_f64().unwrap();
+        }
+    }
+
+
     #[test]
     fn test_dependence_grid() {
+        let registry: ModifyRegistry<MockProblem, ()> = ModifyRegistry::from([
+            ("linear", modify_recipe!(|x| MockModify::new(x))),
+            ("log", modify_recipe!(|x| MockModify::new(x))),
+            ("points", modify_recipe!(|x| MockModify::new(x))),
+            ("sum", modify_recipe!(|x| MockModify::new(x)))
+        ]);
 
+        let grid = GridParams::Cartesian { components: vec![
+            GridParams::Line { components: vec![
+                GridParams::Linear { 
+                    start: NamedValue::new("linear", serde_json::Value::Number(Number::from_f64(0.).unwrap())),
+                    end: NamedValue::new("linear", serde_json::Value::Number(Number::from_f64(5.).unwrap())),
+                    n: 6
+                },
+                GridParams::Log { 
+                    start: NamedValue::new("log", serde_json::Value::Number(Number::from_f64(1e0).unwrap())),
+                    end: NamedValue::new("log", serde_json::Value::Number(Number::from_f64(1e5).unwrap())),
+                    n: 6
+                },
+                GridParams::Points { name: "points".into(), values: vec![
+                    serde_json::Value::Number(Number::from_f64(-1.).unwrap()),
+                    serde_json::Value::Number(Number::from_f64(-2.).unwrap()),
+                    serde_json::Value::Number(Number::from_f64(-3.).unwrap()),
+                    serde_json::Value::Number(Number::from_f64(-4.).unwrap()),
+                    serde_json::Value::Number(Number::from_f64(-5.).unwrap()),
+                    serde_json::Value::Number(Number::from_f64(-6.).unwrap())
+                ]},
+            ]},
+            GridParams::Points { name: "points".into(), values: vec![
+                serde_json::Value::Number(Number::from_f64(1.).unwrap()),
+                serde_json::Value::Number(Number::from_f64(2.).unwrap())
+            ]},
+            GridParams::Sum { components: vec![
+                GridParams::Points { name: "points".into(), values: vec![
+                    serde_json::Value::Number(Number::from_f64(0.5).unwrap()),
+                ]},
+                GridParams::Points { name: "points".into(), values: vec![
+                    serde_json::Value::Number(Number::from_f64(1.5).unwrap()),
+                ]},
+                GridParams::Points { name: "points".into(), values: vec![
+                    serde_json::Value::Number(Number::from_f64(2.5).unwrap()),
+                ]}
+            ] }
+        ]};
+
+        let i = 0;
+        let expected = vec![
+            Number::from_f64(0.0).unwrap(),
+            Number::from_f64(1.0).unwrap(),
+            Number::from_f64(-1.0).unwrap(),
+            Number::from_f64(1.0).unwrap(),
+            Number::from_f64(0.5).unwrap(),
+        ];
+        let points = grid.get(i, &registry);
+        assert_eq!(&expected, points.numbers.as_ref());
+
+        let i = 8;
+        let expected = vec![
+            Number::from_f64(1.0).unwrap(),
+            Number::from_f64(10.0).unwrap(),
+            Number::from_f64(-2.0).unwrap(),
+            Number::from_f64(1.0).unwrap(),
+            Number::from_f64(2.5).unwrap(),
+        ];
+        let points = grid.get(i, &registry);
+        assert_eq!(&expected, points.numbers.as_ref());
+
+        let i = 12;
+        let expected = vec![
+            Number::from_f64(2.0).unwrap(),
+            Number::from_f64(100.0).unwrap(),
+            Number::from_f64(-3.0).unwrap(),
+            Number::from_f64(1.0).unwrap(),
+            Number::from_f64(0.5).unwrap(),
+        ];
+        let points = grid.get(i, &registry);
+        assert_eq!(&expected, points.numbers.as_ref());
+
+        let i = grid.size() - 2;
+        let expected = vec![
+            Number::from_f64(5.0).unwrap(),
+            Number::from_f64(1e5).unwrap(),
+            Number::from_f64(-6.0).unwrap(),
+            Number::from_f64(2.0).unwrap(),
+            Number::from_f64(1.5).unwrap(),
+        ];
+        let points = grid.get(i, &registry);
+        assert_eq!(&expected, points.numbers.as_ref());
     }
 }
