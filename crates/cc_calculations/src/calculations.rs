@@ -7,7 +7,7 @@ pub mod modifications;
 pub mod resonances;
 pub mod scattering;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use cc_system::System;
 use schemars::{
     Schema,
@@ -46,7 +46,8 @@ impl<C: Calc<P = P>, P: Problem> DynCalc<P> for C {
         let input = TypedProblemInput {
             basis_recipe: input.basis_recipe,
             parameters: input.parameters,
-            calc_parameters: serde_json::from_value(input.calc_parameters)?,
+            calc_parameters: serde_json::from_value(input.calc_parameters)
+                .context("calculation_parameters validation error")?,
 
             worker: input.worker,
             workers: input.workers,

@@ -5,6 +5,7 @@ use anyhow::{
     Result,
 };
 use hilbert_space::faer::MatRef;
+use jsonschema::error::ValidationErrorKind;
 use schemars::Schema;
 use serde::Deserialize;
 use serde_json::Value;
@@ -124,17 +125,16 @@ impl<P: Problem> DynProblem for P {
         let basis_schema = schemars::schema_for!(P::BasisRecipe);
         let parameters_schema = schemars::schema_for!(P::Params);
 
-        jsonschema::validate(basis_schema.as_value(), &problem_input.basis_recipe)
-            .map_err(|err| err.to_owned())
-            .context("failed to validate basis_recipe")?;
-
-        jsonschema::validate(parameters_schema.as_value(), &problem_input.parameters)
-            .map_err(|err| err.to_owned())
-            .context("failed to validate parameters")?;
+        schema_validate(basis_schema.as_value(), &problem_input.basis_recipe)
+            .context("basis_recipe validation error")?;
+        schema_validate(parameters_schema.as_value(), &problem_input.parameters)
+            .context("parameters validation error")?;
 
         let input = TypedProblemInput {
-            basis_recipe: serde_json::from_value(problem_input.basis_recipe)?,
-            parameters: serde_json::from_value(problem_input.parameters)?,
+            basis_recipe: serde_json::from_value(problem_input.basis_recipe)
+                .context("basis_recipe validation error")?,
+            parameters: serde_json::from_value(problem_input.parameters)
+                .context("parameters validation error")?,
             calc_parameters: problem_input.calculation_parameters,
             worker: problem_input.worker,
             workers: problem_input.workers,
@@ -147,9 +147,8 @@ impl<P: Problem> DynProblem for P {
         ))?;
 
         let calc_schema = calculation.schema();
-        jsonschema::validate(calc_schema.as_value(), &input.calc_parameters)
-            .map_err(|err| err.to_owned())
-            .context("failed to validate calculation_parameters")?;
+        schema_validate(calc_schema.as_value(), &input.calc_parameters)
+            .context("calculation_parameters validation error")?;
 
         calculation.run(input, self)
     }
@@ -172,4 +171,79 @@ pub(crate) fn mat_as_nested_vec<T: Copy>(mat: MatRef<T>) -> Vec<Vec<T>> {
         vec[i] = row.iter().copied().collect();
     }
     vec
+}
+
+fn schema_validate(schema: &Value, value: &Value) -> Result<()> {
+    let validator = jsonschema::validator_for(schema)
+        .context("Invalid schema")?;
+
+    let mut errors = Vec::new();
+    for err in validator.iter_errors(&value) {
+        push_error(&err, &mut errors);
+    }
+
+    if !errors.is_empty() {
+        anyhow::bail!(ValidationErrors(errors))
+    }
+
+    Ok(())
+}
+
+#[derive(Debug)]
+pub struct ValidationError {
+    /// JSON path in the input, e.g. `shape.radius`.
+    pub path: String,
+    /// Readable error message for that path.
+    pub message: String,
+}
+
+#[derive(Debug)]
+pub struct ValidationErrors(Vec<ValidationError>);
+
+impl std::fmt::Display for ValidationErrors {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Input has {} problem(s):\n", self.0.len())?;
+        for p in self.0.iter() {
+            write!(f, "at `{}`: {}\n", p.path, p.message)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl std::error::Error for ValidationErrors {}
+
+fn push_error(err: &jsonschema::ValidationError<'_>, out: &mut Vec<ValidationError>) {
+    let path = path_of(err);
+
+    match &err.kind() {
+        // todo! enums with fields have cryptic 
+        // error context, for now pass the validation
+        // and let serde_json throw an error on them.
+        ValidationErrorKind::OneOfNotValid { context: _ }
+        | ValidationErrorKind::AnyOf { context: _ } => { }
+        _ => {
+            out.push(ValidationError {
+                path,
+                message: err.to_string(),
+            });
+        }
+    }
+}
+
+/// Human-friendly location of a validation error, e.g. `shape.radius`.
+fn path_of(err: &jsonschema::ValidationError<'_>) -> String {
+    let pointer = err.instance_path().to_string(); // JSON pointer: /shape/radius
+    if pointer.is_empty() {
+        return "(root)".to_string();
+    }
+    pointer
+        .trim_start_matches('/')
+        .split('/')
+        .map(|seg| {
+            // decode JSON pointer escapes (~1 -> /, ~0 -> ~) and show array indices
+            seg.replace("~1", "/").replace("~0", "~")
+        })
+        .collect::<Vec<_>>()
+        .join(".")
 }
