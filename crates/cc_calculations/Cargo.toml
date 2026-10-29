@@ -15,7 +15,7 @@ atomic_systems = { path = "../atomic_systems" }
 
 anyhow = { workspace = true }
 rayon = { workspace = true }
-smallvec = {version = "1.15", features = ["union"]}
+smallvec = {version = "1.15", features = ["union", "serde"]}
 indicatif = {version = "0.18", features = ["rayon"]}
 
 serde = { workspace = true }
