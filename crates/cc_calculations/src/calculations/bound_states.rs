@@ -243,6 +243,27 @@ where
     type CalcInput = BoundStateCalcInput;
     type Data = BoundStateData;
 
+    fn validate_input(&self, calc_input: &Self::CalcInput) -> anyhow::Result<()> {
+        let max = &calc_input.dependant.max.name;
+        let min = &calc_input.dependant.min.name;
+        let err = &calc_input.dependant.err.name;
+
+        if max != min || max != err {
+            anyhow::bail!(
+                "Bound state dependant have incompatible min, max, err bounds: {} {} {}", min, max, err
+            );
+        }
+
+        let keys: Vec<&Box<str>> = self.registry.0.keys().collect();
+        if let None = keys.iter().find(|&x| *x == max) {
+            anyhow::bail!(
+                "Dependant have unknown dependence type - got: {}, available {:?}", max, keys
+            );
+        }
+
+        Ok(())
+    }
+
     fn calculate(
         &self,
         modified: &mut Modified<P, BoundStateCalcInput>,

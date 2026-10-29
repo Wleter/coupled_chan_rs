@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use cc_qol_utils::saving::{
     DataSaver,
     FileAccess,
@@ -84,11 +84,22 @@ where
         format!("Dependence calc for problem {}", Self::P::NAME)
     }
 
+    fn validate_input(&self, input: &Self::CalcInput) -> Result<()> {
+        if let Some(grid) = &input.grid {
+            grid.validate_grid(&self.registry)?
+        }
+
+        Ok(())
+    }
+
     fn run(
         &self,
         input: TypedProblemInput<<Self::P as Problem>::BasisRecipe, <Self::P as Problem>::Params, Self::CalcInput>,
         problem: &Self::P,
     ) -> Result<()> {
+        self.single_calc.validate_input(&input.calc_parameters.calc)
+            .context("Validation error in calculation_parameters:")?;
+
         let hamiltonian_spec = Self::P::build(&input.basis_recipe, &input.parameters);
         let system = System::new(hamiltonian_spec, input.parameters.registry());
         let save_filepath = &input.calc_parameters.save_filepath.to_string_lossy();
@@ -311,6 +322,65 @@ impl GridParams {
 
         grid_point
     }
+
+    pub fn validate_grid<P: Problem, C>(&self, registry: &ModifyRegistry<P, C>) -> Result<()> {
+        match self {
+            GridParams::Cartesian { components } => {
+                for c in components {
+                    c.validate_grid(registry)?;
+                }
+            },
+            GridParams::Line { components } => {
+                for c in components {
+                    c.validate_grid(registry)?;
+                }
+            },
+            GridParams::Linear { start, end, n: _ } => {
+                if start.name != end.name {
+                    anyhow::bail!(
+                        "Linear grid have incompatible limits - start: {}, end: {}", start.name, end.name
+                    );
+                }
+                let keys: Vec<&Box<str>> = registry.0.keys().collect();
+                if let None = keys.iter().find(|&x| *x == &start.name) {
+                    anyhow::bail!(
+                        "Linear grid have unknown dependence type - got: {}, available {:?}", start.name, keys
+                    );
+                }
+            },
+            GridParams::Log { start, end, n: _ } => {
+                if start.name != end.name {
+                    anyhow::bail!(
+                        "Log grid have incompatible limits - start: {}, end: {}", start.name, end.name
+                    );
+                }
+                let keys: Vec<&Box<str>> = registry.0.keys().collect();
+                if let None = keys.iter().find(|&x| *x == &start.name) {
+                    anyhow::bail!(
+                        "Log grid have unknown dependence type - got: {}, available {:?}", start.name, keys
+                    );
+                }
+            },
+            GridParams::Points { name, values: _ } => {
+                let keys: Vec<&Box<str>> = registry.0.keys().collect();
+                if let None = keys.iter().find(|&x| x == &name) {
+                    anyhow::bail!(
+                        "Point grid have unknown dependence type - got: {}, available {:?}", name, keys
+                    );
+                }
+            },
+            GridParams::Sum { components } => {
+                for c in components {
+                    c.validate_grid(registry)?;
+                }
+            },
+        }
+
+        // test if fails
+        self.get(0, registry);
+
+        Ok(())
+    }
 }
 
 pub struct GridPoint<P, C> {
@@ -524,5 +594,13 @@ impl<'de> Deserialize<'de> for NamedValue {
             name: name.as_str().into(),
             value: value.to_owned(),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_dependence_grid() {
+
     }
 }

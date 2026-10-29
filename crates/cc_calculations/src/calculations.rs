@@ -46,11 +46,14 @@ impl<C: Calc<P = P>, P: Problem> DynCalc<P> for C {
     }
 
     fn run(&self, input: TypedProblemInput<P::BasisRecipe, P::Params, Value>, problem: &P) -> Result<()> {
+        let calc_parameters: C::CalcInput = serde_json::from_value(input.calc_parameters)
+            .context("calculation_parameters validation error")?;
+
+        self.validate_input(&calc_parameters).context("Validation error in calculation_parameters")?;
         let input = TypedProblemInput {
             basis_recipe: input.basis_recipe,
             parameters: input.parameters,
-            calc_parameters: serde_json::from_value(input.calc_parameters)
-                .context("calculation_parameters validation error")?,
+            calc_parameters,
 
             worker: input.worker,
             workers: input.workers,
@@ -74,6 +77,10 @@ pub trait Calc: Send + Sync {
         schemars::schema_for!(Self::CalcInput)
     }
 
+    fn validate_input(&self, _calc_input: &Self::CalcInput) -> Result<()> {
+        Ok(())
+    }
+
     fn run(
         &self,
         input: TypedProblemInput<<Self::P as Problem>::BasisRecipe, <Self::P as Problem>::Params, Self::CalcInput>,
@@ -88,6 +95,10 @@ pub trait SingleCalc: Send + Sync {
 
     fn input_schema() -> serde_json::Value {
         schemars::schema_for!(Self::CalcInput).to_value()
+    }
+
+    fn validate_input(&self, _calc_input: &Self::CalcInput) -> Result<()> {
+        Ok(())
     }
 
     fn calculate(
