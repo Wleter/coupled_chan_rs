@@ -63,7 +63,7 @@ impl Interaction for ExpLaw {
 
         match self.exponent {
             x if x > 0.0 => AsymptoteDep::ExpVanishing,
-            x if x == 0.0 => AsymptoteDep::Const,
+            0.0 => AsymptoteDep::Const,
             x if x < 0.0 => AsymptoteDep::Growing,
             _ => AsymptoteDep::Unknown,
         }

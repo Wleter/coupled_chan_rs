@@ -7,7 +7,10 @@ pub mod modifications;
 pub mod resonances;
 pub mod scattering;
 
-use anyhow::{Context, Result};
+use anyhow::{
+    Context,
+    Result,
+};
 use cc_system::System;
 use schemars::{
     Schema,
@@ -35,7 +38,7 @@ impl<C: Calc<P = P>, P: Problem> DynCalc<P> for C {
     }
 
     fn subschema(&self, generator: &mut SchemaGenerator) -> Schema {
-        C::subschema(&self, generator)
+        C::subschema(self, generator)
     }
 
     fn schema(&self) -> Schema {

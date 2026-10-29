@@ -26,6 +26,7 @@ use crate::problems::{
     mat_as_nested_vec,
 };
 
+#[derive(Default)]
 pub struct HamiltonianTermsCalc<P> {
     phantom: PhantomData<P>,
 }

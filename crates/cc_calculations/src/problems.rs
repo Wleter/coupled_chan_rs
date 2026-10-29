@@ -125,16 +125,12 @@ impl<P: Problem> DynProblem for P {
         let basis_schema = schemars::schema_for!(P::BasisRecipe);
         let parameters_schema = schemars::schema_for!(P::Params);
 
-        schema_validate(basis_schema.as_value(), &problem_input.basis_recipe)
-            .context("basis_recipe validation error")?;
-        schema_validate(parameters_schema.as_value(), &problem_input.parameters)
-            .context("parameters validation error")?;
+        schema_validate(basis_schema.as_value(), &problem_input.basis_recipe).context("basis_recipe validation error")?;
+        schema_validate(parameters_schema.as_value(), &problem_input.parameters).context("parameters validation error")?;
 
         let input = TypedProblemInput {
-            basis_recipe: serde_json::from_value(problem_input.basis_recipe)
-                .context("basis_recipe validation error")?,
-            parameters: serde_json::from_value(problem_input.parameters)
-                .context("parameters validation error")?,
+            basis_recipe: serde_json::from_value(problem_input.basis_recipe).context("basis_recipe validation error")?,
+            parameters: serde_json::from_value(problem_input.parameters).context("parameters validation error")?,
             calc_parameters: problem_input.calculation_parameters,
             worker: problem_input.worker,
             workers: problem_input.workers,
@@ -174,11 +170,10 @@ pub(crate) fn mat_as_nested_vec<T: Copy>(mat: MatRef<T>) -> Vec<Vec<T>> {
 }
 
 fn schema_validate(schema: &Value, value: &Value) -> Result<()> {
-    let validator = jsonschema::validator_for(schema)
-        .context("Invalid schema")?;
+    let validator = jsonschema::validator_for(schema).context("Invalid schema")?;
 
     let mut errors = Vec::new();
-    for err in validator.iter_errors(&value) {
+    for err in validator.iter_errors(value) {
         push_error(&err, &mut errors);
     }
 
@@ -202,9 +197,9 @@ pub struct ValidationErrors(Vec<ValidationError>);
 
 impl std::fmt::Display for ValidationErrors {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Input has {} problem(s):\n", self.0.len())?;
+        writeln!(f, "Input has {} problem(s):", self.0.len())?;
         for p in self.0.iter() {
-            write!(f, "at `{}`: {}\n", p.path, p.message)?;
+            writeln!(f, "at `{}`: {}", p.path, p.message)?;
         }
 
         Ok(())
@@ -217,11 +212,10 @@ fn push_error(err: &jsonschema::ValidationError<'_>, out: &mut Vec<ValidationErr
     let path = path_of(err);
 
     match &err.kind() {
-        // todo! enums with fields have cryptic 
+        // todo! enums with fields have cryptic
         // error context, for now pass the validation
         // and let serde_json throw an error on them.
-        ValidationErrorKind::OneOfNotValid { context: _ }
-        | ValidationErrorKind::AnyOf { context: _ } => { }
+        ValidationErrorKind::OneOfNotValid { context: _ } | ValidationErrorKind::AnyOf { context: _ } => {}
         _ => {
             out.push(ValidationError {
                 path,

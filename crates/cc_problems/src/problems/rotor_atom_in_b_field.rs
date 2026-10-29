@@ -378,7 +378,7 @@ impl Problem for RotorAtomInBFieldProblem {
                 (
                     format!("pes_s_{s_tot}_lambda_{lambda}"),
                     DynPotentialSpec::new(PesPolarizationSpec {
-                        s_tot: s_tot,
+                        s_tot,
                         lambda,
                         pes: param_ids.pes,
                         scalings: param_ids.scalings,

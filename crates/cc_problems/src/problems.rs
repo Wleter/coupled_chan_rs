@@ -54,6 +54,6 @@ impl AvailableProblems {
         self.0
             .get(problem)
             .ok_or(anyhow::anyhow!("problem {problem} not found in {:?}", self.0.keys()))
-            .and_then(|s| Ok(s.schema().to_value()))
+            .map(|s| s.schema().to_value())
     }
 }

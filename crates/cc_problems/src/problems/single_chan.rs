@@ -101,9 +101,7 @@ impl Problem for SingleChanProblem {
         let elements = basis.get_basis();
         let elements = OrbitalBasisElements::from_orbital(elements, &l);
 
-        let hamiltonian_spec = HamiltonianSpec::new(elements);
-
-        hamiltonian_spec
+        HamiltonianSpec::new(elements)
     }
 
     fn calculations(&self) -> &HashMap<Box<str>, Box<dyn DynCalc<Self>>> {
@@ -399,11 +397,11 @@ where
     }
 
     fn as_number(&self) -> Number {
-        Number::from_f64(self.scaling.scaling.into()).unwrap()
+        Number::from_f64(self.scaling.scaling).unwrap()
     }
 
     fn mut_number(&mut self, number: Number) {
         let value = number.as_f64().unwrap();
-        self.scaling.scaling = value.try_into().unwrap()
+        self.scaling.scaling = value
     }
 }

@@ -91,7 +91,7 @@ impl<'a, W: WMatrix<f64>> AiryLogDerivative<'a, W> {
         Self {
             step,
             solution_local: sol_local,
-            solution: solution,
+            solution,
             nodes,
             w_matrix,
         }

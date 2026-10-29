@@ -279,7 +279,7 @@ pub struct Scalar<Q: PhysQuantity>(f64, Box<str>, #[cfg_attr(feature = "serde", 
 
 impl<Q: PhysQuantity> Clone for Scalar<Q> {
     fn clone(&self) -> Self {
-        Self(self.0.clone(), self.1.clone(), Q::default())
+        Self(self.0, self.1.clone(), Q::default())
     }
 }
 

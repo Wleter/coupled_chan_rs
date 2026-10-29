@@ -306,12 +306,12 @@ where
     }
 
     fn as_number(&self) -> Number {
-        Number::from_f64(self.value.into()).unwrap()
+        Number::from_f64(self.value).unwrap()
     }
 
     fn mut_number(&mut self, number: Number) {
         let value = number.as_f64().unwrap();
-        self.value = value.try_into().unwrap()
+        self.value = value
     }
 }
 
