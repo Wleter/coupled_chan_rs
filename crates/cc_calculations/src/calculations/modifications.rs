@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
+use serde::de::DeserializeOwned;
 use serde_json::{
     Number,
     Value,
@@ -52,11 +53,15 @@ impl<P: Problem, C> ModifyParamRecipe<P, C> {
     }
 }
 
+pub fn from_value<T: DeserializeOwned>(v: Value) -> T {
+    serde_json::from_value(v).expect("Could not deserialize Value")
+}
+
 #[macro_export]
 macro_rules! modify_recipe {
     (|$value:ident| $body:expr) => {
         $crate::calculations::modifications::ModifyParamRecipe::new(move |v| {
-            let $value = serde_json::from_value(v).expect("Could not convert modifying value");
+            let $value = $crate::calculations::modifications::from_value(v);
             $body
         })
     };

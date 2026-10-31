@@ -140,7 +140,7 @@ fn cc_problems_path() -> proc_macro2::TokenStream {
             quote!(::#ident)
         }
         Err(_) => {
-            panic!("could not find `cc_problems` crate");
+            panic!("could not find `cc_system` crate");
         }
     }
 }
