@@ -1,8 +1,17 @@
-use crate::WaveStorage;
+use crate::{
+    LogDeriv,
+    Propagator,
+    WaveStorage,
+    WithNodeCount,
+    WithWaveStorage,
+};
 
 pub mod airy;
 pub mod log_derivative;
 pub mod numerov;
+
+pub trait SingleChanLogDerivPropagator: Propagator<LogDeriv<f64>> + WithNodeCount + WithWaveStorage<f64> {}
+impl<T: Propagator<LogDeriv<f64>> + WithNodeCount + WithWaveStorage<f64>> SingleChanLogDerivPropagator for T {}
 
 /// Trait for representing W function
 /// in an equation y''(x) = W(x) y(x)

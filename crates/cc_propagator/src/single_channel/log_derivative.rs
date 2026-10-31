@@ -51,9 +51,7 @@ impl<'a, W: WFunction> LogDerivative<'a, W> {
 
     fn step_r_target(&mut self, r: Option<f64>) {
         let wavelength = local_wavelength(self.w_function_value);
-
-        let dr_new = self.step.get_step(self.solution.r, self.solution.dr, wavelength);
-        self.solution.dr = dr_new.clamp(0., 2. * self.solution.dr.abs()) * self.solution.dr.signum();
+        self.solution.dr = self.step.get_step(self.solution.r, self.solution.dr, wavelength);
 
         if let Some(r) = r
             && (self.solution.r - r).abs() < self.solution.dr.abs()

@@ -1,6 +1,9 @@
 use std::path::PathBuf;
 
-use anyhow::{Context, Result};
+use anyhow::{
+    Context,
+    Result,
+};
 use cc_qol_utils::saving::{
     DataSaver,
     FileAccess,
@@ -97,7 +100,8 @@ where
         input: TypedProblemInput<<Self::P as Problem>::BasisRecipe, <Self::P as Problem>::Params, Self::CalcInput>,
         problem: &Self::P,
     ) -> Result<()> {
-        self.single_calc.validate_input(&input.calc_parameters.calc)
+        self.single_calc
+            .validate_input(&input.calc_parameters.calc)
             .context("Validation error in calculation_parameters:")?;
 
         let hamiltonian_spec = Self::P::build(&input.basis_recipe, &input.parameters);
@@ -329,51 +333,57 @@ impl GridParams {
                 for c in components {
                     c.validate_grid(registry)?;
                 }
-            },
+            }
             GridParams::Line { components } => {
                 for c in components {
                     c.validate_grid(registry)?;
                 }
-            },
+            }
             GridParams::Linear { start, end, n: _ } => {
                 if start.name != end.name {
                     anyhow::bail!(
-                        "Linear grid have incompatible limits - start: {}, end: {}", start.name, end.name
+                        "Linear grid have incompatible limits - start: {}, end: {}",
+                        start.name,
+                        end.name
                     );
                 }
                 let keys: Vec<&Box<str>> = registry.0.keys().collect();
                 if let None = keys.iter().find(|&x| *x == &start.name) {
                     anyhow::bail!(
-                        "Linear grid have unknown dependence type - got: {}, available {:?}", start.name, keys
+                        "Linear grid have unknown dependence type - got: {}, available {:?}",
+                        start.name,
+                        keys
                     );
                 }
-            },
+            }
             GridParams::Log { start, end, n: _ } => {
                 if start.name != end.name {
-                    anyhow::bail!(
-                        "Log grid have incompatible limits - start: {}, end: {}", start.name, end.name
-                    );
+                    anyhow::bail!("Log grid have incompatible limits - start: {}, end: {}", start.name, end.name);
                 }
                 let keys: Vec<&Box<str>> = registry.0.keys().collect();
                 if let None = keys.iter().find(|&x| *x == &start.name) {
                     anyhow::bail!(
-                        "Log grid have unknown dependence type - got: {}, available {:?}", start.name, keys
+                        "Log grid have unknown dependence type - got: {}, available {:?}",
+                        start.name,
+                        keys
                     );
                 }
-            },
+            }
             GridParams::Points { name, values: _ } => {
                 let keys: Vec<&Box<str>> = registry.0.keys().collect();
                 if let None = keys.iter().find(|&x| x == &name) {
                     anyhow::bail!(
-                        "Point grid have unknown dependence type - got: {}, available {:?}", name, keys
+                        "Point grid have unknown dependence type - got: {}, available {:?}",
+                        name,
+                        keys
                     );
                 }
-            },
+            }
             GridParams::Sum { components } => {
                 for c in components {
                     c.validate_grid(registry)?;
                 }
-            },
+            }
         }
 
         // test if fails
@@ -562,7 +572,10 @@ pub struct NamedValue {
 
 impl NamedValue {
     pub fn new(name: &str, value: Value) -> Self {
-        Self { name: name.into(), value }
+        Self {
+            name: name.into(),
+            value,
+        }
     }
 }
 
@@ -606,30 +619,29 @@ impl<'de> Deserialize<'de> for NamedValue {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::marker::PhantomData;
     use schemars::JsonSchema;
+    use std::marker::PhantomData;
 
-    use crate::{calculations::modifications::ModifyRegistry, modify_recipe};
+    use crate::calculations::modifications::ModifyRegistry;
+    use crate::modify_recipe;
 
     #[derive(Deserialize, Parameters, Clone, Debug, JsonSchema)]
-    pub struct MockParameters {
-
-    }
+    pub struct MockParameters {}
 
     pub struct MockProblem;
 
     impl Problem for MockProblem {
         type BasisRecipe = ();
         type Params = MockParameters;
-    
+
         const NAME: &str = "";
-    
+
         const DESCRIPTION: &str = "";
-    
+
         fn build(_basis_recipe: &Self::BasisRecipe, _params: &Self::Params) -> cc_system::hamiltonian_spec::HamiltonianSpec {
             unimplemented!()
         }
-    
+
         fn calculations(&self) -> &std::collections::HashMap<Box<str>, Box<dyn crate::calculations::DynCalc<Self>>> {
             unimplemented!()
         }
@@ -642,10 +654,13 @@ mod tests {
 
     impl<P: Problem, C> MockModify<P, C> {
         pub fn new(value: f64) -> Self {
-            Self { value, phantom: PhantomData }
+            Self {
+                value,
+                phantom: PhantomData,
+            }
         }
     }
-    
+
     impl<P, C> ModifyParam for MockModify<P, C>
     where
         P: Problem,
@@ -667,53 +682,67 @@ mod tests {
         }
     }
 
-
     #[test]
     fn test_dependence_grid() {
         let registry: ModifyRegistry<MockProblem, ()> = ModifyRegistry::from([
             ("linear", modify_recipe!(|x| MockModify::new(x))),
             ("log", modify_recipe!(|x| MockModify::new(x))),
             ("points", modify_recipe!(|x| MockModify::new(x))),
-            ("sum", modify_recipe!(|x| MockModify::new(x)))
+            ("sum", modify_recipe!(|x| MockModify::new(x))),
         ]);
 
-        let grid = GridParams::Cartesian { components: vec![
-            GridParams::Line { components: vec![
-                GridParams::Linear { 
-                    start: NamedValue::new("linear", serde_json::Value::Number(Number::from_f64(0.).unwrap())),
-                    end: NamedValue::new("linear", serde_json::Value::Number(Number::from_f64(5.).unwrap())),
-                    n: 6
+        let grid = GridParams::Cartesian {
+            components: vec![
+                GridParams::Line {
+                    components: vec![
+                        GridParams::Linear {
+                            start: NamedValue::new("linear", serde_json::Value::Number(Number::from_f64(0.).unwrap())),
+                            end: NamedValue::new("linear", serde_json::Value::Number(Number::from_f64(5.).unwrap())),
+                            n: 6,
+                        },
+                        GridParams::Log {
+                            start: NamedValue::new("log", serde_json::Value::Number(Number::from_f64(1e0).unwrap())),
+                            end: NamedValue::new("log", serde_json::Value::Number(Number::from_f64(1e5).unwrap())),
+                            n: 6,
+                        },
+                        GridParams::Points {
+                            name: "points".into(),
+                            values: vec![
+                                serde_json::Value::Number(Number::from_f64(-1.).unwrap()),
+                                serde_json::Value::Number(Number::from_f64(-2.).unwrap()),
+                                serde_json::Value::Number(Number::from_f64(-3.).unwrap()),
+                                serde_json::Value::Number(Number::from_f64(-4.).unwrap()),
+                                serde_json::Value::Number(Number::from_f64(-5.).unwrap()),
+                                serde_json::Value::Number(Number::from_f64(-6.).unwrap()),
+                            ],
+                        },
+                    ],
                 },
-                GridParams::Log { 
-                    start: NamedValue::new("log", serde_json::Value::Number(Number::from_f64(1e0).unwrap())),
-                    end: NamedValue::new("log", serde_json::Value::Number(Number::from_f64(1e5).unwrap())),
-                    n: 6
+                GridParams::Points {
+                    name: "points".into(),
+                    values: vec![
+                        serde_json::Value::Number(Number::from_f64(1.).unwrap()),
+                        serde_json::Value::Number(Number::from_f64(2.).unwrap()),
+                    ],
                 },
-                GridParams::Points { name: "points".into(), values: vec![
-                    serde_json::Value::Number(Number::from_f64(-1.).unwrap()),
-                    serde_json::Value::Number(Number::from_f64(-2.).unwrap()),
-                    serde_json::Value::Number(Number::from_f64(-3.).unwrap()),
-                    serde_json::Value::Number(Number::from_f64(-4.).unwrap()),
-                    serde_json::Value::Number(Number::from_f64(-5.).unwrap()),
-                    serde_json::Value::Number(Number::from_f64(-6.).unwrap())
-                ]},
-            ]},
-            GridParams::Points { name: "points".into(), values: vec![
-                serde_json::Value::Number(Number::from_f64(1.).unwrap()),
-                serde_json::Value::Number(Number::from_f64(2.).unwrap())
-            ]},
-            GridParams::Sum { components: vec![
-                GridParams::Points { name: "points".into(), values: vec![
-                    serde_json::Value::Number(Number::from_f64(0.5).unwrap()),
-                ]},
-                GridParams::Points { name: "points".into(), values: vec![
-                    serde_json::Value::Number(Number::from_f64(1.5).unwrap()),
-                ]},
-                GridParams::Points { name: "points".into(), values: vec![
-                    serde_json::Value::Number(Number::from_f64(2.5).unwrap()),
-                ]}
-            ] }
-        ]};
+                GridParams::Sum {
+                    components: vec![
+                        GridParams::Points {
+                            name: "points".into(),
+                            values: vec![serde_json::Value::Number(Number::from_f64(0.5).unwrap())],
+                        },
+                        GridParams::Points {
+                            name: "points".into(),
+                            values: vec![serde_json::Value::Number(Number::from_f64(1.5).unwrap())],
+                        },
+                        GridParams::Points {
+                            name: "points".into(),
+                            values: vec![serde_json::Value::Number(Number::from_f64(2.5).unwrap())],
+                        },
+                    ],
+                },
+            ],
+        };
 
         let i = 0;
         let expected = vec![

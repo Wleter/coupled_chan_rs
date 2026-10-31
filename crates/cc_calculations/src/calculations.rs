@@ -46,10 +46,11 @@ impl<C: Calc<P = P>, P: Problem> DynCalc<P> for C {
     }
 
     fn run(&self, input: TypedProblemInput<P::BasisRecipe, P::Params, Value>, problem: &P) -> Result<()> {
-        let calc_parameters: C::CalcInput = serde_json::from_value(input.calc_parameters)
-            .context("calculation_parameters validation error")?;
+        let calc_parameters: C::CalcInput =
+            serde_json::from_value(input.calc_parameters).context("calculation_parameters validation error")?;
 
-        self.validate_input(&calc_parameters).context("Validation error in calculation_parameters")?;
+        self.validate_input(&calc_parameters)
+            .context("Validation error in calculation_parameters")?;
         let input = TypedProblemInput {
             basis_recipe: input.basis_recipe,
             parameters: input.parameters,

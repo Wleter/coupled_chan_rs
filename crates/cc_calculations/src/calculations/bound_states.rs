@@ -221,9 +221,6 @@ impl WaveFunction {
     }
 }
 
-#[derive(Clone, Debug, Serialize)]
-pub struct BoundStatesData(pub Vec<BoundStateData>);
-
 pub struct BoundStateCalc<P: Problem> {
     pub mass: TypedParamId<Scalar<Mass>>,
     pub registry: ModifyRegistry<P, BoundStateCalcInput>,
@@ -250,15 +247,16 @@ where
 
         if max != min || max != err {
             anyhow::bail!(
-                "Bound state dependant have incompatible min, max, err bounds: {} {} {}", min, max, err
+                "Bound state dependant have incompatible min, max, err bounds: {} {} {}",
+                min,
+                max,
+                err
             );
         }
 
         let keys: Vec<&Box<str>> = self.registry.0.keys().collect();
         if let None = keys.iter().find(|&x| *x == max) {
-            anyhow::bail!(
-                "Dependant have unknown dependence type - got: {}, available {:?}", max, keys
-            );
+            anyhow::bail!("Dependant have unknown dependence type - got: {}, available {:?}", max, keys);
         }
 
         Ok(())
