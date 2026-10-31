@@ -14,7 +14,7 @@ use crate::scheme::SchemeArgs;
     about = "CLI for coupled_chan package",
     long_about = "CLI for coupled_chan package solving coupled channel equation given input and problem source"
 )]
-pub struct Cli {
+pub struct CoupledChanCli {
     #[command(subcommand)]
     command: Commands,
 }
@@ -26,7 +26,11 @@ enum Commands {
     Scheme(SchemeArgs),
 }
 
-impl Cli {
+impl CoupledChanCli {
+    pub fn parse() -> Self {
+        <Self as Parser>::parse()
+    }
+
     pub fn execute(self, problems: AvailableProblems) -> Result<()> {
         match self.command {
             Commands::Problem(problem_args) => problem_args.run_problems(problems),
