@@ -133,7 +133,14 @@ impl LinearRefStepStrat {
                     error_deriv_off
                 };
 
-                let mut factor = (tolerance / error).powf(1. / change_power);
+                // add average_wave_vector to the factor compared to molscat implementation/airy-log derivative paper,
+                // this is to make tolerance dimensionless,
+                // error estimates the log-derivative difference from the exact
+                // thus we normalize it by the average_wave_vector,
+                // this is partially motivated because what we ultimately care
+                // is the phase-shift (which is related by the wave-vectors) not the log-derivative matrix itself.
+                // todo! possibly check if maximum wave_vector is more appropriate
+                let mut factor = (tolerance * average_wave_vector / error).powf(1. / change_power);
                 if dr_prev < 0. {
                     factor *= (1. + dr_prev / r).powi(3)
                 }

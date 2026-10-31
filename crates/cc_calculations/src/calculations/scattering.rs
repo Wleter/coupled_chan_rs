@@ -378,7 +378,7 @@ pub enum LinearRefStep {
 }
 
 fn default_tolerance_linear_ref() -> f64 {
-    1e-9
+    1e-6
 }
 fn default_change_power_linear_ref() -> f64 {
     3.0

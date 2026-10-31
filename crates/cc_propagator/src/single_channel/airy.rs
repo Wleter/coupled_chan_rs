@@ -91,10 +91,11 @@ impl<'a, W: WFunction> AiryLogDerivative<'a, W> {
 
         let dr_mid = (self.dr_prev + h) / 2.;
         let w_dderiv_estimate = 2. / (dr_mid * dr_mid) * (w_ref - self.w_ref_prev + w_deriv_ref * dr_mid).abs();
+        let wave_vector = f64::sqrt(w_ref.abs());
         // w_deriv_off_estimate = 0 so average k does not matter
         let dr_new = self
             .step
-            .get_step(self.solution.r, self.dr_prev, 0.0, 0.0, Some(w_dderiv_estimate));
+            .get_step(self.solution.r, self.dr_prev, wave_vector, 0.0, Some(w_dderiv_estimate));
 
         self.w_ref_prev = w_ref;
         self.solution.sol.0 = sol_new;
