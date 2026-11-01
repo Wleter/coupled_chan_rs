@@ -101,13 +101,13 @@ pub fn scattering_calc_mods<P: Problem + 'static>() -> ModifyRegistry<P, Scatter
 impl ScatteringCalcInput {
     pub fn scattering(&self, w_matrix: &CollisionWMatrix<impl RCoupling>) -> SMatrixData {
         let converter = atomic_units::units_converter();
-        let r_max = converter.scalar_value(&self.r_min);
-        let r_min = converter.scalar_value(&self.r_max);
+        let r_min = converter.scalar_value(&self.r_min);
+        let r_max = converter.scalar_value(&self.r_max);
 
-        assert!(r_max < r_min, "Expected r_min < r_max");
+        assert!(r_min < r_max, "Expected r_min < r_max");
 
         let mut mat = Matrix::zeros(w_matrix.size(), w_matrix.size());
-        w_matrix.value_inplace(r_max, &mut mat);
+        w_matrix.value_inplace(r_min, &mut mat);
         let values = mat
             .self_adjoint_eigenvalues(hilbert_space::faer::Side::Lower)
             .expect("Could not diagonalize w_matrix at r_min");
