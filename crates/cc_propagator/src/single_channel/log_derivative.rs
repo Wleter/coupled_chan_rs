@@ -5,14 +5,14 @@ use crate::single_channel::{
 use crate::step_strategy::ConstRefStepStrat;
 use crate::{
     Boundary,
+    ConnectionWatcher,
     Direction,
     LogDeriv,
     Nodes,
     Propagator,
     Solution,
-    WaveStorage,
+    WithConnectionWatcher,
     WithNodeCount,
-    WithWaveStorage,
 };
 
 /// based on multi-channel log_derivative with manolopoulos imbedding
@@ -20,7 +20,7 @@ pub struct LogDerivative<'a, W: WFunction> {
     w_function: &'a W,
     step: ConstRefStepStrat,
     nodes: Nodes,
-    wave_storage: Option<WaveStorage<f64>>,
+    wave_storage: Option<&'a mut dyn ConnectionWatcher<f64>>,
 
     solution: Solution<LogDeriv<f64>>,
     w_function_value: f64,
@@ -89,7 +89,7 @@ impl<'a, W: WFunction> LogDerivative<'a, W> {
         if let Some(wave_storage) = &mut self.wave_storage {
             let connection = y23 * inversion_term;
 
-            wave_storage.push(self.solution.r, &connection)
+            wave_storage.connection_at(self.solution.r, &connection)
         }
 
         self.nodes.0 += if self.solution.dr > 0. {
@@ -125,12 +125,8 @@ impl<W: WFunction> WithNodeCount for LogDerivative<'_, W> {
     }
 }
 
-impl<W: WFunction> WithWaveStorage<f64> for LogDerivative<'_, W> {
-    fn init_wave_storage(&mut self) {
-        self.wave_storage = Some(WaveStorage::default())
-    }
-
-    fn get_wave_storage(&self) -> Option<&WaveStorage<f64>> {
-        self.wave_storage.as_ref()
+impl<'a, W: WFunction> WithConnectionWatcher<'a, f64> for LogDerivative<'a, W> {
+    fn insert_watcher(&mut self, wave_storage: &'a mut dyn ConnectionWatcher<f64>) {
+        self.wave_storage = Some(wave_storage)
     }
 }

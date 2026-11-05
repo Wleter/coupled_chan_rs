@@ -2,16 +2,22 @@ use crate::{
     LogDeriv,
     Propagator,
     WaveStorage,
+    WithConnectionWatcher,
     WithNodeCount,
-    WithWaveStorage,
 };
 
 pub mod airy;
 pub mod log_derivative;
 pub mod numerov;
 
-pub trait SingleChanLogDerivPropagator: Propagator<LogDeriv<f64>> + WithNodeCount + WithWaveStorage<f64> {}
-impl<T: Propagator<LogDeriv<f64>> + WithNodeCount + WithWaveStorage<f64>> SingleChanLogDerivPropagator for T {}
+pub trait SingleChanLogDerivPropagator<'a>:
+    Propagator<LogDeriv<f64>> + WithNodeCount + WithConnectionWatcher<'a, f64>
+{
+}
+impl<'a, T: Propagator<LogDeriv<f64>> + WithNodeCount + WithConnectionWatcher<'a, f64>> SingleChanLogDerivPropagator<'a>
+    for T
+{
+}
 
 /// Trait for representing W function
 /// in an equation y''(x) = W(x) y(x)
@@ -66,7 +72,7 @@ mod tests {
         Boundary,
         Direction,
         Propagator,
-        WithWaveStorage,
+        WithConnectionWatcher,
     };
 
     use super::*;
@@ -91,19 +97,24 @@ mod tests {
             derivative: 0.,
         };
 
-        let mut numerov = RatioNumerov::new(&w_function, ConstRefStepStrat::Fixed { dr: 1e-4 }, boundary);
-        numerov.init_wave_storage();
         let analytic = |x: f64, dx: f64| f64::cos(k * (x)) / f64::cos(k * (x - dx));
         let analytic_val = |x: f64| f64::cos(k * x);
+        let mut numerov = RatioNumerov::new(&w_function, ConstRefStepStrat::Fixed { dr: 1e-4 }, boundary.clone());
+        let mut storage = WaveStorage::default();
+        numerov.insert_watcher(&mut storage);
 
         let sol = numerov.propagate_to(1. / 3. * PI / k);
         assert_approx_eq!(analytic(sol.r, sol.dr), sol.sol.0, 1e-4);
-        let (rs, wave) = numerov.get_wave_storage().unwrap().reconstruct(1., false);
+        let (rs, wave) = storage.reconstruct(1., false);
         assert_approx_eq!(*wave.last().unwrap(), analytic_val(*rs.last().unwrap()), 1e-3);
+
+        let mut numerov = RatioNumerov::new(&w_function, ConstRefStepStrat::Fixed { dr: 1e-4 }, boundary);
+        let mut storage = WaveStorage::default();
+        numerov.insert_watcher(&mut storage);
 
         let sol = numerov.propagate_to(2. / 3. * PI / k);
         assert_approx_eq!(analytic(sol.r, sol.dr), sol.sol.0, 1e-4);
-        let (rs, wave) = numerov.get_wave_storage().unwrap().reconstruct(1., false);
+        let (rs, wave) = storage.reconstruct(1., false);
         assert_approx_eq!(*wave.last().unwrap(), analytic_val(*rs.last().unwrap()), 1e-3);
     }
 
@@ -119,19 +130,23 @@ mod tests {
             derivative: 0.,
         };
 
-        let mut log_deriv = LogDerivative::new(&w_function, ConstRefStepStrat::Fixed { dr: 1e-3 }, boundary);
-        log_deriv.init_wave_storage();
         let analytic = |x: f64| -k * f64::tan(k * x);
         let analytic_val = |x: f64| f64::cos(k * x);
+        let mut log_deriv = LogDerivative::new(&w_function, ConstRefStepStrat::Fixed { dr: 1e-3 }, boundary.clone());
+        let mut storage = WaveStorage::default();
+        log_deriv.insert_watcher(&mut storage);
 
         let sol = log_deriv.propagate_to(1. / 3. * PI / k);
         assert_approx_eq!(analytic(sol.r), sol.sol.0, 1e-4);
-        let (rs, wave) = log_deriv.get_wave_storage().unwrap().reconstruct(1., false);
+        let (rs, wave) = storage.reconstruct(1., false);
         assert_approx_eq!(*wave.last().unwrap(), analytic_val(*rs.last().unwrap()), 1e-4);
 
+        let mut log_deriv = LogDerivative::new(&w_function, ConstRefStepStrat::Fixed { dr: 1e-3 }, boundary);
+        let mut storage = WaveStorage::default();
+        log_deriv.insert_watcher(&mut storage);
         let sol = log_deriv.propagate_to(2. / 3. * PI / k);
         assert_approx_eq!(analytic(sol.r), sol.sol.0, 1e-4);
-        let (rs, wave) = log_deriv.get_wave_storage().unwrap().reconstruct(1., false);
+        let (rs, wave) = storage.reconstruct(1., false);
         assert_approx_eq!(*wave.last().unwrap(), analytic_val(*rs.last().unwrap()), 1e-4);
     }
 
@@ -147,19 +162,23 @@ mod tests {
             derivative: 0.,
         };
 
-        let mut log_deriv = AiryLogDerivative::new(&w_function, LinearRefStepStrat::Fixed { dr: 1e-3 }, boundary);
-        log_deriv.init_wave_storage();
         let analytic = |x: f64| -k * f64::tan(k * x);
         let analytic_val = |x: f64| f64::cos(k * x);
+        let mut log_deriv = AiryLogDerivative::new(&w_function, LinearRefStepStrat::Fixed { dr: 1e-3 }, boundary.clone());
+        let mut storage = WaveStorage::default();
+        log_deriv.insert_watcher(&mut storage);
 
         let sol = log_deriv.propagate_to(1. / 3. * PI / k);
         assert_approx_eq!(analytic(sol.r), sol.sol.0, 1e-4);
-        let (rs, wave) = log_deriv.get_wave_storage().unwrap().reconstruct(1., false);
+        let (rs, wave) = storage.reconstruct(1., false);
         assert_approx_eq!(*wave.last().unwrap(), analytic_val(*rs.last().unwrap()), 1e-4);
 
+        let mut log_deriv = LogDerivative::new(&w_function, ConstRefStepStrat::Fixed { dr: 1e-3 }, boundary);
+        let mut storage = WaveStorage::default();
+        log_deriv.insert_watcher(&mut storage);
         let sol = log_deriv.propagate_to(2. / 3. * PI / k);
         assert_approx_eq!(analytic(sol.r), sol.sol.0, 1e-4);
-        let (rs, wave) = log_deriv.get_wave_storage().unwrap().reconstruct(1., false);
+        let (rs, wave) = storage.reconstruct(1., false);
         assert_approx_eq!(*wave.last().unwrap(), analytic_val(*rs.last().unwrap()), 1e-4);
     }
 }

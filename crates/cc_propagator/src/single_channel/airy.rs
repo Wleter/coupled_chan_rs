@@ -8,14 +8,14 @@ use crate::single_channel::WFunction;
 use crate::step_strategy::LinearRefStepStrat;
 use crate::{
     Boundary,
+    ConnectionWatcher,
     Direction,
     LogDeriv,
     Nodes,
     Propagator,
     Solution,
-    WaveStorage,
+    WithConnectionWatcher,
     WithNodeCount,
-    WithWaveStorage,
 };
 
 const ROOT_3: f64 = 1.732050807;
@@ -25,7 +25,7 @@ pub struct AiryLogDerivative<'a, W: WFunction> {
     w_function: &'a W,
     step: LinearRefStepStrat,
     nodes: Nodes,
-    wave_storage: Option<WaveStorage<f64>>,
+    wave_storage: Option<&'a mut dyn ConnectionWatcher<f64>>,
 
     dr_prev: f64,
     w_ref_prev: f64,
@@ -80,7 +80,7 @@ impl<'a, W: WFunction> AiryLogDerivative<'a, W> {
         if let Some(wave_storage) = &mut self.wave_storage {
             let connection = imbeddings.y23 * inversion_term;
 
-            wave_storage.push(self.solution.r, &connection)
+            wave_storage.connection_at(self.solution.r, &connection)
         }
 
         self.nodes.0 += if self.solution.dr > 0. {
@@ -126,13 +126,9 @@ impl<W: WFunction> WithNodeCount for AiryLogDerivative<'_, W> {
     }
 }
 
-impl<W: WFunction> WithWaveStorage<f64> for AiryLogDerivative<'_, W> {
-    fn init_wave_storage(&mut self) {
-        self.wave_storage = Some(WaveStorage::default())
-    }
-
-    fn get_wave_storage(&self) -> Option<&WaveStorage<f64>> {
-        self.wave_storage.as_ref()
+impl<'a, W: WFunction> WithConnectionWatcher<'a, f64> for AiryLogDerivative<'a, W> {
+    fn insert_watcher(&mut self, wave_storage: &'a mut dyn ConnectionWatcher<f64>) {
+        self.wave_storage = Some(wave_storage)
     }
 }
 

@@ -165,7 +165,7 @@ impl CoupledChanPropagator {
         &self,
         boundary: cc_propagator::Boundary<Matrix>,
         w_matrix: &'a W,
-    ) -> Box<dyn LogDerivativePropagator + 'a> {
+    ) -> Box<dyn LogDerivativePropagator<'a> + 'a> {
         match self {
             CoupledChanPropagator::JohnsonLogDeriv { step } => {
                 Box::new(JohnsonLogDerivative::new(w_matrix, step.get_step(), boundary))
@@ -187,7 +187,7 @@ impl CoupledChanPropagator {
         solution: Solution<LogDeriv<Matrix>>,
         nodes: Nodes,
         w_matrix: &'a W,
-    ) -> Box<dyn LogDerivativePropagator + 'a> {
+    ) -> Box<dyn LogDerivativePropagator<'a> + 'a> {
         match self {
             CoupledChanPropagator::JohnsonLogDeriv { step } => Box::new(JohnsonLogDerivative::from_log_derivative(
                 w_matrix,
@@ -225,12 +225,12 @@ impl CoupledChanPropagator {
 #[serde(tag = "type")]
 #[schemars(deny_unknown_fields)]
 pub struct TwoSegmentPropagator {
-    propagator: CoupledChanPropagator,
+    pub propagator: CoupledChanPropagator,
 
     #[serde(default)]
-    segment_change: Option<Scalar<Length>>,
+    pub segment_change: Option<Scalar<Length>>,
     #[serde(default)]
-    long_range_propagator: Option<CoupledChanPropagator>,
+    pub long_range_propagator: Option<CoupledChanPropagator>,
 }
 
 impl TwoSegmentPropagator {

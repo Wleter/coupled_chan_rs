@@ -42,7 +42,10 @@ use cc_system::parameters::{
     Parameters,
     TypedParamId,
 };
-use coupled_chan::cc_propagator::Direction;
+use coupled_chan::cc_propagator::{
+    Direction,
+    WaveStorage,
+};
 use coupled_chan::single_chan::airy::AiryLogDerivative;
 use coupled_chan::single_chan::log_derivative::LogDerivative;
 use coupled_chan::single_chan::s_matrix::SValue;
@@ -761,25 +764,31 @@ fn bound_wave(w_matrix: &CollisionWFunction<impl Interaction>, input: &BoundStat
     let converter = atomic_units::units_converter();
     let r_match = converter.scalar_value(&input.r_match);
 
+    let mut storage_in = WaveStorage::default();
     let mut propagator_in = if let Some(prop_in) = &input.propagator_in {
         prop_in.get_propagator(boundary_in, w_matrix)
     } else {
         input.propagator.get_propagator(boundary_in, w_matrix)
     };
-    propagator_in.init_wave_storage();
+
+    propagator_in.insert_watcher(&mut storage_in);
     propagator_in.propagate_to(r_match);
 
+    let mut storage_out = WaveStorage::default();
     let mut propagator_out = input.propagator.get_propagator(boundary_out, w_matrix);
-    propagator_out.init_wave_storage();
+    propagator_out.insert_watcher(&mut storage_out);
     propagator_out.propagate_to(r_match);
 
-    let wave_in = propagator_in.get_wave_storage().as_ref().unwrap().reconstruct(1., true);
+    drop(propagator_in);
+    drop(propagator_out);
+
+    let wave_in = storage_in.reconstruct(1., true);
     let wave_in = WaveFunction {
         distances: wave_in.0,
         values: wave_in.1,
     };
 
-    let wave_out = propagator_out.get_wave_storage().as_ref().unwrap().reconstruct(1., true);
+    let wave_out = storage_out.reconstruct(1., true);
     let mut wave_out = WaveFunction {
         distances: wave_out.0,
         values: wave_out.1,
@@ -900,7 +909,7 @@ impl SingleChanPropagator {
         &self,
         boundary: coupled_chan::cc_propagator::Boundary<f64>,
         w_function: &'a W,
-    ) -> Box<dyn SingleChanLogDerivPropagator + 'a> {
+    ) -> Box<dyn SingleChanLogDerivPropagator<'a> + 'a> {
         match self {
             SingleChanPropagator::JohnsonLogDeriv { step } => {
                 Box::new(LogDerivative::new(w_function, step.get_step(), boundary))

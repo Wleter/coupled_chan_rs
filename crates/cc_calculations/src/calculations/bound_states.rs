@@ -1,5 +1,8 @@
 use cc_math_utils::brent_root_method;
-use coupled_chan::cc_propagator::Direction;
+use coupled_chan::cc_propagator::{
+    Direction,
+    WaveStorage,
+};
 use coupled_chan::coupling::{
     Asymptote,
     CollisionParams,
@@ -668,16 +671,19 @@ fn bound_wave(w_matrix: &CollisionWMatrix<impl RCoupling>, input: &BoundStateCal
     let converter = atomic_units::units_converter();
     let r_match = converter.scalar_value(&input.r_match);
 
+    let mut storage_in = WaveStorage::default();
     let mut propagator_in = if let Some(prop_in) = &input.propagator_in {
         prop_in.get_propagator(boundary_in, w_matrix)
     } else {
         input.propagator.get_propagator(boundary_in, w_matrix)
     };
-    propagator_in.init_wave_storage();
+
+    propagator_in.insert_watcher(&mut storage_in);
     let sol_in = propagator_in.propagate_to(r_match);
 
+    let mut storage_out = WaveStorage::default();
     let mut propagator_out = input.propagator.get_propagator(boundary_out, w_matrix);
-    propagator_out.init_wave_storage();
+    propagator_out.insert_watcher(&mut storage_out);
     let sol_out = propagator_out.propagate_to(r_match);
 
     let matching_matrix = &sol_out.sol.0 - &sol_in.sol.0;
@@ -687,23 +693,18 @@ fn bound_wave(w_matrix: &CollisionWMatrix<impl RCoupling>, input: &BoundStateCal
         .self_adjoint_eigen(faer::Side::Lower)
         .expect("could not diagonalize matching matrix");
 
-    let init_wave = eigen.U().col((target_nodes - nodes) as usize);
+    let init_wave = eigen.U().col((target_nodes - nodes) as usize).to_owned();
 
-    let wave_in = propagator_in
-        .get_wave_storage()
-        .as_ref()
-        .unwrap()
-        .reconstruct(init_wave, true);
+    drop(propagator_in);
+    drop(propagator_out);
+
+    let wave_in = storage_in.reconstruct(init_wave.as_ref(), true);
     let wave_in = WaveFunction {
         distances: wave_in.0,
         values: wave_in.1,
     };
 
-    let wave_out = propagator_out
-        .get_wave_storage()
-        .as_ref()
-        .unwrap()
-        .reconstruct(init_wave, true);
+    let wave_out = storage_out.reconstruct(init_wave.as_ref(), true);
     let mut wave_out = WaveFunction {
         distances: wave_out.0,
         values: wave_out.1,

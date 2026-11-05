@@ -8,12 +8,12 @@ use crate::multi_channel::{
 use crate::step_strategy::ConstRefStepStrat;
 use crate::{
     Boundary,
+    ConnectionWatcher,
     Direction,
     Propagator,
     Ratio,
     Solution,
-    WaveStorage,
-    WithWaveStorage,
+    WithConnectionWatcher,
 };
 use cc_matrix_utils::faer::{
     get_ldlt_inverse_buffer,
@@ -51,7 +51,7 @@ pub struct RatioNumerov<'a, W: WMatrix<f64>> {
     buffer3: Matrix,
     inverse_buffer: MemBuffer,
 
-    wave_storage: Option<WaveStorage<Matrix>>,
+    wave_storage: Option<&'a mut dyn ConnectionWatcher<Matrix>>,
 }
 
 impl<'a, W: WMatrix<f64>> RatioNumerov<'a, W> {
@@ -304,7 +304,7 @@ impl<'a, W: WMatrix<f64>> RatioNumerov<'a, W> {
             inverse_ldlt_inplace(self.solution.sol.0.as_ref(), self.buffer2.as_mut(), &mut self.inverse_buffer);
             // buffer2 is R_n^-1
 
-            w.push(self.solution.r, &(&self.buffer3 * &self.buffer2 * &self.f));
+            w.connection_at(self.solution.r, &(&self.buffer3 * &self.buffer2 * &self.f));
         }
     }
 }
@@ -338,12 +338,8 @@ impl<W: WMatrix<f64>> Propagator<Ratio<Matrix>> for RatioNumerov<'_, W> {
     }
 }
 
-impl<W: WMatrix<f64>> WithWaveStorage<Matrix> for RatioNumerov<'_, W> {
-    fn init_wave_storage(&mut self) {
-        self.wave_storage = Some(WaveStorage::default())
-    }
-
-    fn get_wave_storage(&self) -> Option<&WaveStorage<Matrix>> {
-        self.wave_storage.as_ref()
+impl<'a, W: WMatrix<f64>> WithConnectionWatcher<'a, Matrix> for RatioNumerov<'a, W> {
+    fn insert_watcher(&mut self, wave_storage: &'a mut dyn ConnectionWatcher<Matrix>) {
+        self.wave_storage = Some(wave_storage)
     }
 }

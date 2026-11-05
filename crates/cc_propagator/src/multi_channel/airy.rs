@@ -11,14 +11,14 @@ use crate::single_channel::airy::get_imbeddings;
 use crate::step_strategy::LinearRefStepStrat;
 use crate::{
     Boundary,
+    ConnectionWatcher,
     Direction,
     LogDeriv,
     Nodes,
     Propagator,
     Solution,
-    WaveStorage,
+    WithConnectionWatcher,
     WithNodeCount,
-    WithWaveStorage,
 };
 use cc_matrix_utils::faer::{
     get_ldlt_inverse_buffer,
@@ -46,7 +46,7 @@ pub struct AiryLogDerivative<'a, W: WMatrix<f64>> {
     solution: Solution<LogDeriv<Matrix>>,
     nodes: Nodes,
 
-    step: AiryLogDerivativeStep,
+    step: AiryLogDerivativeStep<'a>,
 }
 
 impl<'a, W: WMatrix<f64>> AiryLogDerivative<'a, W> {
@@ -169,17 +169,13 @@ impl<W: WMatrix<f64>> WithNodeCount for AiryLogDerivative<'_, W> {
     }
 }
 
-impl<W: WMatrix<f64>> WithWaveStorage<Matrix> for AiryLogDerivative<'_, W> {
-    fn init_wave_storage(&mut self) {
-        self.step.wave_storage = Some(WaveStorage::default())
-    }
-
-    fn get_wave_storage(&self) -> Option<&WaveStorage<Matrix>> {
-        self.step.wave_storage.as_ref()
+impl<'a, W: WMatrix<f64>> WithConnectionWatcher<'a, Matrix> for AiryLogDerivative<'a, W> {
+    fn insert_watcher(&mut self, wave_storage: &'a mut dyn ConnectionWatcher<Matrix>) {
+        self.step.wave_storage = Some(wave_storage)
     }
 }
 
-pub struct AiryLogDerivativeStep {
+pub struct AiryLogDerivativeStep<'a> {
     step_strat: LinearRefStepStrat,
     dr_next: f64,
 
@@ -197,10 +193,10 @@ pub struct AiryLogDerivativeStep {
 
     inverse_buffer: MemBuffer,
     diagonalisation_buffer: MemBuffer,
-    wave_storage: Option<WaveStorage<Matrix>>,
+    wave_storage: Option<&'a mut dyn ConnectionWatcher<Matrix>>,
 }
 
-impl AiryLogDerivativeStep {
+impl AiryLogDerivativeStep<'_> {
     pub fn new(size: usize, step_strat: LinearRefStepStrat, dr_next: f64) -> Self {
         Self {
             step_strat,
@@ -291,7 +287,7 @@ impl AiryLogDerivativeStep {
                 faer::Par::Seq
             );
 
-            wave_storage.push(sol.r, &sol.sol.0)
+            wave_storage.connection_at(sol.r, &sol.sol.0)
         }
         diag_mat_mul_inplace(self.y23.as_ref(), self.buffer1.as_mut());
 

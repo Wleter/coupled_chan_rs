@@ -5,12 +5,12 @@ use crate::single_channel::{
 use crate::step_strategy::ConstRefStepStrat;
 use crate::{
     Boundary,
+    ConnectionWatcher,
     Direction,
     Propagator,
     Ratio,
     Solution,
-    WaveStorage,
-    WithWaveStorage,
+    WithConnectionWatcher,
 };
 
 /// doi: 10.1063/1.435384
@@ -19,7 +19,7 @@ pub struct RatioNumerov<'a, W: WFunction> {
     step: ConstRefStepStrat,
 
     solution: Solution<Ratio<f64>>,
-    wave_storage: Option<WaveStorage<f64>>,
+    wave_storage: Option<&'a mut dyn ConnectionWatcher<f64>>,
 
     f: f64,
     f_last: f64,
@@ -108,7 +108,7 @@ impl<'a, W: WFunction> RatioNumerov<'a, W> {
         self.f = f_new;
 
         if let Some(w) = &mut self.wave_storage {
-            w.push(self.solution.r, &(f_new / self.f / self.solution.sol.0));
+            w.connection_at(self.solution.r, &(f_new / self.f / self.solution.sol.0));
         }
     }
 }
@@ -141,12 +141,8 @@ impl<W: WFunction> Propagator<Ratio<f64>> for RatioNumerov<'_, W> {
     }
 }
 
-impl<W: WFunction> WithWaveStorage<f64> for RatioNumerov<'_, W> {
-    fn init_wave_storage(&mut self) {
-        self.wave_storage = Some(WaveStorage::default())
-    }
-
-    fn get_wave_storage(&self) -> Option<&WaveStorage<f64>> {
-        self.wave_storage.as_ref()
+impl<'a, W: WFunction> WithConnectionWatcher<'a, f64> for RatioNumerov<'a, W> {
+    fn insert_watcher(&mut self, wave_storage: &'a mut dyn ConnectionWatcher<f64>) {
+        self.wave_storage = Some(wave_storage)
     }
 }

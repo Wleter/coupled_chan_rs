@@ -49,15 +49,18 @@ pub trait WithNodeCount {
     fn nodes(&self) -> Nodes;
 }
 
-pub trait WithWaveStorage<T> {
-    fn init_wave_storage(&mut self);
-    fn get_wave_storage(&self) -> Option<&WaveStorage<T>>;
+pub trait WithConnectionWatcher<'a, T> {
+    fn insert_watcher(&mut self, storage: &'a mut dyn ConnectionWatcher<T>);
+}
+
+pub trait ConnectionWatcher<T> {
+    fn connection_at(&mut self, r: f64, connection: &T);
 }
 
 pub struct WaveStorage<T> {
-    rs: Vec<f64>,
+    pub rs: Vec<f64>,
     /// connection connecting value from r_n to r_{n-1}
-    connections: Vec<T>,
+    pub connections: Vec<T>,
 }
 
 impl<T> Default for WaveStorage<T> {
@@ -69,8 +72,8 @@ impl<T> Default for WaveStorage<T> {
     }
 }
 
-impl<T: Clone> WaveStorage<T> {
-    pub fn push(&mut self, r: f64, connection: &T) {
+impl<T: Clone> ConnectionWatcher<T> for WaveStorage<T> {
+    fn connection_at(&mut self, r: f64, connection: &T) {
         self.rs.push(r);
         self.connections.push(connection.clone());
     }

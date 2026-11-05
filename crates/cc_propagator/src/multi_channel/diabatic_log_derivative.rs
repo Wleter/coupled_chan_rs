@@ -8,14 +8,14 @@ use crate::multi_channel::{
 use crate::step_strategy::ConstRefStepStrat;
 use crate::{
     Boundary,
+    ConnectionWatcher,
     Direction,
     LogDeriv,
     Nodes,
     Propagator,
     Solution,
-    WaveStorage,
+    WithConnectionWatcher,
     WithNodeCount,
-    WithWaveStorage,
 };
 use cc_matrix_utils::faer::{
     get_ldlt_inverse_buffer,
@@ -107,7 +107,7 @@ where
     solution: Solution<LogDeriv<Matrix>>,
     nodes: Nodes,
 
-    step: LogDerivativeStep<R>,
+    step: LogDerivativeStep<'a, R>,
     step_strat: ConstRefStepStrat,
 }
 
@@ -191,18 +191,14 @@ impl<R: LogDerivReference, W: WMatrix<f64>> WithNodeCount for DiabaticLogDerivat
     }
 }
 
-impl<R: LogDerivReference, W: WMatrix<f64>> WithWaveStorage<Matrix> for DiabaticLogDerivative<'_, R, W> {
-    fn init_wave_storage(&mut self) {
-        self.step.wave_storage = Some(WaveStorage::default())
-    }
-
-    fn get_wave_storage(&self) -> Option<&WaveStorage<Matrix>> {
-        self.step.wave_storage.as_ref()
+impl<'a, R: LogDerivReference, W: WMatrix<f64>> WithConnectionWatcher<'a, Matrix> for DiabaticLogDerivative<'a, R, W> {
+    fn insert_watcher(&mut self, wave_storage: &'a mut dyn ConnectionWatcher<Matrix>) {
+        self.step.wave_storage = Some(wave_storage)
     }
 }
 
 /// https://doi.org/10.1016/0010-4655(94)90200-3
-struct LogDerivativeStep<R: LogDerivReference> {
+struct LogDerivativeStep<'a, R: LogDerivReference> {
     buffer1: Matrix,
     buffer2: Matrix,
     inverse_buffer: MemBuffer,
@@ -215,10 +211,10 @@ struct LogDerivativeStep<R: LogDerivReference> {
     reference: PhantomData<R>,
     w_matrix_buffer: Matrix,
 
-    wave_storage: Option<WaveStorage<Matrix>>,
+    wave_storage: Option<&'a mut dyn ConnectionWatcher<Matrix>>,
 }
 
-impl<R: LogDerivReference> LogDerivativeStep<R> {
+impl<R: LogDerivReference> LogDerivativeStep<'_, R> {
     pub fn new(size: usize) -> Self {
         Self {
             buffer1: Matrix::zeros(size, size),
@@ -291,7 +287,7 @@ impl<R: LogDerivReference> LogDerivativeStep<R> {
         matmul(self.buffer1.as_mut(), Replace, sol.sol.0.as_ref(), self.z22_23_33.as_ref(), 1.0, Seq);
         // buffer1 is now (y + y1(a, b))^-1 * y_2(a, b)
         if let Some(wave_storage) = &mut self.wave_storage {
-            wave_storage.push(sol.r, &self.buffer1)
+            wave_storage.connection_at(sol.r, &self.buffer1)
         }
         matmul(sol.sol.0.as_mut(), Replace, self.z22_23_33.as_ref(), self.buffer1.as_ref(), 1.0, Seq);
         // sol is now y_3(a, b) * (y + y1(a, b))^-1 * y_2(a, b)

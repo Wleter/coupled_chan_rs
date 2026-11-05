@@ -13,14 +13,14 @@ use crate::multi_channel::{
 use crate::step_strategy::ConstRefStepStrat;
 use crate::{
     Boundary,
+    ConnectionWatcher,
     Direction,
     LogDeriv,
     Nodes,
     Propagator,
     Solution,
-    WaveStorage,
+    WithConnectionWatcher,
     WithNodeCount,
-    WithWaveStorage,
 };
 use cc_matrix_utils::faer::{
     get_ldlt_inverse_buffer,
@@ -50,7 +50,7 @@ where
     solution_local: Solution<LogDeriv<Matrix>>,
     nodes: Nodes,
 
-    step: LogDerivativeStep,
+    step: LogDerivativeStep<'a>,
     step_strat: ConstRefStepStrat,
 }
 
@@ -200,18 +200,14 @@ impl<W: WMatrix<f64>> WithNodeCount for QuasiAdiabaticLogDerivative<'_, W> {
     }
 }
 
-impl<W: WMatrix<f64>> WithWaveStorage<Matrix> for QuasiAdiabaticLogDerivative<'_, W> {
-    fn init_wave_storage(&mut self) {
-        self.step.wave_storage = Some(WaveStorage::default())
-    }
-
-    fn get_wave_storage(&self) -> Option<&WaveStorage<Matrix>> {
-        self.step.wave_storage.as_ref()
+impl<'a, W: WMatrix<f64>> WithConnectionWatcher<'a, Matrix> for QuasiAdiabaticLogDerivative<'a, W> {
+    fn insert_watcher(&mut self, wave_storage: &'a mut dyn ConnectionWatcher<Matrix>) {
+        self.step.wave_storage = Some(wave_storage)
     }
 }
 
 /// https://doi.org/10.1016/0010-4655(94)90200-3
-struct LogDerivativeStep {
+struct LogDerivativeStep<'a> {
     buffer1: Matrix,
     buffer2: Matrix,
 
@@ -226,10 +222,10 @@ struct LogDerivativeStep {
     adiabatic_transf: Matrix,
     adiabatic_connection: Matrix,
 
-    wave_storage: Option<WaveStorage<Matrix>>,
+    wave_storage: Option<&'a mut dyn ConnectionWatcher<Matrix>>,
 }
 
-impl LogDerivativeStep {
+impl LogDerivativeStep<'_> {
     pub fn new(size: usize) -> Self {
         Self {
             buffer1: Matrix::zeros(size, size),
@@ -372,7 +368,7 @@ impl LogDerivativeStep {
                 faer::Par::Seq
             );
 
-            wave_storage.push(sol.r, &self.buffer2)
+            wave_storage.connection_at(sol.r, &self.buffer2)
         }
         diag_mat_mul_inplace(self.z22_23_33.as_ref(), sol.sol.0.as_mut());
         // sol is now y_3(a, b) * (y + y1(a, b))^-1 * y_2(a, b)
