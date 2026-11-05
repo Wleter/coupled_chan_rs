@@ -238,7 +238,7 @@ impl<L: PhysQuantity, const N: i8, const M: i8> PhysQuantity for Power<L, N, M> 
                 let n = n
                     .parse::<i8>()
                     .unwrap_or_else(|_| panic!("{COMPOUND_ERROR_MSG} {:?}", Self::default()));
-                let m = m
+                let m = m[1..]
                     .parse::<i8>()
                     .unwrap_or_else(|_| panic!("{COMPOUND_ERROR_MSG} {:?}", Self::default()));
                 assert_eq!(n, N, "{COMPOUND_ERROR_MSG} {:?}", Self::default());
