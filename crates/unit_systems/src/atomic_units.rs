@@ -142,10 +142,10 @@ pub mod schemars {
 
         fn json_schema(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
             let converter = super::units_converter();
-            let units: Option<Vec<String>> = converter
+            let units: Option<Vec<&str>> = converter
                 .registry
                 .get_checked::<Q>()
-                .map(|u| u.iter().map(|x| x.name.to_lowercase()).collect());
+                .map(|u| u.iter().map(|x| x.name).collect());
 
             if let Some(units) = units {
                 schemars::json_schema!({

@@ -161,7 +161,7 @@ pub trait Problem: Sync + Send {
     fn calculations(&self) -> &HashMap<Box<str>, Box<dyn DynCalc<Self>>>;
 }
 
-pub(crate) fn mat_as_nested_vec<T: Copy>(mat: MatRef<T>) -> Vec<Vec<T>> {
+pub fn mat_as_nested_vec<T: Copy>(mat: MatRef<T>) -> Vec<Vec<T>> {
     let mut vec = vec![vec![]; mat.nrows()];
     for (i, row) in mat.row_iter().enumerate() {
         vec[i] = row.iter().copied().collect();
