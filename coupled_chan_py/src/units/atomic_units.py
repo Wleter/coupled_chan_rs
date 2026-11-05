@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 from math import pi, tau
-from typing import Any, TypeVar, overload
-from quantity import *
-import numpy as np
+from .quantity import *
 
 def atomic_units_table(constants: FundamentalConstantsSI) -> UnitSystemTable:
     # defining constants

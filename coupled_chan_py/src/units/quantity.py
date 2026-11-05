@@ -6,7 +6,7 @@ from fractions import Fraction
 from math import isclose
 from typing import Iterable
 
-from dimension import Dimension
+from .dimension import Dimension
 
 def pow_ratio(value: float, exp: Fraction) -> float:
     return value ** (exp.numerator / exp.denominator)
