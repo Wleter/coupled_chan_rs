@@ -74,7 +74,7 @@ pub struct DiatomInBFieldBasis {
     #[serde(flatten)]
     pub recipe: DiatomRecipe,
     #[serde(default)]
-    #[schemars(with = "atomic_systems::HalfI32Scheme")]
+    #[schemars(with = "Option<atomic_systems::HalfI32Scheme>")]
     pub projection: Option<HalfI32>,
     #[serde(default)]
     pub l_parity: OrbitalParity,

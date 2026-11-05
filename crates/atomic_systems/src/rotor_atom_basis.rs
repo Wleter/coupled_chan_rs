@@ -79,7 +79,7 @@ pub struct TRAMRotorAtomBasisRecipe {
     pub tram: TRAMRecipe,
 
     #[serde(default)]
-    #[schemars(with = "crate::HalfI32Scheme")]
+    #[schemars(with = "Option<crate::HalfI32Scheme>")]
     pub projection: Option<HalfI32>,
     #[serde(default)]
     pub l_parity: OrbitalParity,
