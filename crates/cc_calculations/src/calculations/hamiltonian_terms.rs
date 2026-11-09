@@ -94,7 +94,7 @@ impl<P: Problem> SingleCalc for HamiltonianTermsCalc<P> {
         } else {
             let mut terms = HashMap::with_capacity(modified.system.potentials.vec.len());
 
-            for name in modified.system.potentials.map.keys() {
+            for name in modified.system.operators.map.keys() {
                 let operator = &modified.system.operators[name.as_ref()];
                 let matrix = mat_as_nested_vec(operator.1.as_matrix().as_ref());
                 let coupling = operator.0;
