@@ -63,8 +63,10 @@ impl TRAMBasis {
                         }
                     }
                 }
+                let n_tot_min = l.abs_diff(n);
+                let n_tot_max = l + n;
                 let b: Vec<SpinPairMag<u32, u32>> =
-                    (0..=recipe.n_tot_max).map(|n_tot| spin!((n, l), n_tot.into())).collect();
+                    (n_tot_min..=n_tot_max).map(|n_tot| spin!((n, l), n_tot.into())).collect();
 
                 basis.extend(get_spin_pair_basis(b))
             }
