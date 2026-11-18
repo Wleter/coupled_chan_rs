@@ -136,6 +136,7 @@ where
                         .map(|x| x.prep_modify(&mut modified))
                         .collect();
 
+                    // sort by BasisChange first
                     prep.sort_by(|a, b| match (a, b) {
                         (ModificationAction::BasisChange, _) => std::cmp::Ordering::Less,
                         (_, ModificationAction::BasisChange) => std::cmp::Ordering::Greater,
@@ -149,12 +150,20 @@ where
                         if matches!(p, ModificationAction::BasisChange) {
                             last_basis_change = true
                         } else if last_basis_change {
+                            // if last modification was basis change, update the system before other changes
                             let spec = Self::P::build(modified.basis, modified.params);
-                            *modified.system = System::new(spec, modified.system.param_registry().to_owned())
+                            *modified.system = System::new(spec, modified.system.param_registry().to_owned());
+
+                            last_basis_change = false
                         }
                         if let ModificationAction::ParamModify(modify) = p {
                             modified.system.modify_params(modify);
                         }
+                    }
+                    // if basis change was the last change also update system
+                    if last_basis_change {
+                        let spec = Self::P::build(modified.basis, modified.params);
+                        *modified.system = System::new(spec, modified.system.param_registry().to_owned());
                     }
 
                     let mut result = Ok(());
