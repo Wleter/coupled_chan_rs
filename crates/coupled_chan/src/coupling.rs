@@ -363,11 +363,14 @@ pub struct CollisionWMatrix<P: RCoupling> {
 
 impl<P: RCoupling> CollisionWMatrix<P> {
     pub fn new(coupling: P, asymptote: Asymptote) -> Self {
-        assert_eq!(
-            coupling.size(),
-            asymptote.asymptote_channels.nrows(),
-            "mismatched sizes between coupling and asymptote"
-        );
+        // coupling with 0 size means there is no coupling
+        if coupling.size() != 0 {
+            assert_eq!(
+                coupling.size(),
+                asymptote.asymptote_channels.nrows(),
+                "mismatched sizes between coupling and asymptote"
+            );
+        }
 
         Self {
             id: Matrix::identity(coupling.size(), coupling.size()),

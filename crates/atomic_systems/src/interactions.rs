@@ -227,6 +227,10 @@ pub enum Interactions {
     Composite(Vec<Interactions>),
 }
 
+pub fn null_interactions() -> Interactions {
+    Interactions::Null
+}
+
 impl Interactions {
     pub fn interactions(&self) -> DynInteraction {
         match self {
@@ -312,12 +316,12 @@ impl Interactions {
             }
             Interactions::Analytic(analytic) => {
                 assert_eq!(
-                    scaling.long_range,
+                    scaling.short_range,
                     ScalingValue::one(),
                     "Analytic interaction does not support short range scaling"
                 );
                 assert_eq!(
-                    scaling.short_range,
+                    scaling.long_range,
                     ScalingValue::one(),
                     "Analytic interaction does not support long range scaling"
                 );
