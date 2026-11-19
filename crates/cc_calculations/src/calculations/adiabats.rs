@@ -46,6 +46,7 @@ impl<P> AdiabatsCalc<P> {
 #[schemars(deny_unknown_fields)]
 pub struct AdiabatsInput {
     pub distance: Scalar<Length>,
+    pub entrance: Option<usize>,
 }
 
 pub fn adiabats_calc_mods<P: Problem + 'static>() -> ModifyRegistry<P, AdiabatsInput> {
@@ -72,10 +73,16 @@ impl<P: Problem> SingleCalc for AdiabatsCalc<P> {
         let collision_params = CollisionParams {
             mass,
             energy: 0.0,
-            entrance: 0,
+            entrance: if let Some(entrance) = modified.calc_input.entrance {
+                entrance
+            } else {
+                0
+            },
         };
         let mut asymptote = Asymptote::new_angular_blocks(blocks, collision_params);
-        asymptote.energy = 0.0;
+        if modified.calc_input.entrance.is_none() {
+            asymptote.energy = 0.0;
+        }
 
         let w_matrix = CollisionWMatrix::new(modified.system.coupling(), asymptote);
 
