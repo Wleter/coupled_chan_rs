@@ -285,19 +285,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cc_molecule_molecule"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "cc_calculations",
- "cc_math_utils",
- "cc_problems",
- "cc_system",
- "schemars",
- "serde",
-]
-
-[[package]]
 name = "cc_problems"
 version = "0.1.0"
 dependencies = [
@@ -464,7 +451,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cc_calculations",
- "cc_molecule_molecule",
  "cc_problems",
  "clap",
  "clebsch-gordan",
