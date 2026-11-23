@@ -21,6 +21,6 @@ indicatif = {version = "0.18", features = ["rayon"]}
 serde = { workspace = true }
 serde_json = { workspace = true }
 schemars = { workspace = true }
-jsonschema = "0.60"
+jsonschema = { version = "0.63", default-features = false, features = ["resolve-file"]}
 
 cc_math_utils = { path = "../cc_math_utils" }
