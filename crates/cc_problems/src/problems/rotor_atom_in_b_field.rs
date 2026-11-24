@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use atomic_systems::tram_basis::TotalRotationRecipe;
 use cc_system::hamiltonian_spec::{
     DynOperatorSpec,
     DynPotentialSpec,
@@ -159,11 +160,16 @@ where
         ),
         (
             "l_max",
-            modify_recipe!(|l_max| NumberCalcMod::new(l_max, |r: &mut P::BasisRecipe, l| r.tram.l_max = l)),
+            modify_recipe!(|l_max| NumberCalcMod::new(l_max, |r: &mut P::BasisRecipe, l| r.tram.l_max = Some(l))),
         ),
         (
-            "n_tot_max",
-            modify_recipe!(|n_max| NumberCalcMod::new(n_max, |r: &mut P::BasisRecipe, n| r.tram.n_tot_max = n)),
+            "n_tot",
+            modify_recipe!(|n_tot| NumberCalcMod::new(n_tot, |r: &mut P::BasisRecipe, n| match &mut r.tram.n_tot {
+                TotalRotationRecipe::Single(n_tot) => *n_tot = n,
+                TotalRotationRecipe::SingleWithProjection(n_tot, _) => *n_tot = n,
+                TotalRotationRecipe::UpTo(n_tot) => *n_tot = n,
+                TotalRotationRecipe::UpToAllProjections(n_tot) => *n_tot = n,
+            })),
         ),
     ])
 }
