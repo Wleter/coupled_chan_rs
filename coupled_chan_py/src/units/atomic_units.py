@@ -55,8 +55,8 @@ u = Unit(Mass, 1.660_539_068_92e-27)
 
 nm = Unit(Length, 1e-9)
 pm = Unit(Length, 1e-12)
-bohr = 5.291_772_105_44e-11
-Angstrom = 1e-10
+bohr = Unit(Length, 5.291_772_105_44e-11)
+Angstrom = Unit(Length, 1e-10)
 
 Gauss = Unit(MagneticField, 1e-4)
 Tesla = Unit(MagneticField, 1.0)
